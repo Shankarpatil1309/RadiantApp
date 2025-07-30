@@ -25,6 +25,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   late Animation<double> _logoScaleAnimation;
   
   bool _isNavigating = false;
+  String _selectedRole = 'STUDENT'; // Default role selection
 
   @override
   void initState() {
@@ -115,8 +116,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     // Haptic feedback
     HapticFeedback.lightImpact();
 
-    // Trigger sign in
-    ref.read(authControllerProvider.notifier).signInWithGoogle();
+    // Trigger sign in with selected role
+    ref.read(authControllerProvider.notifier).signInWithGoogle(_selectedRole);
   }
 
   void _navigateToRoleDashboard(BuildContext context, String role) {
@@ -133,7 +134,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         route = '/admin-dashboard';
         break;
       default:
-        route = '/student-dashboard'; // Default to student dashboard
+        route = '/no-access-screen'; // Default to no access screen for unknown roles
     }
 
     // Stop all animations before navigation
@@ -166,7 +167,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       
       next.when(
         data: (user) async {
-          if (user != null && !_isNavigating) {
+          // Only navigate if user is authenticated AND previous state was loading
+          // This ensures we only navigate on successful authentication, not on auth state changes
+          if (user != null && !_isNavigating && previous?.isLoading == true) {
             _isNavigating = true;
             // User successfully signed in, navigate to appropriate dashboard
             final String? userRole = await ref.read(authControllerProvider.notifier).getUserRole();
@@ -177,7 +180,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         },
         loading: () {},
         error: (error, stack) {
-          // Error is already handled by the UI state
+          // Reset navigation flag on error so user can retry
+          _isNavigating = false;
         },
       );
     });
@@ -293,6 +297,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   ),
 
                   SizedBox(height: 6.h),
+
+                  // Animated Role Selection
+                  FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: SlideTransition(
+                      position: _slideAnimation,
+                      child: _buildRoleSelection(theme),
+                    ),
+                  ),
+
+                  SizedBox(height: 4.h),
 
                   // Animated Google Sign In Button
                   FadeTransition(
@@ -534,6 +549,92 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildRoleSelection(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Select your role',
+          style: GoogleFonts.inter(
+            fontSize: 16.sp,
+            fontWeight: FontWeight.w600,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+        SizedBox(height: 2.h),
+        Container(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: theme.colorScheme.outline.withValues(alpha: 0.3),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              _buildRoleOption('STUDENT', 'Student', Icons.school, theme),
+              Divider(height: 1, color: theme.colorScheme.outline.withValues(alpha: 0.2)),
+              _buildRoleOption('FACULTY', 'Faculty', Icons.person_outline, theme),
+              Divider(height: 1, color: theme.colorScheme.outline.withValues(alpha: 0.2)),
+              _buildRoleOption('ADMIN', 'Administrator', Icons.admin_panel_settings, theme),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRoleOption(String value, String label, IconData icon, ThemeData theme) {
+    final isSelected = _selectedRole == value;
+    
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _selectedRole = value;
+          });
+          HapticFeedback.selectionClick();
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: isSelected 
+                    ? theme.colorScheme.primary 
+                    : theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                size: 24,
+              ),
+              SizedBox(width: 3.w),
+              Expanded(
+                child: Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    fontSize: 15.sp,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    color: isSelected 
+                        ? theme.colorScheme.primary 
+                        : theme.colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              if (isSelected)
+                Icon(
+                  Icons.check_circle,
+                  color: theme.colorScheme.primary,
+                  size: 20,
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

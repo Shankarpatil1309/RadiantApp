@@ -30,10 +30,10 @@ class AuthController extends _$AuthController {
   }
 
   /// 🔹 Sign in with Google
-  Future<void> signInWithGoogle() async {
+  Future<void> signInWithGoogle(String selectedRole) async {
     state = const AsyncValue.loading();
     try {
-      await ref.read(authServiceProvider).signInWithGoogle();
+      await ref.read(authServiceProvider).signInWithGoogle(selectedRole);
       // ✅ state will update via authStateChanges listener
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -48,18 +48,18 @@ class AuthController extends _$AuthController {
     await box.clear();
   }
 
-  /// 🔹 Cache user locally for offline awareness
+  /// 🔹 Cache user locally for offline awareness - only essential fields
   Future<void> _cacheUser(User user) async {
     final box = await Hive.openBox('auth_cache');
     await box.put('uid', user.uid);
     await box.put('email', user.email);
-    await box.put('name', user.displayName);
-    await box.put('photo', user.photoURL);
 
-    // ✅ Fetch role from Firestore
+    // ✅ Fetch role from optimized Firestore users collection
     final userDoc = await _firestore.collection('users').doc(user.uid).get();
     if (userDoc.exists) {
-      await box.put('role', userDoc.data()?['role'] ?? 'STUDENT');
+      final userData = userDoc.data();
+      await box.put('role', userData?['role'] ?? 'STUDENT');
+      await box.put('isActive', userData?['isActive'] ?? true);
     }
   }
 

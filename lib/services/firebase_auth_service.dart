@@ -17,8 +17,8 @@ class FirebaseAuthService {
     }
   }
 
-  /// 🔹 Google Sign-In + Firestore user creation/update
-  Future<User?> signInWithGoogle() async {
+  /// 🔹 Google Sign-In + Role-based access validation
+  Future<User?> signInWithGoogle(String selectedRole) async {
     try {
       // ⚙️ Ensure GoogleSignIn is initialized
       await initialize();
@@ -32,33 +32,39 @@ class FirebaseAuthService {
         return null;
       }
 
-      // 2. Obtain the auth details from the request
-      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+      // 2. Validate email domain BEFORE Firebase sign-in
+      if (!_isValidCollegeEmail(googleUser.email)) {
+        // Sign out from Google if email domain is invalid
+        await _signIn.signOut();
+        throw Exception(
+            'Please use your B.K.I.T college email address to sign in.');
+      }
 
-      // 3. Create a new credential
+      // 3. Validate user exists in selected role collection BEFORE Firebase sign-in
+      await _validateUserRoleAccessByEmail(googleUser.email!, selectedRole);
+
+      // 4. Obtain the auth details from the request
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      // 5. Create a new credential
       final credential = GoogleAuthProvider.credential(
         idToken: googleAuth.idToken,
       );
 
-      // 4. Sign in with Firebase
+      // 6. Sign in with Firebase ONLY after validation passes
       final userCredential = await _auth.signInWithCredential(credential);
       final user = userCredential.user;
 
       if (user != null) {
-        // 5. Validate email domain for B.K.I.T college
-        if (!_isValidCollegeEmail(user.email)) {
-          // Sign out the user if email domain is invalid
-          await signOut();
-          throw Exception(
-              'Please use your B.K.I.T college email address to sign in.');
-        }
-
-        await _createOrUpdateUserDocument(user);
-        print('✅ Google Sign-In successful: ${user.email}');
+        // 7. Cache user data after successful authentication
+        await _createOrUpdateUserCache(user, selectedRole);
+        print('✅ Google Sign-In successful: ${user.email} as ${selectedRole}');
       }
       return user;
     } catch (e, st) {
       print('❌ Google Sign-In error: $e\n$st');
+      // Ensure cleanup on any error
+      await _signIn.signOut();
       rethrow; // Re-throw to let the UI handle the error
     }
   }
@@ -107,27 +113,148 @@ class FirebaseAuthService {
     return false;
   }
 
-  Future<void> _createOrUpdateUserDocument(User user) async {
+  /// Validates if user exists in the selected role collection by email (before Firebase sign-in)
+  Future<void> _validateUserRoleAccessByEmail(String email, String selectedRole) async {
     try {
-      final userRef = _firestore.collection('users').doc(user.uid);
-      final doc = await userRef.get();
+      final emailLower = email.toLowerCase();
+      bool hasAccess = false;
 
-      if (doc.exists) {
-        await userRef.update({'updatedAt': FieldValue.serverTimestamp()});
-      } else {
-        await userRef.set({
-          'id': user.uid,
-          'email': user.email,
-          'name': user.displayName,
-          'mobile': '',
-          'role': 'STUDENT',
-          'imageUrl': user.photoURL,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+      switch (selectedRole.toUpperCase()) {
+        case 'ADMIN':
+          hasAccess = await _checkAdminAccess(emailLower);
+          break;
+        case 'FACULTY':
+          hasAccess = await _checkFacultyAccess(emailLower);
+          break;
+        case 'STUDENT':
+          hasAccess = await _checkStudentAccess(emailLower);
+          break;
+        default:
+          throw Exception('Invalid role selected');
+      }
+
+      if (!hasAccess) {
+        throw Exception(
+          'You don\'t have access to the app as ${selectedRole}.\n'
+          'Please contact the college administration if this is an error.\n\n'
+          'Email: admin@bkit.edu.in\n'
+          'Phone: +91 80-12345678'
+        );
       }
     } catch (e) {
-      print('⚠️ Firestore write error: $e');
+      print('❌ Role validation error: $e');
+      rethrow;
+    }
+  }
+
+  /// Validates if user exists in the selected role collection and has access (legacy method - kept for compatibility)
+  Future<void> _validateUserRoleAccess(User user, String selectedRole) async {
+    try {
+      final email = user.email?.toLowerCase();
+      if (email == null) {
+        throw Exception('Email not found in user profile');
+      }
+
+      await _validateUserRoleAccessByEmail(email, selectedRole);
+
+      // Update or create user document in 'users' collection for caching
+      await _createOrUpdateUserCache(user, selectedRole);
+      
+    } catch (e) {
+      print('❌ Role validation error: $e');
+      rethrow;
+    }
+  }
+
+  /// Check if user has admin access
+  Future<bool> _checkAdminAccess(String email) async {
+    try {
+      // First check allowedAdmins collection
+      final allowedAdminsDoc = await _firestore
+          .collection('allowedAdmins')
+          .doc('admins')
+          .get();
+      
+      if (allowedAdminsDoc.exists) {
+        final List<dynamic> allowedEmails = allowedAdminsDoc.data()?['emails'] ?? [];
+        if (allowedEmails.contains(email)) {
+          return true;
+        }
+      }
+
+      // Fallback: check if admin exists in 'users' collection with ADMIN role
+      final adminQuery = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .where('role', isEqualTo: 'ADMIN')
+          .where('isActive', isEqualTo: true)
+          .get();
+
+      return adminQuery.docs.isNotEmpty;
+    } catch (e) {
+      print('⚠️ Admin access check error: $e');
+      return false;
+    }
+  }
+
+  /// Check if user exists in faculty collection
+  Future<bool> _checkFacultyAccess(String email) async {
+    try {
+      final facultyQuery = await _firestore
+          .collection('faculty')
+          .where('email', isEqualTo: email)
+          .where('isActive', isEqualTo: true)
+          .get();
+
+      return facultyQuery.docs.isNotEmpty;
+    } catch (e) {
+      print('⚠️ Faculty access check error: $e');
+      return false;
+    }
+  }
+
+  /// Check if user exists in students collection
+  Future<bool> _checkStudentAccess(String email) async {
+    try {
+      final studentQuery = await _firestore
+          .collection('students')
+          .where('email', isEqualTo: email)
+          .where('isActive', isEqualTo: true)
+          .get();
+
+      return studentQuery.docs.isNotEmpty;
+    } catch (e) {
+      print('⚠️ Student access check error: $e');
+      return false;
+    }
+  }
+
+  /// Create or update user cache document with essential fields only
+  Future<void> _createOrUpdateUserCache(User user, String role) async {
+    try {
+      final userRef = _firestore.collection('users').doc(user.uid);
+      
+      // Only store essential fields for lookup/cache purposes
+      final userData = {
+        'uid': user.uid,
+        'email': user.email,
+        'role': role,
+        'lastLoginAt': FieldValue.serverTimestamp(),
+        'isActive': true,
+      };
+
+      // Check if document exists
+      final doc = await userRef.get();
+      if (doc.exists) {
+        // Update existing document with essential fields only
+        await userRef.update(userData);
+      } else {
+        // Create new document with creation timestamp
+        userData['createdAt'] = FieldValue.serverTimestamp();
+        await userRef.set(userData);
+      }
+    } catch (e) {
+      print('⚠️ User cache update error: $e');
     }
   }
 

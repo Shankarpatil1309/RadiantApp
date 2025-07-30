@@ -24,7 +24,7 @@ final authServiceProvider = AutoDisposeProvider<FirebaseAuthService>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef AuthServiceRef = AutoDisposeProviderRef<FirebaseAuthService>;
-String _$authControllerHash() => r'd01e5eb5e24f2da12ce595eceefd6dda08765d06';
+String _$authControllerHash() => r'20a7f9ce4ccf380e0a75166f6f8a2ea2d06ace63';
 
 /// ✅ AuthController using Riverpod code generation
 ///

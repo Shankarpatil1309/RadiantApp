@@ -11,6 +11,7 @@ import '../presentation/admin_dashboard/add_faculty_screen.dart';
 import '../presentation/student_dashboard/student_dashboard.dart';
 import '../presentation/attendance_screen/student_attendance_screen.dart';
 import '../presentation/attendance_screen/faculty_attendance_screen.dart';
+import '../presentation/no_access_screen/no_access_screen.dart';
 
 class AppRoutes {
   // TODO: Add your routes here
@@ -28,6 +29,7 @@ class AppRoutes {
   static const String facultyAttendanceScreen = '/faculty-attendance-screen';
   static const String addStudentScreen = '/add-student';
   static const String addFacultyScreen = '/add-faculty';
+  static const String noAccessScreen = '/no-access-screen';
 
   static Map<String, WidgetBuilder> routes = {
     initial: (context) => const SplashScreen(),
@@ -43,6 +45,7 @@ class AppRoutes {
     facultyAssignmentsScreen: (context) => FacultyAssignmentManagementScreen(),
     addStudentScreen: (context) => AddStudentScreen(),
     addFacultyScreen: (context) => AddFacultyScreen(),
+    noAccessScreen: (context) => const NoAccessScreen(),
 
     // TODO: Add your other routes here
   };
