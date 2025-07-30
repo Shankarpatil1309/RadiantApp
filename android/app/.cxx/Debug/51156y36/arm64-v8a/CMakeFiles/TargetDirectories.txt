@@ -1,0 +1,2 @@
+/Users/umesh.patil/Desktop/projects/bkit_college_app/android/app/.cxx/Debug/51156y36/arm64-v8a/CMakeFiles/edit_cache.dir
+/Users/umesh.patil/Desktop/projects/bkit_college_app/android/app/.cxx/Debug/51156y36/arm64-v8a/CMakeFiles/rebuild_cache.dir

@@ -1,0 +1,21 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "radiant-c7196",
+          "appId": "1:41878494840:android:cc1194a262ac4b13c3d78d",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "radiant-c7196",
+          "configurations": {
+            "android": "1:41878494840:android:cc1194a262ac4b13c3d78d"
+          }
+        }
+      }
+    }
+  }
+}

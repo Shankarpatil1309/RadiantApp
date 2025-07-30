@@ -1,0 +1,20 @@
+{
+  "buildFiles": [
+    "/Users/umesh.patil/development/flutter_latest/packages/flutter_tools/gradle/src/main/groovy/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/umesh.patil/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/Users/umesh.patil/Desktop/projects/radiant_app/android/app/.cxx/Debug/73q56205/armeabi-v7a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/umesh.patil/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/Users/umesh.patil/Desktop/projects/radiant_app/android/app/.cxx/Debug/73q56205/armeabi-v7a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {}
+}

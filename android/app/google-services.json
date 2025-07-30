@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "41878494840",
+    "project_id": "radiant-c7196",
+    "storage_bucket": "radiant-c7196.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:41878494840:android:cc1194a262ac4b13c3d78d",
+        "android_client_info": {
+          "package_name": "com.bkit_college_app.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDsWtOcTKzZy8wMgFewo1JKPvG8XoPFQ7o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
