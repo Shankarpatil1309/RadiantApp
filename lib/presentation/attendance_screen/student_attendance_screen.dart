@@ -1,26 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
 import './widgets/attendance_calendar_widget.dart';
 import './widgets/attendance_filter_widget.dart';
 import './widgets/attendance_stats_widget.dart';
-import './widgets/student_attendance_list_widget.dart';
 
-class AttendanceScreen extends StatefulWidget {
-  const AttendanceScreen({Key? key}) : super(key: key);
+class StudentAttendanceScreen extends ConsumerStatefulWidget {
+  const StudentAttendanceScreen({Key? key}) : super(key: key);
 
   @override
-  State<AttendanceScreen> createState() => _AttendanceScreenState();
+  ConsumerState<StudentAttendanceScreen> createState() => _StudentAttendanceScreenState();
 }
 
-class _AttendanceScreenState extends State<AttendanceScreen>
+class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
-  String userRole =
-      'student'; // Mock user role - can be 'student', 'faculty', or 'admin'
   DateTime selectedMonth = DateTime.now();
-  bool isMarkingMode = false;
   bool isLoading = false;
   Map<String, dynamic> currentFilters = {
     'subject': 'All Subjects',
@@ -66,34 +63,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     ],
   };
 
-  // Mock data for faculty attendance
-  final Map<String, dynamic> mockFacultyAttendanceData = {
-    "todayClasses": [
-      {
-        "className": "CSE-A Mathematics",
-        "time": "09:00 AM - 10:00 AM",
-        "isCompleted": true,
-        "studentsPresent": 45,
-        "totalStudents": 50,
-      },
-      {
-        "className": "CSE-B Physics",
-        "time": "11:00 AM - 12:00 PM",
-        "isCompleted": false,
-        "studentsPresent": 0,
-        "totalStudents": 48,
-      },
-      {
-        "className": "CSE-C Chemistry",
-        "time": "02:00 PM - 03:00 PM",
-        "isCompleted": false,
-        "studentsPresent": 0,
-        "totalStudents": 52,
-      },
-    ],
-    "pendingSessions": 2,
-  };
-
   // Mock calendar data
   final Map<String, dynamic> mockCalendarData = {
     "attendanceRecords": [
@@ -130,81 +99,10 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     ],
   };
 
-  // Mock student list for faculty
-  final List<Map<String, dynamic>> mockStudentList = [
-    {
-      "id": "1",
-      "name": "Aarav Sharma",
-      "usn": "1BK21CS001",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": true,
-    },
-    {
-      "id": "2",
-      "name": "Priya Patel",
-      "usn": "1BK21CS002",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": false,
-    },
-    {
-      "id": "3",
-      "name": "Rohit Kumar",
-      "usn": "1BK21CS003",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": true,
-    },
-    {
-      "id": "4",
-      "name": "Sneha Reddy",
-      "usn": "1BK21CS004",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": true,
-    },
-    {
-      "id": "5",
-      "name": "Arjun Singh",
-      "usn": "1BK21CS005",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": false,
-    },
-    {
-      "id": "6",
-      "name": "Kavya Nair",
-      "usn": "1BK21CS006",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": true,
-    },
-    {
-      "id": "7",
-      "name": "Vikram Joshi",
-      "usn": "1BK21CS007",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": false,
-    },
-    {
-      "id": "8",
-      "name": "Ananya Gupta",
-      "usn": "1BK21CS008",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": true,
-    },
-  ];
-
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(
-      length: userRole == 'student' ? 3 : 2,
-      vsync: this,
-    );
+    _tabController = TabController(length: 3, vsync: this);
     _loadAttendanceData();
   }
 
@@ -223,7 +121,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         onRefresh: _refreshData,
         child: Column(
           children: [
-            if (userRole == 'student') _buildMonthSelector(),
+            _buildMonthSelector(),
             _buildTabBar(),
             Expanded(
               child: TabBarView(
@@ -234,8 +132,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           ],
         ),
       ),
-      floatingActionButton:
-          userRole == 'faculty' ? _buildFloatingActionButton() : null,
       bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
@@ -243,9 +139,10 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       title: Text(
-        'Attendance',
+        'My Attendance',
         style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
-          color: AppTheme.getRoleColor(userRole),
+          color: AppTheme.getRoleColor('student'),
+          fontWeight: FontWeight.w600,
         ),
       ),
       backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
@@ -259,17 +156,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         ),
       ),
       actions: [
-        if (userRole == 'faculty' && isMarkingMode)
-          TextButton(
-            onPressed: _saveAttendance,
-            child: Text(
-              'Save',
-              style: TextStyle(
-                color: AppTheme.getRoleColor('faculty'),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
         IconButton(
           onPressed: _showFilterOptions,
           icon: CustomIconWidget(
@@ -309,36 +195,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                 ],
               ),
             ),
-            if (userRole == 'student')
-              PopupMenuItem(
-                value: 'switch_role',
-                child: Row(
-                  children: [
-                    CustomIconWidget(
-                      iconName: 'swap_horiz',
-                      color: AppTheme.lightTheme.colorScheme.onSurface,
-                      size: 20,
-                    ),
-                    SizedBox(width: 2.w),
-                    const Text('Switch to Faculty'),
-                  ],
-                ),
-              ),
-            if (userRole == 'faculty')
-              PopupMenuItem(
-                value: 'switch_role',
-                child: Row(
-                  children: [
-                    CustomIconWidget(
-                      iconName: 'swap_horiz',
-                      color: AppTheme.lightTheme.colorScheme.onSurface,
-                      size: 20,
-                    ),
-                    SizedBox(width: 2.w),
-                    const Text('Switch to Student'),
-                  ],
-                ),
-              ),
           ],
         ),
       ],
@@ -388,81 +244,49 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   }
 
   Widget _buildTabBar() {
-    List<Tab> tabs = [];
-
-    if (userRole == 'student') {
-      tabs = [
-        Tab(
-          icon: CustomIconWidget(
-            iconName: 'analytics',
-            color: AppTheme.lightTheme.colorScheme.onSurface,
-            size: 20,
-          ),
-          text: 'Overview',
-        ),
-        Tab(
-          icon: CustomIconWidget(
-            iconName: 'calendar_today',
-            color: AppTheme.lightTheme.colorScheme.onSurface,
-            size: 20,
-          ),
-          text: 'Calendar',
-        ),
-        Tab(
-          icon: CustomIconWidget(
-            iconName: 'filter_list',
-            color: AppTheme.lightTheme.colorScheme.onSurface,
-            size: 20,
-          ),
-          text: 'Filter',
-        ),
-      ];
-    } else {
-      tabs = [
-        Tab(
-          icon: CustomIconWidget(
-            iconName: 'people',
-            color: AppTheme.lightTheme.colorScheme.onSurface,
-            size: 20,
-          ),
-          text: 'Students',
-        ),
-        Tab(
-          icon: CustomIconWidget(
-            iconName: 'analytics',
-            color: AppTheme.lightTheme.colorScheme.onSurface,
-            size: 20,
-          ),
-          text: 'Overview',
-        ),
-      ];
-    }
-
     return Container(
       color: AppTheme.lightTheme.scaffoldBackgroundColor,
       child: TabBar(
         controller: _tabController,
-        tabs: tabs,
-        indicatorColor: AppTheme.getRoleColor(userRole),
-        labelColor: AppTheme.getRoleColor(userRole),
+        tabs: [
+          Tab(
+            icon: CustomIconWidget(
+              iconName: 'analytics',
+              color: AppTheme.lightTheme.colorScheme.onSurface,
+              size: 20,
+            ),
+            text: 'Overview',
+          ),
+          Tab(
+            icon: CustomIconWidget(
+              iconName: 'calendar_today',
+              color: AppTheme.lightTheme.colorScheme.onSurface,
+              size: 20,
+            ),
+            text: 'Calendar',
+          ),
+          Tab(
+            icon: CustomIconWidget(
+              iconName: 'filter_list',
+              color: AppTheme.lightTheme.colorScheme.onSurface,
+              size: 20,
+            ),
+            text: 'Filter',
+          ),
+        ],
+        indicatorColor: AppTheme.getRoleColor('student'),
+        labelColor: AppTheme.getRoleColor('student'),
         unselectedLabelColor: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
       ),
     );
   }
 
   List<Widget> _buildTabViews() {
-    if (userRole == 'student') {
-      return [
-        _buildOverviewTab(),
-        _buildCalendarTab(),
-        _buildFilterTab(),
-      ];
-    } else {
-      return [
-        _buildStudentListTab(),
-        _buildOverviewTab(),
-      ];
-    }
+    return [
+      _buildOverviewTab(),
+      _buildCalendarTab(),
+      _buildFilterTab(),
+    ];
   }
 
   Widget _buildOverviewTab() {
@@ -470,12 +294,11 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       child: Column(
         children: [
           AttendanceStatsWidget(
-            attendanceData: userRole == 'student'
-                ? mockStudentAttendanceData
-                : mockFacultyAttendanceData,
-            userRole: userRole,
+            attendanceData: mockStudentAttendanceData,
+            userRole: 'student',
           ),
-          if (userRole == 'student') _buildAttendanceTrends(),
+          _buildAttendanceTrends(),
+          _buildAttendanceInsights(),
           SizedBox(height: 10.h),
         ],
       ),
@@ -503,21 +326,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           AttendanceFilterWidget(
             onFilterChanged: _onFilterChanged,
             currentFilters: currentFilters,
-          ),
-          SizedBox(height: 10.h),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStudentListTab() {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          StudentAttendanceListWidget(
-            students: mockStudentList,
-            onAttendanceToggle: _onAttendanceToggle,
-            isMarkingMode: isMarkingMode,
           ),
           SizedBox(height: 10.h),
         ],
@@ -574,20 +382,88 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     );
   }
 
-  Widget? _buildFloatingActionButton() {
-    if (userRole != 'faculty') return null;
-
-    return FloatingActionButton.extended(
-      onPressed: _startAttendanceSession,
-      backgroundColor: AppTheme.getRoleColor('faculty'),
-      icon: CustomIconWidget(
-        iconName: isMarkingMode ? 'save' : 'add',
-        color: Colors.white,
-        size: 24,
+  Widget _buildAttendanceInsights() {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+      padding: EdgeInsets.all(4.w),
+      decoration: BoxDecoration(
+        color: AppTheme.lightTheme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      label: Text(
-        isMarkingMode ? 'Save Attendance' : 'Mark Attendance',
-        style: const TextStyle(color: Colors.white),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CustomIconWidget(
+                iconName: 'lightbulb',
+                color: AppTheme.getStatusColor('warning'),
+                size: 24,
+              ),
+              SizedBox(width: 3.w),
+              Text(
+                'Attendance Insights',
+                style: AppTheme.lightTheme.textTheme.titleMedium,
+              ),
+            ],
+          ),
+          SizedBox(height: 2.h),
+          _buildInsightItem(
+            'Your attendance in Chemistry is below 85%',
+            'Consider attending next few classes to improve',
+            Icons.warning_amber_rounded,
+            AppTheme.getStatusColor('warning'),
+          ),
+          SizedBox(height: 1.h),
+          _buildInsightItem(
+            'Great job maintaining 90%+ in Computer Science!',
+            'Keep up the excellent attendance record',
+            Icons.celebration,
+            AppTheme.getStatusColor('success'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInsightItem(String title, String subtitle, IconData icon, Color color) {
+    return Container(
+      padding: EdgeInsets.all(3.w),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          SizedBox(width: 3.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                    color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -605,7 +481,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           ),
           selectedIcon: CustomIconWidget(
             iconName: 'dashboard',
-            color: AppTheme.getRoleColor(userRole),
+            color: AppTheme.getRoleColor('student'),
             size: 24,
           ),
           label: 'Dashboard',
@@ -618,7 +494,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           ),
           selectedIcon: CustomIconWidget(
             iconName: 'schedule',
-            color: AppTheme.getRoleColor(userRole),
+            color: AppTheme.getRoleColor('student'),
             size: 24,
           ),
           label: 'Schedule',
@@ -626,12 +502,12 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         NavigationDestination(
           icon: CustomIconWidget(
             iconName: 'how_to_reg',
-            color: AppTheme.getRoleColor(userRole),
+            color: AppTheme.getRoleColor('student'),
             size: 24,
           ),
           selectedIcon: CustomIconWidget(
             iconName: 'how_to_reg',
-            color: AppTheme.getRoleColor(userRole),
+            color: AppTheme.getRoleColor('student'),
             size: 24,
           ),
           label: 'Attendance',
@@ -644,7 +520,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           ),
           selectedIcon: CustomIconWidget(
             iconName: 'assignment',
-            color: AppTheme.getRoleColor(userRole),
+            color: AppTheme.getRoleColor('student'),
             size: 24,
           ),
           label: 'Assignments',
@@ -656,23 +532,16 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   void _onBottomNavTap(int index) {
     switch (index) {
       case 0:
-        Navigator.pushReplacementNamed(
-          context,
-          userRole == 'student'
-              ? '/student-dashboard'
-              : userRole == 'faculty'
-                  ? '/faculty-dashboard'
-                  : '/admin-dashboard',
-        );
+        Navigator.pushNamed(context, '/student-dashboard');
         break;
       case 1:
-        Navigator.pushReplacementNamed(context, '/weekly-schedule-screen');
+        Navigator.pushNamed(context, '/weekly-schedule-screen');
         break;
       case 2:
         // Current screen
         break;
       case 3:
-        Navigator.pushReplacementNamed(context, '/student-assignments-screen');
+        Navigator.pushNamed(context, '/student-assignments-screen');
         break;
     }
   }
@@ -711,11 +580,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     );
   }
 
-  void _onAttendanceToggle(String studentId, bool isPresent) {
-    // Handle attendance toggle for faculty
-    print('Student $studentId marked as ${isPresent ? 'present' : 'absent'}');
-  }
-
   void _onFilterChanged(Map<String, dynamic> filters) {
     setState(() {
       currentFilters = filters;
@@ -723,46 +587,8 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     // Apply filters to data
   }
 
-  void _startAttendanceSession() {
-    if (isMarkingMode) {
-      _saveAttendance();
-    } else {
-      setState(() {
-        isMarkingMode = true;
-      });
-    }
-  }
-
-  void _saveAttendance() {
-    setState(() {
-      isMarkingMode = false;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Attendance saved successfully'),
-        backgroundColor: AppTheme.getStatusColor('success'),
-      ),
-    );
-  }
-
   void _showFilterOptions() {
-    if (userRole == 'student') {
-      _tabController.animateTo(2); // Switch to filter tab
-    } else {
-      // Show filter bottom sheet for faculty
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        builder: (context) => Container(
-          height: 70.h,
-          child: AttendanceFilterWidget(
-            onFilterChanged: _onFilterChanged,
-            currentFilters: currentFilters,
-          ),
-        ),
-      );
-    }
+    _tabController.animateTo(2); // Switch to filter tab
   }
 
   void _handleMenuSelection(String value) {
@@ -772,9 +598,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         break;
       case 'analytics':
         _showAnalytics();
-        break;
-      case 'switch_role':
-        _switchRole();
         break;
     }
   }
@@ -809,32 +632,10 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     );
   }
 
-  void _switchRole() {
-    setState(() {
-      userRole = userRole == 'student' ? 'faculty' : 'student';
-      _tabController.dispose();
-      _tabController = TabController(
-        length: userRole == 'student' ? 3 : 2,
-        vsync: this,
-      );
-      isMarkingMode = false;
-    });
-  }
-
   String _getMonthYearString(DateTime date) {
     final months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec'
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     return '${months[date.month - 1]} ${date.year}';
   }

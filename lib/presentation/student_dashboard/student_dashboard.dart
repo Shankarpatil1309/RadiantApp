@@ -1,26 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../controllers/auth_controller.dart';
 import './widgets/greeting_header_widget.dart';
 import './widgets/pending_assignments_card_widget.dart';
 import './widgets/quick_stats_card_widget.dart';
 import './widgets/recent_announcements_card_widget.dart';
 import './widgets/today_schedule_card_widget.dart';
 
-class StudentDashboard extends StatefulWidget {
+class StudentDashboard extends ConsumerStatefulWidget {
   const StudentDashboard({super.key});
 
   @override
-  State<StudentDashboard> createState() => _StudentDashboardState();
+  ConsumerState<StudentDashboard> createState() => _StudentDashboardState();
 }
 
-class _StudentDashboardState extends State<StudentDashboard>
+class _StudentDashboardState extends ConsumerState<StudentDashboard>
     with TickerProviderStateMixin {
   late TabController _tabController;
-  bool _isLoading = false;
   final String userRole = 'student';
+  int _selectedBottomNavIndex = 0;
 
   // Mock student data
   final Map<String, dynamic> studentData = {
@@ -221,19 +223,11 @@ class _StudentDashboardState extends State<StudentDashboard>
   }
 
   Future<void> _refreshDashboard() async {
-    setState(() {
-      _isLoading = true;
-    });
-
     // Simulate API call delay
     await Future.delayed(const Duration(seconds: 1));
 
     // Trigger haptic feedback
     HapticFeedback.lightImpact();
-
-    setState(() {
-      _isLoading = false;
-    });
   }
 
   void _onAnnouncementTap(Map<String, dynamic> announcement) {
@@ -461,54 +455,288 @@ class _StudentDashboardState extends State<StudentDashboard>
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: _buildDashboardTab(),
-      ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
-      floatingActionButton: _tabController.index == 0
-          ? FloatingActionButton.extended(
-              onPressed: () {
-                // Navigate to marksheet
-              },
-              icon: CustomIconWidget(
-                iconName: 'assessment',
-                color: Colors.white,
-                size: 24,
+  Future<bool> _showExitConfirmation() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(
+              'Exit App',
+              style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
               ),
-              label: Text(
-                'Marksheet',
-                style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
-                  color: Colors.white,
+            ),
+            content: Text(
+              'Are you sure you want to exit the app?',
+              style: AppTheme.lightTheme.textTheme.bodyMedium,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: Text('Exit'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  void _showProfileMenu() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: AppTheme.lightTheme.colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: EdgeInsets.only(top: 2.h),
+              decoration: BoxDecoration(
+                color: AppTheme.lightTheme.colorScheme.outline,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            SizedBox(height: 2.h),
+            ListTile(
+              leading: CircleAvatar(
+                backgroundImage: NetworkImage(
+                  studentData['profileImage'] as String,
+                ),
+                child: studentData['profileImage'] == null
+                    ? Text((studentData['name'] as String)
+                        .substring(0, 1)
+                        .toUpperCase())
+                    : null,
+              ),
+              title: Text(
+                studentData['name'] as String,
+                style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            )
-          : null,
+              subtitle: Text(
+                studentData['usn'] as String,
+                style: AppTheme.lightTheme.textTheme.bodySmall,
+              ),
+            ),
+            Divider(),
+            ListTile(
+              leading: CustomIconWidget(
+                iconName: 'person',
+                color: AppTheme.lightTheme.primaryColor,
+                size: 24,
+              ),
+              title: Text('Profile'),
+              onTap: () {
+                Navigator.pop(context);
+                _showComingSoon('Profile');
+              },
+            ),
+            ListTile(
+              leading: CustomIconWidget(
+                iconName: 'settings',
+                color: AppTheme.lightTheme.primaryColor,
+                size: 24,
+              ),
+              title: Text('Settings'),
+              onTap: () {
+                Navigator.pop(context);
+                _showComingSoon('Settings');
+              },
+            ),
+            ListTile(
+              leading: CustomIconWidget(
+                iconName: 'logout',
+                color: AppTheme.lightTheme.colorScheme.error,
+                size: 24,
+              ),
+              title: Text(
+                'Sign Out',
+                style: TextStyle(
+                  color: AppTheme.lightTheme.colorScheme.error,
+                ),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _showSignOutConfirmation();
+              },
+            ),
+            SizedBox(height: 2.h),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSignOutConfirmation() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Sign Out',
+          style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to sign out?',
+          style: AppTheme.lightTheme.textTheme.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              // Sign out using AuthController
+              await ref.read(authControllerProvider.notifier).signOut();
+              // Navigate to login screen
+              if (mounted) {
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/login-screen',
+                  (route) => false,
+                );
+              }
+            },
+            child: Text(
+              'Sign Out',
+              style: TextStyle(
+                color: AppTheme.lightTheme.colorScheme.error,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showComingSoon(String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$feature feature coming soon!'),
+        action: SnackBarAction(
+          label: 'OK',
+          onPressed: () {},
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+
+        // Handle back button - show exit confirmation
+        final shouldExit = await _showExitConfirmation();
+        if (shouldExit && mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'Student Dashboard',
+            style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          actions: [
+            IconButton(
+              onPressed: _showProfileMenu,
+              icon: CircleAvatar(
+                radius: 16,
+                backgroundImage: NetworkImage(
+                  studentData['profileImage'] as String,
+                ),
+                onBackgroundImageError: (exception, stackTrace) {
+                  // Fallback to initials
+                },
+                child: studentData['profileImage'] == null
+                    ? Text(
+                        (studentData['name'] as String)
+                            .substring(0, 1)
+                            .toUpperCase(),
+                        style:
+                            AppTheme.lightTheme.textTheme.labelMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      )
+                    : null,
+              ),
+            ),
+            SizedBox(width: 2.w),
+          ],
+        ),
+        body: SafeArea(
+          child: _buildDashboardTab(),
+        ),
+        bottomNavigationBar: _buildBottomNavigationBar(),
+        floatingActionButton: _selectedBottomNavIndex == 0
+            ? FloatingActionButton.extended(
+                onPressed: () {
+                  // Navigate to marksheet
+                  _showComingSoon('Marksheet');
+                },
+                icon: CustomIconWidget(
+                  iconName: 'assessment',
+                  color: Colors.white,
+                  size: 24,
+                ),
+                label: Text(
+                  'Marksheet',
+                  style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
+                    color: Colors.white,
+                  ),
+                ),
+              )
+            : null,
+      ),
     );
   }
 
   void _onBottomNavTap(int index) {
+    setState(() {
+      _selectedBottomNavIndex = index;
+    });
+
     switch (index) {
       case 0:
-        // Current screen
+        // Current screen - Dashboard
         break;
       case 1:
-        Navigator.pushReplacementNamed(context, '/weekly-schedule-screen');
+        // Navigate to schedule screen
+        Navigator.pushNamed(context, '/weekly-schedule-screen');
         break;
       case 2:
-        Navigator.pushReplacementNamed(context, '/student-attendance-screen');
+        // Navigate to attendance screen
+        Navigator.pushNamed(context, '/student-attendance-screen');
         break;
       case 3:
-        Navigator.pushReplacementNamed(context, '/assignments-screen');
+        // Navigate to assignments screen
+        Navigator.pushNamed(context, '/student-assignments-screen');
         break;
     }
   }
 
   Widget _buildBottomNavigationBar() {
     return NavigationBar(
-      selectedIndex: 0, // Attendance screen index
+      selectedIndex: _selectedBottomNavIndex,
       onDestinationSelected: _onBottomNavTap,
       destinations: [
         NavigationDestination(
@@ -540,7 +768,7 @@ class _StudentDashboardState extends State<StudentDashboard>
         NavigationDestination(
           icon: CustomIconWidget(
             iconName: 'how_to_reg',
-            color: AppTheme.getRoleColor(userRole),
+            color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
             size: 24,
           ),
           selectedIcon: CustomIconWidget(
@@ -603,7 +831,7 @@ class _StudentDashboardState extends State<StudentDashboard>
             PendingAssignmentsCardWidget(
               assignments: assignments,
               onViewAll: () {
-                Navigator.pushNamed(context, '/assignments-screen');
+                Navigator.pushNamed(context, '/student-assignments-screen');
               },
             ),
             // Quick Stats Card
@@ -611,7 +839,7 @@ class _StudentDashboardState extends State<StudentDashboard>
               attendancePercentage: 87.5,
               recentMarks: recentMarks,
               onAttendanceTap: () {
-                Navigator.pushNamed(context, '/attendance-screen');
+                Navigator.pushNamed(context, '/student-attendance-screen');
               },
               onMarksTap: () {
                 // Navigate to marks screen

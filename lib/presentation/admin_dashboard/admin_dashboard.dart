@@ -200,80 +200,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ),
         ),
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
-    );
-  }
-
-  Widget _buildBottomNavigationBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.lightTheme.scaffoldBackgroundColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: Offset(0, -2),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem('Dashboard', 'dashboard', true, () {}),
-              _buildNavItem('Students', 'school', false,
-                  () => _handleNavigation('/student-dashboard')),
-              _buildNavItem('Faculty', 'person', false,
-                  () => _handleNavigation('/faculty-dashboard')),
-              _buildNavItem('Schedule', 'schedule', false,
-                  () => _handleNavigation('/weekly-schedule-screen')),
-              _buildNavItem('More', 'menu', false,
-                  () => _scaffoldKey.currentState?.openDrawer()),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem(
-      String label, String iconName, bool isSelected, VoidCallback onTap) {
-    final color = isSelected
-        ? AppTheme.getRoleColor('admin')
-        : Colors.grey.withValues(alpha: 0.6);
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
-        decoration: isSelected
-            ? BoxDecoration(
-                color: AppTheme.getRoleColor('admin').withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20),
-              )
-            : null,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CustomIconWidget(
-              iconName: iconName,
-              color: color,
-              size: 24,
-            ),
-            SizedBox(height: 0.5.h),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 10.sp,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -395,11 +321,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
   void _handleNavigation(String route) {
     // Handle navigation based on route
     switch (route) {
-      case '/student-dashboard':
-      case '/faculty-dashboard':
-      case '/weekly-schedule-screen':
-      case '/assignments-screen':
-      case '/attendance-screen':
+      case "/add-student":
+      case '/add-faculty':
         Navigator.pushNamed(context, route);
         break;
       default:

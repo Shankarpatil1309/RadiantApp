@@ -156,10 +156,10 @@ class _FacultyDashboardState extends State<FacultyDashboard>
         backgroundColor: Colors.transparent,
         builder: (context) => FacultyBottomSheet(onMarkAttendance: () {
               Navigator.pop(context);
-              Navigator.pushNamed(context, '/attendance-screen');
+              Navigator.pushNamed(context, AppRoutes.facultyAttendanceScreen);
             }, onUploadAssignment: () {
               Navigator.pop(context);
-              Navigator.pushNamed(context, '/assignments-screen');
+              Navigator.pushNamed(context, AppRoutes.facultyAssignmentsScreen);
             }, onPostAnnouncement: () {
               Navigator.pop(context);
               _showAnnouncementDialog();
