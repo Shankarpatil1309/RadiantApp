@@ -12,10 +12,9 @@ class CollegeLogoWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 80.w,
-      height: 20.h,
       constraints: BoxConstraints(
         maxWidth: 300,
-        maxHeight: 200,
+        maxHeight: 220,
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

@@ -18,7 +18,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   late AnimationController _fadeController;
   late AnimationController _slideController;
   late AnimationController _scaleController;
-  
+
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _scaleAnimation;
@@ -27,18 +27,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   @override
   void initState() {
     super.initState();
-    
+
     // Initialize animation controllers
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    
+
     _slideController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
-    
+
     _scaleController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
@@ -84,10 +84,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   void _startAnimations() async {
     await Future.delayed(const Duration(milliseconds: 200));
     _scaleController.forward();
-    
+
     await Future.delayed(const Duration(milliseconds: 300));
     _fadeController.forward();
-    
+
     await Future.delayed(const Duration(milliseconds: 200));
     _slideController.forward();
   }
@@ -103,13 +103,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   void _onGoogleSignIn() async {
     // Haptic feedback
     HapticFeedback.lightImpact();
-    
+
     // Trigger sign in
     ref.read(authControllerProvider.notifier).signInWithGoogle();
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
     final theme = Theme.of(context);
 
@@ -177,7 +177,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             style: GoogleFonts.inter(
                               fontSize: 14.sp,
                               fontWeight: FontWeight.w400,
-                              color: theme.colorScheme.onSurface.withOpacity(0.7),
+                              color:
+                                  theme.colorScheme.onSurface.withOpacity(0.7),
                               height: 1.4,
                             ),
                           ),
@@ -206,7 +207,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           errorBuilder: (context, error, stackTrace) {
                             return Container(
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.primary.withOpacity(0.1),
+                                color:
+                                    theme.colorScheme.primary.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Icon(
@@ -228,7 +230,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     opacity: _fadeAnimation,
                     child: SlideTransition(
                       position: _slideAnimation,
-                      child: _buildGoogleSignInButton(context, authState, theme),
+                      child:
+                          _buildGoogleSignInButton(context, authState, theme),
                     ),
                   ),
 
@@ -260,7 +263,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
-  Widget _buildGoogleSignInButton(BuildContext context, dynamic authState, ThemeData theme) {
+  Widget _buildGoogleSignInButton(
+      BuildContext context, dynamic authState, ThemeData theme) {
     return Container(
       width: double.infinity,
       height: 6.h,

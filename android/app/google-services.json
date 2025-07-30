@@ -12,7 +12,12 @@
           "package_name": "com.bkit_college_app.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "41878494840-6tnp4jtdhksrf8qpql461rl8fp7ddnoo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDsWtOcTKzZy8wMgFewo1JKPvG8XoPFQ7o"
@@ -20,7 +25,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "41878494840-6tnp4jtdhksrf8qpql461rl8fp7ddnoo.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

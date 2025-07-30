@@ -5,14 +5,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class FirebaseAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  final GoogleSignIn _signIn = GoogleSignIn.instance;
 
   bool _initialized = false;
 
-  /// Initializes Google Sign-In (must be called before using authenticate())
+  /// Initializes Google Sign-In (no additional setup needed for modern versions)
   Future<void> initialize() async {
     if (!_initialized) {
-      await _googleSignIn.initialize();
+      await _signIn.initialize(); // Ensure GoogleSignIn is initialized
       _initialized = true;
     }
   }
@@ -23,29 +23,88 @@ class FirebaseAuthService {
       // ⚙️ Ensure GoogleSignIn is initialized
       await initialize();
 
-      // 1. Use new authenticate() flow
-      final account = await _googleSignIn.authenticate();
+      // 1. Trigger the authentication flow using the singleton instance
+      final GoogleSignInAccount? googleUser = await _signIn.authenticate();
 
-      // 2. Get auth event token (event object contains tokens)
-      final authEvent = account;
-      final googleAuth = authEvent as GoogleSignInAuthentication;
+      if (googleUser == null) {
+        // User canceled the sign-in
+        print('🚫 Google Sign-In canceled by user');
+        return null;
+      }
 
+      // 2. Obtain the auth details from the request
+      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+
+      // 3. Create a new credential
       final credential = GoogleAuthProvider.credential(
         idToken: googleAuth.idToken,
       );
 
-      // 3. Sign in with Firebase
+      // 4. Sign in with Firebase
       final userCredential = await _auth.signInWithCredential(credential);
       final user = userCredential.user;
 
       if (user != null) {
+        // 5. Validate email domain for B.K.I.T college
+        if (!_isValidCollegeEmail(user.email)) {
+          // Sign out the user if email domain is invalid
+          await signOut();
+          throw Exception(
+              'Please use your B.K.I.T college email address to sign in.');
+        }
+
         await _createOrUpdateUserDocument(user);
+        print('✅ Google Sign-In successful: ${user.email}');
       }
       return user;
     } catch (e, st) {
       print('❌ Google Sign-In error: $e\n$st');
-      return null;
+      rethrow; // Re-throw to let the UI handle the error
     }
+  }
+
+  /// Validates if the email belongs to B.K.I.T college domain
+  bool _isValidCollegeEmail(String? email) {
+    if (email == null) return false;
+
+    final emailLower = email.toLowerCase();
+
+    // College email domains
+    final collegeDomains = [
+      '@bkit.edu',
+      '@student.bkit.edu',
+      '@faculty.bkit.edu',
+      '@bkit.ac.in',
+    ];
+
+    // Testing emails for development
+    final testingEmails = [
+      'uapatil614@gmail.com',
+      // Add more testing emails here as needed
+    ];
+
+    // For development: Allow Gmail domain (remove in production)
+    final devDomains = [
+      '@gmail.com', // TODO: Remove this in production
+    ];
+
+    // Check specific testing emails first
+    if (testingEmails.contains(emailLower)) {
+      return true;
+    }
+
+    // Check college domains
+    if (collegeDomains.any((domain) => emailLower.endsWith(domain))) {
+      return true;
+    }
+
+    // Check dev domains (for testing only)
+    if (devDomains.any((domain) => emailLower.endsWith(domain))) {
+      print('⚠️ Development mode: Allowing ${email} for testing');
+      return true;
+    }
+
+    return false;
   }
 
   Future<void> _createOrUpdateUserDocument(User user) async {
@@ -74,7 +133,7 @@ class FirebaseAuthService {
 
   Future<void> signOut() async {
     try {
-      await _googleSignIn.signOut();
+      await GoogleSignIn.instance.signOut();
       await _auth.signOut();
       print('✅ Signed out');
     } catch (e) {
