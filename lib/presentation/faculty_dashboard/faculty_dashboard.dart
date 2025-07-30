@@ -320,7 +320,7 @@ class _FacultyDashboardState extends State<FacultyDashboard>
                     Navigator.pushNamed(context, '/weekly-schedule-screen');
                   },
                   onMarkAttendance: (classData) {
-                    Navigator.pushNamed(context, '/attendance-screen');
+                    Navigator.pushNamed(context, '/faculty-attendance-screen');
                   }),
               RecentAnnouncementsCard(
                   announcements: recentAnnouncements,
@@ -334,18 +334,18 @@ class _FacultyDashboardState extends State<FacultyDashboard>
               AssignmentStatusCard(
                   assignmentStats: assignmentStats,
                   onViewAssignments: () {
-                    Navigator.pushNamed(context, '/assignments-screen');
+                    Navigator.pushNamed(context, '/faculty-assignments-screen');
                   }),
               QuickActionsCard(
                   onMarkAttendance: () {
-                    Navigator.pushNamed(context, '/attendance-screen');
+                    Navigator.pushNamed(context, '/faculty-attendance-screen');
                   },
                   onPostAnnouncement: _showAnnouncementDialog,
                   onViewSchedule: () {
                     Navigator.pushNamed(context, '/weekly-schedule-screen');
                   },
                   onManageAssignments: () {
-                    Navigator.pushNamed(context, '/assignments-screen');
+                    Navigator.pushNamed(context, '/faculty-assignments-screen');
                   }),
               SizedBox(height: 10.h),
             ])));

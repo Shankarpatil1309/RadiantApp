@@ -13,23 +13,28 @@ class AppRoutes {
   static const String initial = '/';
   static const String splashScreen = '/splash-screen';
   static const String loginScreen = '/login-screen';
-  static const String assignmentsScreen = '/assignments-screen';
+  static const String studentAssignmentsScreen = '/assignments-screen';
+  static const String facultyAssignmentsScreen = '/faculty-assignments-screen';
   static const String weeklyScheduleScreen = '/weekly-schedule-screen';
   static const String facultyDashboard = '/faculty-dashboard';
   static const String adminDashboard = '/admin-dashboard';
   static const String studentDashboard = '/student-dashboard';
   static const String attendanceScreen = '/attendance-screen';
+  static const String studentAttendanceScreen = '/student-attendance-screen';
+  static const String facultyAttendanceScreen = '/faculty-attendance-screen';
 
   static Map<String, WidgetBuilder> routes = {
     initial: (context) => const SplashScreen(),
     splashScreen: (context) => const SplashScreen(),
     loginScreen: (context) => const LoginScreen(),
-    assignmentsScreen: (context) => AssignmentsScreen(),
+    studentAssignmentsScreen: (context) => AssignmentsScreen(),
     weeklyScheduleScreen: (context) => WeeklyScheduleScreen(),
     facultyDashboard: (context) => FacultyDashboard(),
     adminDashboard: (context) => AdminDashboard(),
     studentDashboard: (context) => StudentDashboard(),
-    attendanceScreen: (context) => AttendanceScreen(),
+    studentAttendanceScreen: (context) => AttendanceScreen(),
+    facultyAttendanceScreen: (context) => AttendanceScreen(),
+    facultyAssignmentsScreen: (context) => AssignmentsScreen(),
     // TODO: Add your other routes here
   };
 }

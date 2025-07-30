@@ -2,52 +2,29 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
 import '../../theme/app_theme.dart';
+import '../../controllers/auth_controller.dart';
 import './widgets/animated_logo_widget.dart';
 import './widgets/background_gradient_widget.dart';
 import './widgets/loading_indicator_widget.dart';
 import './widgets/retry_connection_widget.dart';
 
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends ConsumerState<SplashScreen> {
   bool _isLoading = true;
   bool _showRetry = false;
   bool _animationCompleted = false;
   Timer? _timeoutTimer;
-
-  // Mock authentication states for demonstration
-  final List<Map<String, dynamic>> _mockUsers = [
-    {
-      "email": "student@bkit.edu",
-      "password": "student123",
-      "role": "student",
-      "name": "John Doe",
-      "id": "STU001"
-    },
-    {
-      "email": "faculty@bkit.edu",
-      "password": "faculty123",
-      "role": "faculty",
-      "name": "Dr. Sarah Wilson",
-      "id": "FAC001"
-    },
-    {
-      "email": "admin@bkit.edu",
-      "password": "admin123",
-      "role": "admin",
-      "name": "Michael Johnson",
-      "id": "ADM001"
-    }
-  ];
 
   @override
   void initState() {
@@ -126,8 +103,11 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkAuthenticationState() async {
-    // Simulate authentication state check
+    // Wait for the AuthController to initialize
     await Future.delayed(const Duration(milliseconds: 600));
+    
+    // The auth state will be checked automatically by the AuthController
+    // when we navigate to the next screen
   }
 
   Future<void> _loadCachedData() async {
@@ -149,41 +129,43 @@ class _SplashScreenState extends State<SplashScreen> {
     // Add haptic feedback
     HapticFeedback.lightImpact();
 
-    // Simulate checking for stored authentication
-    final bool isAuthenticated = await _checkStoredAuthentication();
-
-    if (isAuthenticated) {
-      final String userRole = await _getUserRole();
-      _navigateBasedOnRole(userRole);
-    } else {
-      // Navigate to login screen
-      Navigator.pushReplacementNamed(context, '/login-screen');
-    }
-  }
-
-  Future<bool> _checkStoredAuthentication() async {
-    // Simulate checking stored JWT token or auth state
-    await Future.delayed(const Duration(milliseconds: 200));
-    // For demo purposes, return false to show login screen
-    return false;
-  }
-
-  Future<String> _getUserRole() async {
-    // Simulate getting user role from stored data
-    await Future.delayed(const Duration(milliseconds: 100));
-    return 'student'; // Default role for demo
+    // Check real authentication state using AuthController
+    final authState = ref.read(authControllerProvider);
+    
+    await authState.when(
+      data: (user) async {
+        if (user != null) {
+          // User is authenticated, get their role and navigate
+          final String? userRole = await ref.read(authControllerProvider.notifier).getUserRole();
+          _navigateBasedOnRole(userRole ?? 'STUDENT');
+        } else {
+          // User is not authenticated, navigate to login
+          Navigator.pushReplacementNamed(context, '/login-screen');
+        }
+      },
+      loading: () async {
+        // Auth is still loading, wait a bit more
+        await Future.delayed(const Duration(milliseconds: 500));
+        Navigator.pushReplacementNamed(context, '/login-screen');
+      },
+      error: (error, stack) async {
+        // Auth error, navigate to login
+        Navigator.pushReplacementNamed(context, '/login-screen');
+      },
+    );
   }
 
   void _navigateBasedOnRole(String role) {
     String route;
-    switch (role.toLowerCase()) {
-      case 'student':
+    switch (role.toUpperCase()) {
+      case 'STUDENT':
         route = '/student-dashboard';
         break;
-      case 'faculty':
+      case 'FACULTY':
         route = '/faculty-dashboard';
         break;
-      case 'admin':
+      case 'ADMIN':
+      case 'ADMINISTRATOR':
         route = '/admin-dashboard';
         break;
       default:

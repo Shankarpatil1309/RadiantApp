@@ -23,6 +23,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   late Animation<Offset> _slideAnimation;
   late Animation<double> _scaleAnimation;
   late Animation<double> _logoScaleAnimation;
+  
+  bool _isNavigating = false;
 
   @override
   void initState() {
@@ -83,20 +85,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   void _startAnimations() async {
     await Future.delayed(const Duration(milliseconds: 200));
-    _scaleController.forward();
+    if (mounted) _scaleController.forward();
 
     await Future.delayed(const Duration(milliseconds: 300));
-    _fadeController.forward();
+    if (mounted) _fadeController.forward();
 
     await Future.delayed(const Duration(milliseconds: 200));
-    _slideController.forward();
+    if (mounted) _slideController.forward();
   }
 
   @override
   void dispose() {
-    _fadeController.dispose();
-    _slideController.dispose();
-    _scaleController.dispose();
+    // Stop animations before disposing to prevent errors
+    _stopAllAnimations();
+    
+    // Dispose animation controllers safely
+    try {
+      _fadeController.dispose();
+      _slideController.dispose();
+      _scaleController.dispose();
+    } catch (e) {
+      // Controllers might already be disposed
+    }
+    
     super.dispose();
   }
 
@@ -108,10 +119,68 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     ref.read(authControllerProvider.notifier).signInWithGoogle();
   }
 
+  void _navigateToRoleDashboard(BuildContext context, String role) {
+    String route;
+    switch (role.toUpperCase()) {
+      case 'STUDENT':
+        route = '/student-dashboard';
+        break;
+      case 'FACULTY':
+        route = '/faculty-dashboard';
+        break;
+      case 'ADMIN':
+      case 'ADMINISTRATOR':
+        route = '/admin-dashboard';
+        break;
+      default:
+        route = '/student-dashboard'; // Default to student dashboard
+    }
+
+    // Stop all animations before navigation
+    _stopAllAnimations();
+
+    // Navigate to the appropriate dashboard
+    Navigator.pushReplacementNamed(context, route);
+  }
+
+  void _stopAllAnimations() {
+    if (mounted) {
+      try {
+        _fadeController.stop();
+        _slideController.stop();
+        _scaleController.stop();
+      } catch (e) {
+        // Animation controllers might already be disposed
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
     final theme = Theme.of(context);
+
+    // Listen for authentication success and navigate
+    ref.listen<AsyncValue>(authControllerProvider, (previous, next) {
+      if (_isNavigating || !mounted) return;
+      
+      next.when(
+        data: (user) async {
+          if (user != null && !_isNavigating) {
+            _isNavigating = true;
+            // User successfully signed in, navigate to appropriate dashboard
+            final String? userRole = await ref.read(authControllerProvider.notifier).getUserRole();
+            if (mounted) {
+              _navigateToRoleDashboard(context, userRole ?? 'STUDENT');
+            }
+          }
+        },
+        loading: () {},
+        error: (error, stack) {
+          // Error is already handled by the UI state
+        },
+      );
+    });
 
     return Scaffold(
       body: Container(

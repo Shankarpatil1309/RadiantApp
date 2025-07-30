@@ -20,6 +20,7 @@ class _StudentDashboardState extends State<StudentDashboard>
     with TickerProviderStateMixin {
   late TabController _tabController;
   bool _isLoading = false;
+  final String userRole = 'student';
 
   // Mock student data
   final Map<String, dynamic> studentData = {
@@ -464,40 +465,9 @@ class _StudentDashboardState extends State<StudentDashboard>
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          children: [
-            // Tab Bar
-            Container(
-              color: AppTheme.lightTheme.colorScheme.surface,
-              child: TabBar(
-                controller: _tabController,
-                isScrollable: true,
-                tabAlignment: TabAlignment.start,
-                tabs: const [
-                  Tab(text: 'Dashboard'),
-                  Tab(text: 'Schedule'),
-                  Tab(text: 'Assignments'),
-                  Tab(text: 'Attendance'),
-                  Tab(text: 'Profile'),
-                ],
-              ),
-            ),
-            // Tab Bar View
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildDashboardTab(),
-                  _buildPlaceholderTab('Schedule'),
-                  _buildPlaceholderTab('Assignments'),
-                  _buildPlaceholderTab('Attendance'),
-                  _buildPlaceholderTab('Profile'),
-                ],
-              ),
-            ),
-          ],
-        ),
+        child: _buildDashboardTab(),
       ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
       floatingActionButton: _tabController.index == 0
           ? FloatingActionButton.extended(
               onPressed: () {
@@ -516,6 +486,84 @@ class _StudentDashboardState extends State<StudentDashboard>
               ),
             )
           : null,
+    );
+  }
+
+  void _onBottomNavTap(int index) {
+    switch (index) {
+      case 0:
+        // Current screen
+        break;
+      case 1:
+        Navigator.pushReplacementNamed(context, '/weekly-schedule-screen');
+        break;
+      case 2:
+        Navigator.pushReplacementNamed(context, '/student-attendance-screen');
+        break;
+      case 3:
+        Navigator.pushReplacementNamed(context, '/assignments-screen');
+        break;
+    }
+  }
+
+  Widget _buildBottomNavigationBar() {
+    return NavigationBar(
+      selectedIndex: 0, // Attendance screen index
+      onDestinationSelected: _onBottomNavTap,
+      destinations: [
+        NavigationDestination(
+          icon: CustomIconWidget(
+            iconName: 'dashboard',
+            color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+            size: 24,
+          ),
+          selectedIcon: CustomIconWidget(
+            iconName: 'dashboard',
+            color: AppTheme.getRoleColor(userRole),
+            size: 24,
+          ),
+          label: 'Dashboard',
+        ),
+        NavigationDestination(
+          icon: CustomIconWidget(
+            iconName: 'schedule',
+            color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+            size: 24,
+          ),
+          selectedIcon: CustomIconWidget(
+            iconName: 'schedule',
+            color: AppTheme.getRoleColor(userRole),
+            size: 24,
+          ),
+          label: 'Schedule',
+        ),
+        NavigationDestination(
+          icon: CustomIconWidget(
+            iconName: 'how_to_reg',
+            color: AppTheme.getRoleColor(userRole),
+            size: 24,
+          ),
+          selectedIcon: CustomIconWidget(
+            iconName: 'how_to_reg',
+            color: AppTheme.getRoleColor(userRole),
+            size: 24,
+          ),
+          label: 'Attendance',
+        ),
+        NavigationDestination(
+          icon: CustomIconWidget(
+            iconName: 'assignment',
+            color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+            size: 24,
+          ),
+          selectedIcon: CustomIconWidget(
+            iconName: 'assignment',
+            color: AppTheme.getRoleColor(userRole),
+            size: 24,
+          ),
+          label: 'Assignments',
+        ),
+      ],
     );
   }
 
@@ -572,38 +620,6 @@ class _StudentDashboardState extends State<StudentDashboard>
             SizedBox(height: 10.h), // Space for FAB
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildPlaceholderTab(String tabName) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CustomIconWidget(
-            iconName: 'construction',
-            color: AppTheme.lightTheme.colorScheme.onSurface
-                .withValues(alpha: 0.4),
-            size: 64,
-          ),
-          SizedBox(height: 2.h),
-          Text(
-            '$tabName Coming Soon',
-            style: AppTheme.lightTheme.textTheme.headlineSmall?.copyWith(
-              color: AppTheme.lightTheme.colorScheme.onSurface
-                  .withValues(alpha: 0.6),
-            ),
-          ),
-          SizedBox(height: 1.h),
-          Text(
-            'This feature is under development',
-            style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-              color: AppTheme.lightTheme.colorScheme.onSurface
-                  .withValues(alpha: 0.5),
-            ),
-          ),
-        ],
       ),
     );
   }
