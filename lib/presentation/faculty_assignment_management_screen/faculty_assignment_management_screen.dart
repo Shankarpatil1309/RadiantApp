@@ -9,7 +9,14 @@ import './widgets/faculty_assignment_card_widget.dart';
 import './widgets/faculty_assignment_filter_widget.dart';
 
 class FacultyAssignmentManagementScreen extends StatefulWidget {
-  const FacultyAssignmentManagementScreen({Key? key}) : super(key: key);
+  final bool isEmbedded;
+  final VoidCallback? onBackPressed;
+  
+  const FacultyAssignmentManagementScreen({
+    Key? key,
+    this.isEmbedded = false,
+    this.onBackPressed,
+  }) : super(key: key);
 
   @override
   State<FacultyAssignmentManagementScreen> createState() =>
@@ -355,7 +362,14 @@ class _FacultyAssignmentManagementScreenState
             fontWeight: FontWeight.w600,
           ),
         ),
-        leading: IconButton(
+        leading: widget.isEmbedded ? IconButton(
+          onPressed: widget.onBackPressed ?? () {},
+          icon: CustomIconWidget(
+            iconName: 'arrow_back',
+            color: AppTheme.lightTheme.colorScheme.onSurface,
+            size: 24,
+          ),
+        ) : IconButton(
           onPressed: () => Navigator.pop(context),
           icon: CustomIconWidget(
             iconName: 'arrow_back',

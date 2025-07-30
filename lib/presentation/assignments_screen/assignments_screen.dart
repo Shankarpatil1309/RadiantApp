@@ -8,7 +8,14 @@ import './widgets/filter_bottom_sheet_widget.dart';
 import './widgets/subject_section_widget.dart';
 
 class AssignmentsScreen extends StatefulWidget {
-  const AssignmentsScreen({Key? key}) : super(key: key);
+  final bool isEmbedded;
+  final VoidCallback? onBackPressed;
+  
+  const AssignmentsScreen({
+    Key? key, 
+    this.isEmbedded = false,
+    this.onBackPressed,
+  }) : super(key: key);
 
   @override
   State<AssignmentsScreen> createState() => _AssignmentsScreenState();
@@ -321,7 +328,14 @@ class _AssignmentsScreenState extends State<AssignmentsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Assignments'),
-        leading: IconButton(
+        leading: widget.isEmbedded ? IconButton(
+          onPressed: widget.onBackPressed ?? () {},
+          icon: CustomIconWidget(
+            iconName: 'arrow_back',
+            color: AppTheme.lightTheme.colorScheme.onSurface,
+            size: 24,
+          ),
+        ) : IconButton(
           onPressed: () => Navigator.pop(context),
           icon: CustomIconWidget(
             iconName: 'arrow_back',

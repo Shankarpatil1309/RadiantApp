@@ -7,12 +7,14 @@ class FacultyHeaderWidget extends StatelessWidget {
   final Map<String, dynamic> facultyData;
   final Function() onProfileTap;
   final Function() onNotificationTap;
+  final Function() onLogoutTap;
 
   const FacultyHeaderWidget({
     Key? key,
     required this.facultyData,
     required this.onProfileTap,
     required this.onNotificationTap,
+    required this.onLogoutTap,
   }) : super(key: key);
 
   @override
@@ -157,6 +159,25 @@ class FacultyHeaderWidget extends StatelessWidget {
                             ),
                           ),
                       ],
+                    ),
+                  ),
+                ),
+                SizedBox(width: 2.w),
+                GestureDetector(
+                  onTap: onLogoutTap,
+                  child: Container(
+                    padding: EdgeInsets.all(2.w),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .errorContainer
+                          .withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: CustomIconWidget(
+                      iconName: 'logout',
+                      color: Theme.of(context).colorScheme.error,
+                      size: 24,
                     ),
                   ),
                 ),

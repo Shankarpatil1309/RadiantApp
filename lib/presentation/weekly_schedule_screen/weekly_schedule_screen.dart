@@ -9,7 +9,14 @@ import './widgets/quick_actions_bottom_sheet.dart';
 import './widgets/week_navigation_widget.dart';
 
 class WeeklyScheduleScreen extends StatefulWidget {
-  const WeeklyScheduleScreen({Key? key}) : super(key: key);
+  final bool isEmbedded;
+  final VoidCallback? onBackPressed;
+  
+  const WeeklyScheduleScreen({
+    Key? key,
+    this.isEmbedded = false,
+    this.onBackPressed,
+  }) : super(key: key);
 
   @override
   State<WeeklyScheduleScreen> createState() => _WeeklyScheduleScreenState();
@@ -214,7 +221,14 @@ class _WeeklyScheduleScreenState extends State<WeeklyScheduleScreen> {
     return AppBar(
       backgroundColor: AppTheme.lightTheme.colorScheme.surface,
       elevation: 0,
-      leading: IconButton(
+      leading: widget.isEmbedded ? IconButton(
+        onPressed: widget.onBackPressed ?? () {},
+        icon: CustomIconWidget(
+          iconName: 'arrow_back',
+          color: AppTheme.lightTheme.colorScheme.onSurface,
+          size: 24,
+        ),
+      ) : IconButton(
         onPressed: () => Navigator.pop(context),
         icon: CustomIconWidget(
           iconName: 'arrow_back',

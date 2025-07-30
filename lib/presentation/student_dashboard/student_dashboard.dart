@@ -12,7 +12,9 @@ import './widgets/recent_announcements_card_widget.dart';
 import './widgets/today_schedule_card_widget.dart';
 
 class StudentDashboard extends ConsumerStatefulWidget {
-  const StudentDashboard({super.key});
+  final Function(int)? onNavigateToTab;
+  
+  const StudentDashboard({super.key, this.onNavigateToTab});
 
   @override
   ConsumerState<StudentDashboard> createState() => _StudentDashboardState();
@@ -22,7 +24,6 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
     with TickerProviderStateMixin {
   late TabController _tabController;
   final String userRole = 'student';
-  int _selectedBottomNavIndex = 0;
 
   // Mock student data
   final Map<String, dynamic> studentData = {
@@ -686,114 +687,10 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
         body: SafeArea(
           child: _buildDashboardTab(),
         ),
-        bottomNavigationBar: _buildBottomNavigationBar(),
-        floatingActionButton: _selectedBottomNavIndex == 0
-            ? FloatingActionButton.extended(
-                onPressed: () {
-                  // Navigate to marksheet
-                  _showComingSoon('Marksheet');
-                },
-                icon: CustomIconWidget(
-                  iconName: 'assessment',
-                  color: Colors.white,
-                  size: 24,
-                ),
-                label: Text(
-                  'Marksheet',
-                  style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
-                    color: Colors.white,
-                  ),
-                ),
-              )
-            : null,
       ),
     );
   }
 
-  void _onBottomNavTap(int index) {
-    setState(() {
-      _selectedBottomNavIndex = index;
-    });
-
-    switch (index) {
-      case 0:
-        // Current screen - Dashboard
-        break;
-      case 1:
-        // Navigate to schedule screen
-        Navigator.pushNamed(context, '/weekly-schedule-screen');
-        break;
-      case 2:
-        // Navigate to attendance screen
-        Navigator.pushNamed(context, '/student-attendance-screen');
-        break;
-      case 3:
-        // Navigate to assignments screen
-        Navigator.pushNamed(context, '/student-assignments-screen');
-        break;
-    }
-  }
-
-  Widget _buildBottomNavigationBar() {
-    return NavigationBar(
-      selectedIndex: _selectedBottomNavIndex,
-      onDestinationSelected: _onBottomNavTap,
-      destinations: [
-        NavigationDestination(
-          icon: CustomIconWidget(
-            iconName: 'dashboard',
-            color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-            size: 24,
-          ),
-          selectedIcon: CustomIconWidget(
-            iconName: 'dashboard',
-            color: AppTheme.getRoleColor(userRole),
-            size: 24,
-          ),
-          label: 'Dashboard',
-        ),
-        NavigationDestination(
-          icon: CustomIconWidget(
-            iconName: 'schedule',
-            color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-            size: 24,
-          ),
-          selectedIcon: CustomIconWidget(
-            iconName: 'schedule',
-            color: AppTheme.getRoleColor(userRole),
-            size: 24,
-          ),
-          label: 'Schedule',
-        ),
-        NavigationDestination(
-          icon: CustomIconWidget(
-            iconName: 'how_to_reg',
-            color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-            size: 24,
-          ),
-          selectedIcon: CustomIconWidget(
-            iconName: 'how_to_reg',
-            color: AppTheme.getRoleColor(userRole),
-            size: 24,
-          ),
-          label: 'Attendance',
-        ),
-        NavigationDestination(
-          icon: CustomIconWidget(
-            iconName: 'assignment',
-            color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-            size: 24,
-          ),
-          selectedIcon: CustomIconWidget(
-            iconName: 'assignment',
-            color: AppTheme.getRoleColor(userRole),
-            size: 24,
-          ),
-          label: 'Assignments',
-        ),
-      ],
-    );
-  }
 
   Widget _buildDashboardTab() {
     return RefreshIndicator(
@@ -818,7 +715,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
             TodayScheduleCardWidget(
               todayClasses: todaySchedule,
               onTap: () {
-                Navigator.pushNamed(context, '/weekly-schedule-screen');
+                widget.onNavigateToTab?.call(1); // Navigate to Schedule tab
               },
             ),
             // Recent Announcements Card
@@ -831,7 +728,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
             PendingAssignmentsCardWidget(
               assignments: assignments,
               onViewAll: () {
-                Navigator.pushNamed(context, '/student-assignments-screen');
+                widget.onNavigateToTab?.call(3); // Navigate to Assignments tab
               },
             ),
             // Quick Stats Card
@@ -839,7 +736,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
               attendancePercentage: 87.5,
               recentMarks: recentMarks,
               onAttendanceTap: () {
-                Navigator.pushNamed(context, '/student-attendance-screen');
+                widget.onNavigateToTab?.call(2); // Navigate to Attendance tab
               },
               onMarksTap: () {
                 // Navigate to marks screen

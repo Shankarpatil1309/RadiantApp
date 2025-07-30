@@ -4,11 +4,11 @@ import 'package:radiant_app/presentation/login_screen/login_screen2.dart';
 import 'package:radiant_app/presentation/splash_screen/splash_screen.dart';
 import '../presentation/assignments_screen/assignments_screen.dart';
 import '../presentation/weekly_schedule_screen/weekly_schedule_screen.dart';
-import '../presentation/faculty_dashboard/faculty_dashboard.dart';
+import '../presentation/faculty_dashboard/faculty_shell.dart';
 import '../presentation/admin_dashboard/admin_dashboard.dart';
 import '../presentation/admin_dashboard/add_student_screen.dart';
 import '../presentation/admin_dashboard/add_faculty_screen.dart';
-import '../presentation/student_dashboard/student_dashboard.dart';
+import '../presentation/student_dashboard/student_shell.dart';
 import '../presentation/attendance_screen/student_attendance_screen.dart';
 import '../presentation/attendance_screen/faculty_attendance_screen.dart';
 import '../presentation/no_access_screen/no_access_screen.dart';
@@ -37,9 +37,9 @@ class AppRoutes {
     loginScreen: (context) => const LoginScreen(),
     studentAssignmentsScreen: (context) => AssignmentsScreen(),
     weeklyScheduleScreen: (context) => WeeklyScheduleScreen(),
-    facultyDashboard: (context) => FacultyDashboard(),
+    facultyDashboard: (context) => const FacultyShell(),
     adminDashboard: (context) => AdminDashboard(),
-    studentDashboard: (context) => StudentDashboard(),
+    studentDashboard: (context) => const StudentShell(),
     studentAttendanceScreen: (context) => StudentAttendanceScreen(),
     facultyAttendanceScreen: (context) => FacultyAttendanceScreen(),
     facultyAssignmentsScreen: (context) => FacultyAssignmentManagementScreen(),

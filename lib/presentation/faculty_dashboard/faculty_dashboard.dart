@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../controllers/auth_controller.dart';
 import './widgets/assignment_status_card.dart';
 import './widgets/faculty_bottom_sheet.dart';
 import './widgets/faculty_header_widget.dart';
@@ -9,14 +11,16 @@ import './widgets/quick_actions_card.dart';
 import './widgets/recent_announcements_card.dart';
 import './widgets/today_classes_card.dart';
 
-class FacultyDashboard extends StatefulWidget {
-  const FacultyDashboard({Key? key}) : super(key: key);
+class FacultyDashboard extends ConsumerStatefulWidget {
+  final Function(int)? onNavigateToTab;
+  
+  const FacultyDashboard({Key? key, this.onNavigateToTab}) : super(key: key);
 
   @override
-  State<FacultyDashboard> createState() => _FacultyDashboardState();
+  ConsumerState<FacultyDashboard> createState() => _FacultyDashboardState();
 }
 
-class _FacultyDashboardState extends State<FacultyDashboard>
+class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
     with TickerProviderStateMixin {
   late TabController _tabController;
   bool _isLoading = false;
@@ -202,108 +206,74 @@ class _FacultyDashboardState extends State<FacultyDashboard>
                 ]));
   }
 
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            'Logout',
+            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to sign out?',
+            style: AppTheme.lightTheme.textTheme.bodyMedium,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: AppTheme.lightTheme.colorScheme.onSurface,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await ref.read(authControllerProvider.notifier).signOut();
+                if (mounted) {
+                  Navigator.pushReplacementNamed(context, '/login-screen');
+                }
+              },
+              child: Text(
+                'Logout',
+                style: TextStyle(
+                  color: AppTheme.lightTheme.colorScheme.error,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: Column(children: [
+      body: Column(
+        children: [
           FacultyHeaderWidget(
-              facultyData: facultyData,
-              onProfileTap: () => _tabController.animateTo(4),
-              onNotificationTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Opening notifications...")));
-              }),
+            facultyData: facultyData,
+            onProfileTap: () => widget.onNavigateToTab?.call(4),
+            onNotificationTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Opening notifications...")),
+              );
+            },
+            onLogoutTap: () => _showLogoutDialog(),
+          ),
           Expanded(
-              child: TabBarView(controller: _tabController, children: [
-            _buildDashboardTab(),
-            _buildClassesTab(),
-            _buildAssignmentsTab(),
-            _buildAttendanceTab(),
-            _buildProfileTab(),
-          ])),
-        ]),
-        bottomNavigationBar: Container(
-            decoration: BoxDecoration(
-                color: Theme.of(context).scaffoldBackgroundColor,
-                boxShadow: [
-                  BoxShadow(
-                      color:
-                          Theme.of(context).shadowColor.withValues(alpha: 0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, -2)),
-                ]),
-            child: TabBar(
-                controller: _tabController,
-                labelColor: AppTheme.getRoleColor('faculty'),
-                unselectedLabelColor: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: 0.6),
-                indicatorColor: AppTheme.getRoleColor('faculty'),
-                tabs: [
-                  Tab(
-                      icon: CustomIconWidget(
-                          iconName: 'dashboard',
-                          color: _tabController.index == 0
-                              ? AppTheme.getRoleColor('faculty')
-                              : Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.6),
-                          size: 24),
-                      text: "Dashboard"),
-                  Tab(
-                      icon: CustomIconWidget(
-                          iconName: 'school',
-                          color: _tabController.index == 1
-                              ? AppTheme.getRoleColor('faculty')
-                              : Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.6),
-                          size: 24),
-                      text: "Classes"),
-                  Tab(
-                      icon: CustomIconWidget(
-                          iconName: 'assignment',
-                          color: _tabController.index == 2
-                              ? AppTheme.getRoleColor('faculty')
-                              : Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.6),
-                          size: 24),
-                      text: "Assignments"),
-                  Tab(
-                      icon: CustomIconWidget(
-                          iconName: 'how_to_reg',
-                          color: _tabController.index == 3
-                              ? AppTheme.getRoleColor('faculty')
-                              : Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.6),
-                          size: 24),
-                      text: "Attendance"),
-                  Tab(
-                      icon: CustomIconWidget(
-                          iconName: 'person',
-                          color: _tabController.index == 4
-                              ? AppTheme.getRoleColor('faculty')
-                              : Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.6),
-                          size: 24),
-                      text: "Profile"),
-                ])),
-        floatingActionButton: _tabController.index == 0
-            ? FloatingActionButton(
-                onPressed: _showBottomSheet,
-                backgroundColor: AppTheme.getRoleColor('faculty'),
-                child: CustomIconWidget(
-                    iconName: 'add', color: Colors.white, size: 24))
-            : null);
+            child: _buildDashboardTab(),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildDashboardTab() {
@@ -317,10 +287,10 @@ class _FacultyDashboardState extends State<FacultyDashboard>
               TodayClassesCard(
                   todayClasses: todayClasses,
                   onClassTap: (classData) {
-                    Navigator.pushNamed(context, '/weekly-schedule-screen');
+                    widget.onNavigateToTab?.call(1); // Navigate to Classes tab
                   },
                   onMarkAttendance: (classData) {
-                    Navigator.pushNamed(context, '/faculty-attendance-screen');
+                    widget.onNavigateToTab?.call(3); // Navigate to Attendance tab
                   }),
               RecentAnnouncementsCard(
                   announcements: recentAnnouncements,
@@ -334,18 +304,18 @@ class _FacultyDashboardState extends State<FacultyDashboard>
               AssignmentStatusCard(
                   assignmentStats: assignmentStats,
                   onViewAssignments: () {
-                    Navigator.pushNamed(context, '/faculty-assignments-screen');
+                    widget.onNavigateToTab?.call(2); // Navigate to Assignments tab
                   }),
               QuickActionsCard(
                   onMarkAttendance: () {
-                    Navigator.pushNamed(context, '/faculty-attendance-screen');
+                    widget.onNavigateToTab?.call(3); // Navigate to Attendance tab
                   },
                   onPostAnnouncement: _showAnnouncementDialog,
                   onViewSchedule: () {
-                    Navigator.pushNamed(context, '/weekly-schedule-screen');
+                    widget.onNavigateToTab?.call(1); // Navigate to Classes tab
                   },
                   onManageAssignments: () {
-                    Navigator.pushNamed(context, '/faculty-assignments-screen');
+                    widget.onNavigateToTab?.call(2); // Navigate to Assignments tab
                   }),
               SizedBox(height: 10.h),
             ])));

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../controllers/auth_controller.dart';
 
-class AdminDrawerWidget extends StatelessWidget {
+class AdminDrawerWidget extends ConsumerWidget {
   final Map<String, dynamic> adminData;
   final Function(String) onNavigate;
 
@@ -14,7 +16,7 @@ class AdminDrawerWidget extends StatelessWidget {
   }) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Drawer(
       child: Column(
         children: [
@@ -88,7 +90,7 @@ class AdminDrawerWidget extends StatelessWidget {
                 _buildDrawerItem(
                   'Logout',
                   'logout',
-                  () => _showLogoutDialog(context),
+                  () => _showLogoutDialog(context, ref),
                   isLogout: true,
                 ),
               ],
@@ -220,7 +222,7 @@ class AdminDrawerWidget extends StatelessWidget {
     );
   }
 
-  void _showLogoutDialog(BuildContext context) {
+  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -246,14 +248,16 @@ class AdminDrawerWidget extends StatelessWidget {
               ),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 Navigator.of(context).pop();
-                // Handle logout logic here
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/login',
-                  (route) => false,
-                );
+                await ref.read(authControllerProvider.notifier).signOut();
+                if (context.mounted) {
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/login-screen',
+                    (route) => false,
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.getStatusColor('error'),

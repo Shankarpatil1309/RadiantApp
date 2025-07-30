@@ -8,7 +8,14 @@ import './widgets/attendance_filter_widget.dart';
 import './widgets/attendance_stats_widget.dart';
 
 class StudentAttendanceScreen extends ConsumerStatefulWidget {
-  const StudentAttendanceScreen({Key? key}) : super(key: key);
+  final bool isEmbedded;
+  final VoidCallback? onBackPressed;
+  
+  const StudentAttendanceScreen({
+    Key? key,
+    this.isEmbedded = false,
+    this.onBackPressed,
+  }) : super(key: key);
 
   @override
   ConsumerState<StudentAttendanceScreen> createState() => _StudentAttendanceScreenState();
@@ -147,7 +154,14 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
       ),
       backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
       elevation: 0,
-      leading: IconButton(
+      leading: widget.isEmbedded ? IconButton(
+        onPressed: widget.onBackPressed ?? () {},
+        icon: CustomIconWidget(
+          iconName: 'arrow_back',
+          color: AppTheme.lightTheme.colorScheme.onSurface,
+          size: 24,
+        ),
+      ) : IconButton(
         onPressed: () => Navigator.pop(context),
         icon: CustomIconWidget(
           iconName: 'arrow_back',
