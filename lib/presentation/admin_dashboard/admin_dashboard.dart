@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
@@ -325,6 +326,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
       case '/add-faculty':
         Navigator.pushNamed(context, route);
         break;
+      case '/create-announcement':
+        _showCreateAnnouncementBottomSheet();
+        break;
       default:
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -362,6 +366,339 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
     if (route.isNotEmpty) {
       _handleNavigation(route);
+    }
+  }
+
+  void _showCreateAnnouncementBottomSheet() {
+    final _titleController = TextEditingController();
+    final _contentController = TextEditingController();
+    final _formKey = GlobalKey<FormState>();
+    
+    String _selectedPriority = 'normal';
+    List<String> _selectedDepartments = ['All'];
+    bool _isLoading = false;
+
+    final List<String> _priorities = ['normal', 'important', 'urgent'];
+    final List<String> _departments = ['All', 'CSE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'IT'];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: 85.h,
+          decoration: BoxDecoration(
+            color: AppTheme.lightTheme.scaffoldBackgroundColor,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                width: 12.w,
+                height: 0.5.h,
+                margin: EdgeInsets.only(top: 2.h),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              
+              // Header
+              Padding(
+                padding: EdgeInsets.all(4.w),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.campaign,
+                      color: AppTheme.getRoleColor('admin'),
+                      size: 28,
+                    ),
+                    SizedBox(width: 3.w),
+                    Text(
+                      'Create Announcement',
+                      style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(Icons.close),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Form
+              Expanded(
+                child: Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(horizontal: 4.w),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Title field
+                        TextFormField(
+                          controller: _titleController,
+                          decoration: InputDecoration(
+                            labelText: 'Announcement Title',
+                            hintText: 'Enter announcement title',
+                            prefixIcon: Icon(Icons.title, color: AppTheme.getRoleColor('admin')),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: AppTheme.getRoleColor('admin')),
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value?.isEmpty ?? true) return 'Title is required';
+                            if (value!.length < 5) return 'Title must be at least 5 characters';
+                            return null;
+                          },
+                          maxLength: 100,
+                        ),
+                        SizedBox(height: 2.h),
+                        
+                        // Content field
+                        TextFormField(
+                          controller: _contentController,
+                          decoration: InputDecoration(
+                            labelText: 'Announcement Content',
+                            hintText: 'Enter detailed announcement content',
+                            prefixIcon: Icon(Icons.description, color: AppTheme.getRoleColor('admin')),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: AppTheme.getRoleColor('admin')),
+                            ),
+                          ),
+                          maxLines: 4,
+                          validator: (value) {
+                            if (value?.isEmpty ?? true) return 'Content is required';
+                            if (value!.length < 10) return 'Content must be at least 10 characters';
+                            return null;
+                          },
+                          maxLength: 500,
+                        ),
+                        SizedBox(height: 2.h),
+                        
+                        // Priority dropdown
+                        DropdownButtonFormField<String>(
+                          value: _selectedPriority,
+                          decoration: InputDecoration(
+                            labelText: 'Priority',
+                            prefixIcon: Icon(Icons.priority_high, color: AppTheme.getRoleColor('admin')),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: AppTheme.getRoleColor('admin')),
+                            ),
+                          ),
+                          items: _priorities.map((priority) {
+                            return DropdownMenuItem<String>(
+                              value: priority,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      color: _getPriorityColor(priority),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  SizedBox(width: 2.w),
+                                  Text(priority.toUpperCase()),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (value) => setModalState(() => _selectedPriority = value!),
+                        ),
+                        SizedBox(height: 2.h),
+                        
+                        // Department selection
+                        Text(
+                          'Target Departments',
+                          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        SizedBox(height: 1.h),
+                        Container(
+                          padding: EdgeInsets.all(3.w),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Wrap(
+                            spacing: 2.w,
+                            runSpacing: 1.h,
+                            children: _departments.map((dept) {
+                              final isSelected = _selectedDepartments.contains(dept);
+                              return FilterChip(
+                                label: Text(dept),
+                                selected: isSelected,
+                                onSelected: (selected) {
+                                  setModalState(() {
+                                    if (dept == 'All') {
+                                      if (selected) {
+                                        _selectedDepartments = ['All'];
+                                      } else {
+                                        _selectedDepartments.remove('All');
+                                      }
+                                    } else {
+                                      if (selected) {
+                                        _selectedDepartments.remove('All');
+                                        _selectedDepartments.add(dept);
+                                      } else {
+                                        _selectedDepartments.remove(dept);
+                                        if (_selectedDepartments.isEmpty) {
+                                          _selectedDepartments.add('All');
+                                        }
+                                      }
+                                    }
+                                  });
+                                },
+                                selectedColor: AppTheme.getRoleColor('admin').withValues(alpha: 0.2),
+                                checkmarkColor: AppTheme.getRoleColor('admin'),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        SizedBox(height: 4.h),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              
+              // Submit button
+              Container(
+                padding: EdgeInsets.all(4.w),
+                decoration: BoxDecoration(
+                  color: AppTheme.lightTheme.scaffoldBackgroundColor,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 6.h,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : () async {
+                      if (!_formKey.currentState!.validate()) {
+                        return;
+                      }
+
+                      if (_selectedDepartments.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Please select at least one department'),
+                            backgroundColor: AppTheme.getStatusColor('error'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      setModalState(() => _isLoading = true);
+
+                      try {
+                        // Create announcement document
+                        final announcementData = {
+                          'title': _titleController.text.trim(),
+                          'content': _contentController.text.trim(),
+                          'priority': _selectedPriority,
+                          'departments': _selectedDepartments,
+                          'author': adminData['name'], // Use actual admin name
+                          'authorId': 'admin', // TODO: Get current admin user ID
+                          'isActive': true,
+                          'readBy': <String>[], // Array to track who has read the announcement
+                          'createdAt': FieldValue.serverTimestamp(),
+                          'updatedAt': FieldValue.serverTimestamp(),
+                        };
+
+                        await FirebaseFirestore.instance
+                            .collection('announcements')
+                            .add(announcementData);
+
+                        // Show success message
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Announcement "${_titleController.text}" created successfully!'),
+                            backgroundColor: AppTheme.getStatusColor('success'),
+                          ),
+                        );
+
+                        // Close bottom sheet
+                        Navigator.pop(context);
+
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error: ${e.toString()}'),
+                            backgroundColor: AppTheme.getStatusColor('error'),
+                          ),
+                        );
+                      } finally {
+                        setModalState(() => _isLoading = false);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.getRoleColor('admin'),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            'Create Announcement',
+                            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getPriorityColor(String priority) {
+    switch (priority.toLowerCase()) {
+      case 'urgent':
+        return AppTheme.lightTheme.colorScheme.error;
+      case 'important':
+        return const Color(0xFFFF9800);
+      case 'normal':
+      default:
+        return AppTheme.lightTheme.primaryColor;
     }
   }
 }
