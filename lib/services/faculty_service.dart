@@ -7,16 +7,66 @@ class FacultyService {
   final String _collection = "faculty";
 
   Future<void> addFaculty(Faculty faculty) async {
-    await _firestoreService.createDocument(
-        _collection, faculty.id, faculty.toMap());
+    // Use employeeId as document ID
+    await _firestoreService.createDocument(_collection, faculty.employeeId, faculty.toMap());
   }
 
-  Future<Faculty?> getFaculty(String id) async {
-    DocumentSnapshot doc = await _firestoreService.getDocument(_collection, id);
+  Future<Faculty?> getFaculty(String employeeId) async {
+    // Primary method: Get by employeeId (document ID)
+    DocumentSnapshot doc = await _firestoreService.getDocument(_collection, employeeId.toUpperCase());
     if (doc.exists) {
       return Faculty.fromDoc(doc);
     }
     return null;
+  }
+
+  Future<Faculty?> getFacultyByUid(String uid) async {
+    // Search by UID field for faculty who have signed in
+    final query = await FirebaseFirestore.instance
+        .collection(_collection)
+        .where('uid', isEqualTo: uid)
+        .where('isActive', isEqualTo: true)
+        .limit(1)
+        .get();
+    
+    if (query.docs.isNotEmpty) {
+      return Faculty.fromDoc(query.docs.first);
+    }
+    return null;
+  }
+
+  Future<Faculty?> getFacultyByEmail(String email) async {
+    final query = await FirebaseFirestore.instance
+        .collection(_collection)
+        .where('email', isEqualTo: email.toLowerCase())
+        .where('isActive', isEqualTo: true)
+        .limit(1)
+        .get();
+    
+    if (query.docs.isNotEmpty) {
+      return Faculty.fromDoc(query.docs.first);
+    }
+    return null;
+  }
+
+  // Method to link UID with faculty record when they sign in
+  Future<void> linkUidToFaculty(String email, String uid) async {
+    try {
+      // Find existing faculty by email
+      final existingFaculty = await getFacultyByEmail(email);
+      if (existingFaculty != null) {
+        // Update the faculty document with the UID
+        final updatedData = {
+          'uid': uid,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        
+        await _firestoreService.updateDocument(_collection, existingFaculty.id, updatedData);
+        print('✅ Linked UID $uid to faculty ${existingFaculty.employeeId}');
+      }
+    } catch (e) {
+      print('Error linking UID to faculty: $e');
+    }
   }
 
   Future<void> updateFaculty(Faculty faculty) async {

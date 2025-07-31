@@ -4,6 +4,8 @@ import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
 import '../../controllers/auth_controller.dart';
+import '../../controllers/faculty_dashboard_controller.dart';
+import '../../models/announcement_model.dart';
 import './widgets/assignment_status_card.dart';
 import './widgets/faculty_bottom_sheet.dart';
 import './widgets/faculty_header_widget.dart';
@@ -25,103 +27,6 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
   late TabController _tabController;
   bool _isLoading = false;
 
-  // Mock faculty data
-  final Map<String, dynamic> facultyData = {
-    "name": "Dr. Sarah Johnson",
-    "employeeId": "FAC001",
-    "department": "Computer Science",
-    "profileImage":
-        "https://images.unsplash.com/photo-1494790108755-2616b612b786?fm=jpg&q=60&w=400&ixlib=rb-4.0.3",
-    "unreadNotifications": 3,
-    "todaySchedule": [
-      {
-        "subject": "Data Structures",
-        "time": "10:00 AM",
-        "room": "CS-101",
-        "studentCount": 45,
-        "duration": "1hr 30min"
-      },
-      {
-        "subject": "Algorithms",
-        "time": "2:00 PM",
-        "room": "CS-102",
-        "studentCount": 38,
-        "duration": "1hr 30min"
-      }
-    ]
-  };
-
-  final List<Map<String, dynamic>> todayClasses = [
-    {
-      "id": 1,
-      "subject": "Data Structures",
-      "time": "10:00 AM",
-      "duration": "1hr 30min",
-      "room": "CS-101",
-      "studentCount": 45,
-      "section": "A",
-      "semester": "3rd",
-      "attendanceMarked": false
-    },
-    {
-      "id": 2,
-      "subject": "Algorithms",
-      "time": "2:00 PM",
-      "duration": "1hr 30min",
-      "room": "CS-102",
-      "studentCount": 38,
-      "section": "B",
-      "semester": "5th",
-      "attendanceMarked": true
-    },
-    {
-      "id": 3,
-      "subject": "Database Management",
-      "time": "4:00 PM",
-      "duration": "1hr 30min",
-      "room": "CS-103",
-      "studentCount": 42,
-      "section": "A",
-      "semester": "4th",
-      "attendanceMarked": false
-    }
-  ];
-
-  final List<Map<String, dynamic>> recentAnnouncements = [
-    {
-      "id": 1,
-      "title": "Mid-term Examination Schedule Released",
-      "content":
-          "The mid-term examination schedule for all subjects has been released. Please check your respective class schedules and prepare accordingly.",
-      "priority": "important",
-      "timeAgo": "2 hours ago",
-      "views": 156,
-      "likes": 23,
-      "author": "Dr. Sarah Johnson"
-    },
-    {
-      "id": 2,
-      "title": "Assignment Submission Deadline Extended",
-      "content":
-          "Due to technical issues with the submission portal, the deadline for Data Structures assignment has been extended to next Friday.",
-      "priority": "urgent",
-      "timeAgo": "5 hours ago",
-      "views": 89,
-      "likes": 45,
-      "author": "Dr. Sarah Johnson"
-    },
-    {
-      "id": 3,
-      "title": "Guest Lecture on Machine Learning",
-      "content":
-          "We are pleased to announce a guest lecture on 'Introduction to Machine Learning' by industry expert Mr. John Smith next week.",
-      "priority": "normal",
-      "timeAgo": "1 day ago",
-      "views": 234,
-      "likes": 67,
-      "author": "Dr. Sarah Johnson"
-    }
-  ];
 
   final Map<String, dynamic> assignmentStats = {
     "total": 12,
@@ -166,44 +71,12 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
               Navigator.pushNamed(context, AppRoutes.facultyAssignmentsScreen);
             }, onPostAnnouncement: () {
               Navigator.pop(context);
-              _showAnnouncementDialog();
+              // This will be handled by the QuickActionsCard callback
             }));
   }
 
-  void _showAnnouncementDialog() {
-    showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-                title: Text("Post Announcement",
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.getRoleColor('faculty'))),
-                content: Column(mainAxisSize: MainAxisSize.min, children: [
-                  TextField(
-                      decoration: const InputDecoration(
-                          labelText: "Title",
-                          hintText: "Enter announcement title")),
-                  SizedBox(height: 2.h),
-                  TextField(
-                      maxLines: 3,
-                      decoration: const InputDecoration(
-                          labelText: "Content",
-                          hintText: "Enter announcement content")),
-                ]),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text("Cancel")),
-                  ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content:
-                                    Text("Announcement posted successfully!")));
-                      },
-                      child: const Text("Post")),
-                ]));
+  void _showAnnouncementDialog(Map<String, dynamic> facultyData) {
+    _showCreateAnnouncementBottomSheet(facultyData);
   }
 
   void _showLogoutDialog() {
@@ -255,70 +128,131 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
 
   @override
   Widget build(BuildContext context) {
+    final facultyData = ref.watch(facultyDataProvider);
+    final todayClasses = ref.watch(facultyTodayClassesProvider);
+    final announcements = ref.watch(facultyAnnouncementsProvider);
+
     return Scaffold(
-      body: Column(
-        children: [
-          FacultyHeaderWidget(
-            facultyData: facultyData,
-            onProfileTap: () => widget.onNavigateToTab?.call(4),
-            onNotificationTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Opening notifications...")),
-              );
-            },
-            onLogoutTap: () => _showLogoutDialog(),
+      body: facultyData.when(
+        data: (data) {
+          if (data == null) {
+            return const Center(child: Text('Please complete your profile setup'));
+          }
+          
+          return Column(
+            children: [
+              FacultyHeaderWidget(
+                facultyData: data,
+                onProfileTap: () => widget.onNavigateToTab?.call(4),
+                onNotificationTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Opening notifications...")),
+                  );
+                },
+                onLogoutTap: () => _showLogoutDialog(),
+              ),
+              Expanded(
+                child: _buildDashboardTab(data, todayClasses, announcements),
+              ),
+            ],
+          );
+        },
+        loading: () => const Center(
+          child: CircularProgressIndicator(),
+        ),
+        error: (error, stack) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error, size: 64, color: Colors.red),
+              SizedBox(height: 16),
+              Text('Error loading faculty data'),
+              TextButton(
+                onPressed: () => ref.refresh(facultyDataProvider),
+                child: Text('Retry'),
+              ),
+            ],
           ),
-          Expanded(
-            child: _buildDashboardTab(),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildDashboardTab() {
+  Widget _buildDashboardTab(
+    Map<String, dynamic> facultyData,
+    AsyncValue<List<Map<String, dynamic>>> todayClassesAsync,
+    AsyncValue<List<dynamic>> announcementsAsync,
+  ) {
     return RefreshIndicator(
-        onRefresh: _refreshData,
-        color: AppTheme.getRoleColor('faculty'),
-        child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Column(children: [
-              SizedBox(height: 1.h),
-              TodayClassesCard(
-                  todayClasses: todayClasses,
-                  onClassTap: (classData) {
-                    widget.onNavigateToTab?.call(1); // Navigate to Classes tab
-                  },
-                  onMarkAttendance: (classData) {
-                    widget.onNavigateToTab?.call(3); // Navigate to Attendance tab
-                  }),
-              RecentAnnouncementsCard(
-                  announcements: recentAnnouncements,
-                  onAnnouncementTap: (announcement) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text("Opening: ${announcement["title"]}")));
-                  },
-                  onAnnouncementLongPress: (announcement) {
-                    _showAnnouncementOptions(announcement);
-                  }),
-              AssignmentStatusCard(
-                  assignmentStats: assignmentStats,
-                  onViewAssignments: () {
-                    widget.onNavigateToTab?.call(2); // Navigate to Assignments tab
-                  }),
-              QuickActionsCard(
-                  onMarkAttendance: () {
-                    widget.onNavigateToTab?.call(3); // Navigate to Attendance tab
-                  },
-                  onPostAnnouncement: _showAnnouncementDialog,
-                  onViewSchedule: () {
-                    widget.onNavigateToTab?.call(1); // Navigate to Classes tab
-                  },
-                  onManageAssignments: () {
-                    widget.onNavigateToTab?.call(2); // Navigate to Assignments tab
-                  }),
-              SizedBox(height: 10.h),
-            ])));
+      onRefresh: () async {
+        ref.refresh(facultyDataProvider);
+        ref.refresh(facultyTodayClassesProvider);
+        ref.refresh(facultyAnnouncementsProvider);
+      },
+      color: AppTheme.getRoleColor('faculty'),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          children: [
+            SizedBox(height: 1.h),
+            todayClassesAsync.when(
+              data: (todayClasses) => TodayClassesCard(
+                todayClasses: todayClasses,
+                onClassTap: (classData) {
+                  widget.onNavigateToTab?.call(1);
+                },
+                onMarkAttendance: (classData) {
+                  widget.onNavigateToTab?.call(3);
+                },
+              ),
+              loading: () => _buildLoadingCard('Loading today\'s classes...'),
+              error: (error, stack) => _buildErrorCard('Error loading classes'),
+            ),
+            announcementsAsync.when(
+              data: (announcements) => RecentAnnouncementsCard(
+                announcements: announcements.map((ann) => {
+                  'id': ann.id,
+                  'title': ann.title,
+                  'content': ann.message,
+                  'priority': ann.priority,
+                  'timeAgo': _formatTimeAgo(ann.createdAt),
+                  'author': ann.createdBy,
+                }).toList(),
+                onAnnouncementTap: (announcement) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Opening: ${announcement["title"]}")),
+                  );
+                },
+                onAnnouncementLongPress: (announcement) {
+                  _showAnnouncementOptions(announcement);
+                },
+              ),
+              loading: () => _buildLoadingCard('Loading announcements...'),
+              error: (error, stack) => _buildErrorCard('Error loading announcements'),
+            ),
+            AssignmentStatusCard(
+              assignmentStats: assignmentStats,
+              onViewAssignments: () {
+                widget.onNavigateToTab?.call(2);
+              },
+            ),
+            QuickActionsCard(
+              onMarkAttendance: () {
+                widget.onNavigateToTab?.call(3);
+              },
+              onPostAnnouncement: () => _showAnnouncementDialog(facultyData),
+              onViewSchedule: () {
+                widget.onNavigateToTab?.call(1);
+              },
+              onManageAssignments: () {
+                widget.onNavigateToTab?.call(2);
+              },
+            ),
+            SizedBox(height: 10.h),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildClassesTab() {
@@ -466,5 +400,339 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                           backgroundColor: AppTheme.getStatusColor('error')),
                       child: const Text("Delete")),
                 ]));
+  }
+
+  Widget _buildLoadingCard(String message) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Container(
+        padding: EdgeInsets.all(4.w),
+        height: 20.h,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: AppTheme.getRoleColor('faculty')),
+              SizedBox(height: 2.h),
+              Text(message, style: AppTheme.lightTheme.textTheme.bodyMedium),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorCard(String message) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Container(
+        padding: EdgeInsets.all(4.w),
+        height: 20.h,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error, color: Colors.red, size: 48),
+              SizedBox(height: 2.h),
+              Text(message, style: AppTheme.lightTheme.textTheme.bodyMedium),
+              TextButton(
+                onPressed: () {
+                  ref.refresh(facultyDataProvider);
+                  ref.refresh(facultyTodayClassesProvider);
+                  ref.refresh(facultyAnnouncementsProvider);
+                },
+                child: Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inDays > 0) {
+      return '${difference.inDays}d ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes}m ago';
+    } else {
+      return 'Just now';
+    }
+  }
+
+  void _showCreateAnnouncementBottomSheet(Map<String, dynamic> facultyData) {
+    final _titleController = TextEditingController();
+    final _contentController = TextEditingController();
+    final _formKey = GlobalKey<FormState>();
+    
+    String _selectedPriority = 'normal';
+    bool _isLoading = false;
+
+    final List<String> _priorities = ['normal', 'important', 'urgent'];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: 75.h,
+          decoration: BoxDecoration(
+            color: AppTheme.lightTheme.scaffoldBackgroundColor,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                width: 12.w,
+                height: 0.5.h,
+                margin: EdgeInsets.only(top: 2.h),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              
+              // Header
+              Padding(
+                padding: EdgeInsets.all(4.w),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.campaign,
+                      color: AppTheme.getRoleColor('faculty'),
+                      size: 28,
+                    ),
+                    SizedBox(width: 3.w),
+                    Text(
+                      'Post Announcement',
+                      style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(Icons.close),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Form
+              Expanded(
+                child: Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(horizontal: 4.w),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Title field
+                        TextFormField(
+                          controller: _titleController,
+                          decoration: InputDecoration(
+                            labelText: 'Announcement Title',
+                            hintText: 'Enter announcement title',
+                            prefixIcon: Icon(Icons.title, color: AppTheme.getRoleColor('faculty')),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value?.isEmpty ?? true) return 'Title is required';
+                            if (value!.length < 5) return 'Title must be at least 5 characters';
+                            return null;
+                          },
+                          maxLength: 100,
+                        ),
+                        SizedBox(height: 2.h),
+                        
+                        // Content field
+                        TextFormField(
+                          controller: _contentController,
+                          decoration: InputDecoration(
+                            labelText: 'Announcement Content',
+                            hintText: 'Enter detailed announcement content',
+                            prefixIcon: Icon(Icons.description, color: AppTheme.getRoleColor('faculty')),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                            ),
+                          ),
+                          maxLines: 4,
+                          validator: (value) {
+                            if (value?.isEmpty ?? true) return 'Content is required';
+                            if (value!.length < 10) return 'Content must be at least 10 characters';
+                            return null;
+                          },
+                          maxLength: 500,
+                        ),
+                        SizedBox(height: 2.h),
+                        
+                        // Priority dropdown
+                        DropdownButtonFormField<String>(
+                          value: _selectedPriority,
+                          decoration: InputDecoration(
+                            labelText: 'Priority',
+                            prefixIcon: Icon(Icons.priority_high, color: AppTheme.getRoleColor('faculty')),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                            ),
+                          ),
+                          items: _priorities.map((priority) {
+                            return DropdownMenuItem<String>(
+                              value: priority,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      color: _getPriorityColor(priority),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  SizedBox(width: 2.w),
+                                  Text(priority.toUpperCase()),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (value) => setModalState(() => _selectedPriority = value!),
+                        ),
+                        SizedBox(height: 4.h),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              
+              // Submit button
+              Container(
+                padding: EdgeInsets.all(4.w),
+                decoration: BoxDecoration(
+                  color: AppTheme.lightTheme.scaffoldBackgroundColor,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 6.h,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : () async {
+                      if (!_formKey.currentState!.validate()) {
+                        return;
+                      }
+
+                      setModalState(() => _isLoading = true);
+
+                      try {
+                        final announcementService = ref.read(announcementServiceProvider);
+                        
+                        final announcement = Announcement(
+                          id: '', // Firestore will generate
+                          title: _titleController.text.trim(),
+                          message: _contentController.text.trim(),
+                          priority: _selectedPriority,
+                          department: facultyData['department'],
+                          createdBy: facultyData['name'],
+                          createdAt: DateTime.now(),
+                        );
+
+                        await announcementService.addAnnouncement(announcement);
+
+                        // Refresh announcements
+                        ref.refresh(facultyAnnouncementsProvider);
+
+                        // Show success message
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Announcement "${_titleController.text}" posted successfully!'),
+                            backgroundColor: AppTheme.getStatusColor('success'),
+                          ),
+                        );
+
+                        // Close bottom sheet
+                        Navigator.pop(context);
+
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error: ${e.toString()}'),
+                            backgroundColor: AppTheme.getStatusColor('error'),
+                          ),
+                        );
+                      } finally {
+                        setModalState(() => _isLoading = false);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.getRoleColor('faculty'),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            'Post Announcement',
+                            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getPriorityColor(String priority) {
+    switch (priority.toLowerCase()) {
+      case 'urgent':
+        return AppTheme.lightTheme.colorScheme.error;
+      case 'important':
+        return const Color(0xFFFF9800);
+      case 'normal':
+      default:
+        return AppTheme.getRoleColor('faculty');
+    }
   }
 }

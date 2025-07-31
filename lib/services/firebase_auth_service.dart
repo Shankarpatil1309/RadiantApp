@@ -58,6 +58,12 @@ class FirebaseAuthService {
       if (user != null) {
         // 7. Cache user data after successful authentication
         await _createOrUpdateUserCache(user, selectedRole);
+        
+        // 8. For faculty users, link UID with their employeeId-based profile
+        if (selectedRole.toUpperCase() == 'FACULTY') {
+          await _linkFacultyUid(user);
+        }
+        
         print('✅ Google Sign-In successful: ${user.email} as ${selectedRole}');
       }
       return user;
@@ -265,6 +271,46 @@ class FirebaseAuthService {
       print('✅ Signed out');
     } catch (e) {
       print('❌ Sign-out error: $e');
+    }
+  }
+
+  /// Link faculty UID with their employeeId-based profile
+  Future<void> _linkFacultyUid(User user) async {
+    try {
+      if (user.email == null) return;
+      
+      // Search for existing faculty by email
+      final emailQuery = await _firestore
+          .collection('faculty')
+          .where('email', isEqualTo: user.email!.toLowerCase())
+          .where('isActive', isEqualTo: true)
+          .limit(1)
+          .get();
+      
+      if (emailQuery.docs.isNotEmpty) {
+        final facultyDoc = emailQuery.docs.first;
+        final facultyData = facultyDoc.data();
+        final employeeId = facultyData['employeeId'] as String?;
+        
+        // Update faculty document with UID
+        await facultyDoc.reference.update({
+          'uid': user.uid,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        
+        // Update user cache with employeeId for reference
+        if (employeeId != null) {
+          await _firestore.collection('users').doc(user.uid).update({
+            'uniqueId': employeeId,
+            'lastLoginAt': FieldValue.serverTimestamp(),
+          });
+        }
+        
+        print('✅ Linked UID ${user.uid} to faculty $employeeId');
+      }
+    } catch (e) {
+      print('⚠️ Faculty UID linking error: $e');
+      // Don't throw error to avoid blocking sign-in
     }
   }
 

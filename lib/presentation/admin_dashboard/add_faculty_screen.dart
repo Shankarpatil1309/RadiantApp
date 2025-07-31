@@ -15,7 +15,7 @@ class AddFacultyScreen extends ConsumerStatefulWidget {
 class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
   final _formKey = GlobalKey<FormState>();
   final _scrollController = ScrollController();
-  
+
   // Controllers for form fields
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -26,7 +26,7 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
   final _experienceController = TextEditingController();
   final _specializedSubjectsController = TextEditingController();
   final _emergencyContactController = TextEditingController();
-  
+
   // Form state
   bool _isLoading = false;
   String _selectedDepartment = 'CSE';
@@ -37,7 +37,14 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
   double _selectedSalary = 50000.0;
 
   // Options
-  final List<String> _departments = ['CSE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'IT'];
+  final List<String> _departments = [
+    'CSE',
+    'ECE',
+    'EEE',
+    'MECH',
+    'CIVIL',
+    'IT'
+  ];
   final List<String> _designations = [
     'Assistant Professor',
     'Associate Professor',
@@ -125,15 +132,15 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
             _buildSectionHeader('Personal Information', Icons.person),
             _buildPersonalInfoSection(),
             SizedBox(height: 3.h),
-            
+
             _buildSectionHeader('Professional Information', Icons.work),
             _buildProfessionalInfoSection(),
             SizedBox(height: 3.h),
-            
+
             _buildSectionHeader('Contact Information', Icons.contact_phone),
             _buildContactInfoSection(),
             SizedBox(height: 3.h),
-            
+
             _buildSectionHeader('Academic Information', Icons.school),
             _buildAcademicInfoSection(),
             SizedBox(height: 10.h), // Space for bottom button
@@ -181,7 +188,8 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
               icon: Icons.person,
               validator: (value) {
                 if (value?.isEmpty ?? true) return 'Name is required';
-                if (value!.length < 2) return 'Name must be at least 2 characters';
+                if (value!.length < 2)
+                  return 'Name must be at least 2 characters';
                 return null;
               },
             ),
@@ -193,7 +201,8 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
                     label: 'Gender',
                     value: _selectedGender,
                     items: _genders,
-                    onChanged: (value) => setState(() => _selectedGender = value!),
+                    onChanged: (value) =>
+                        setState(() => _selectedGender = value!),
                     icon: Icons.person_outline,
                   ),
                 ),
@@ -202,7 +211,8 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
                   child: _buildDateField(
                     label: 'Date of Birth',
                     selectedDate: _selectedDateOfBirth,
-                    onDateSelected: (date) => setState(() => _selectedDateOfBirth = date),
+                    onDateSelected: (date) =>
+                        setState(() => _selectedDateOfBirth = date),
                     icon: Icons.cake,
                   ),
                 ),
@@ -243,7 +253,8 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
                     label: 'Department',
                     value: _selectedDepartment,
                     items: _departments,
-                    onChanged: (value) => setState(() => _selectedDepartment = value!),
+                    onChanged: (value) =>
+                        setState(() => _selectedDepartment = value!),
                     icon: Icons.business,
                   ),
                 ),
@@ -253,7 +264,8 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
                     label: 'Designation',
                     value: _selectedDesignation,
                     items: _designations,
-                    onChanged: (value) => setState(() => _selectedDesignation = value!),
+                    onChanged: (value) =>
+                        setState(() => _selectedDesignation = value!),
                     icon: Icons.work_outline,
                   ),
                 ),
@@ -266,7 +278,8 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
                   child: _buildDateField(
                     label: 'Joining Date',
                     selectedDate: _selectedJoiningDate,
-                    onDateSelected: (date) => setState(() => _selectedJoiningDate = date),
+                    onDateSelected: (date) =>
+                        setState(() => _selectedJoiningDate = date),
                     icon: Icons.event,
                   ),
                 ),
@@ -298,7 +311,8 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
               keyboardType: TextInputType.emailAddress,
               validator: (value) {
                 if (value?.isEmpty ?? true) return 'Email is required';
-                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value!)) {
+                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                    .hasMatch(value!)) {
                   return 'Enter a valid email address';
                 }
                 return null;
@@ -313,7 +327,8 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
               keyboardType: TextInputType.phone,
               validator: (value) {
                 if (value?.isEmpty ?? true) return 'Phone number is required';
-                if (!RegExp(r'^\+?[0-9]{10,13}$').hasMatch(value!.replaceAll(' ', ''))) {
+                if (!RegExp(r'^\+?[0-9]{10,13}$')
+                    .hasMatch(value!.replaceAll(' ', ''))) {
                   return 'Enter a valid phone number';
                 }
                 return null;
@@ -327,8 +342,10 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
               icon: Icons.emergency,
               keyboardType: TextInputType.phone,
               validator: (value) {
-                if (value?.isEmpty ?? true) return 'Emergency contact is required';
-                if (!RegExp(r'^\+?[0-9]{10,13}$').hasMatch(value!.replaceAll(' ', ''))) {
+                if (value?.isEmpty ?? true)
+                  return 'Emergency contact is required';
+                if (!RegExp(r'^\+?[0-9]{10,13}$')
+                    .hasMatch(value!.replaceAll(' ', ''))) {
                   return 'Enter a valid phone number';
                 }
                 return null;
@@ -391,7 +408,8 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
               icon: Icons.subject,
               maxLines: 3,
               validator: (value) {
-                if (value?.isEmpty ?? true) return 'Specialized subjects are required';
+                if (value?.isEmpty ?? true)
+                  return 'Specialized subjects are required';
                 return null;
               },
             ),
@@ -408,7 +426,8 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
         Text(
           'Monthly Salary (₹)',
           style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-            color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.6),
+            color: AppTheme.lightTheme.colorScheme.onSurface
+                .withValues(alpha: 0.6),
           ),
         ),
         SizedBox(height: 1.h),
@@ -546,9 +565,10 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
               ? '${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}'
               : 'Select date',
           style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-            color: selectedDate != null 
+            color: selectedDate != null
                 ? AppTheme.lightTheme.colorScheme.onSurface
-                : AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.6),
+                : AppTheme.lightTheme.colorScheme.onSurface
+                    .withValues(alpha: 0.6),
           ),
         ),
       ),
@@ -612,7 +632,7 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
     _experienceController.clear();
     _specializedSubjectsController.clear();
     _emergencyContactController.clear();
-    
+
     setState(() {
       _selectedDepartment = 'CSE';
       _selectedDesignation = 'Assistant Professor';
@@ -652,11 +672,14 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
       // Check if Employee ID already exists
       final empIdCheck = await FirebaseFirestore.instance
           .collection('faculty')
-          .where('employeeId', isEqualTo: _employeeIdController.text.trim().toUpperCase())
+          .where('employeeId',
+              isEqualTo: _employeeIdController.text.trim().toUpperCase())
           .get();
 
       if (empIdCheck.docs.isNotEmpty) {
         throw Exception('A faculty with this Employee ID already exists');
+
+        // show snackbar instead of throwing
       }
 
       // Check if email already exists
@@ -684,7 +707,11 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
         'address': _addressController.text.trim(),
         'qualification': _qualificationController.text.trim(),
         'experience': _experienceController.text.trim(),
-        'specializedSubjects': _specializedSubjectsController.text.trim().split(',').map((s) => s.trim()).toList(),
+        'specializedSubjects': _specializedSubjectsController.text
+            .trim()
+            .split(',')
+            .map((s) => s.trim())
+            .toList(),
         'emergencyContact': _emergencyContactController.text.trim(),
         'role': 'FACULTY',
         'isActive': true,
@@ -693,7 +720,11 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
         'createdBy': 'admin', // TODO: Get current admin user ID
       };
 
-      await FirebaseFirestore.instance.collection('faculty').add(facultyData);
+      // Use employeeId as document ID for direct access
+      await FirebaseFirestore.instance
+          .collection('faculty')
+          .doc(_employeeIdController.text.trim().toUpperCase())
+          .set(facultyData);
 
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
@@ -706,7 +737,6 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
       // Reset form and navigate back
       _resetForm();
       Navigator.pop(context);
-
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

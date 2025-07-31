@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../controllers/faculty_dashboard_controller.dart';
 import './widgets/class_detail_bottom_sheet.dart';
 import './widgets/day_column_widget.dart';
 import './widgets/filter_bottom_sheet.dart';
 import './widgets/quick_actions_bottom_sheet.dart';
 import './widgets/week_navigation_widget.dart';
 
-class WeeklyScheduleScreen extends StatefulWidget {
+class WeeklyScheduleScreen extends ConsumerStatefulWidget {
   final bool isEmbedded;
   final VoidCallback? onBackPressed;
   
@@ -19,186 +21,27 @@ class WeeklyScheduleScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<WeeklyScheduleScreen> createState() => _WeeklyScheduleScreenState();
+  ConsumerState<WeeklyScheduleScreen> createState() => _WeeklyScheduleScreenState();
 }
 
-class _WeeklyScheduleScreenState extends State<WeeklyScheduleScreen> {
+class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
   DateTime _currentWeek = DateTime.now();
   String _selectedDepartment = 'CSE';
   String _selectedSection = 'A';
   bool _isLoading = false;
 
-  // Mock schedule data
-  final List<Map<String, dynamic>> _mockScheduleData = [
-    {
-      "day": "Monday",
-      "date": "29",
-      "classes": [
-        {
-          "time": "09:00",
-          "subject": "Mathematics",
-          "faculty": "Dr. Rajesh Kumar",
-          "room": "Room 101",
-          "contact": "+91 9876543210",
-          "progress": 75,
-          "attendance": 85,
-          "totalClasses": 24
-        },
-        {
-          "time": "11:00",
-          "subject": "Physics",
-          "faculty": "Prof. Anita Sharma",
-          "room": "Lab 201",
-          "contact": "+91 9876543211",
-          "progress": 60,
-          "attendance": 90,
-          "totalClasses": 20
-        },
-        {
-          "time": "14:00",
-          "subject": "Computer Science",
-          "faculty": "Dr. Vikram Singh",
-          "room": "Room 301",
-          "contact": "+91 9876543212",
-          "progress": 80,
-          "attendance": 88,
-          "totalClasses": 22
-        }
-      ]
-    },
-    {
-      "day": "Tuesday",
-      "date": "30",
-      "classes": [
-        {
-          "time": "08:00",
-          "subject": "Chemistry",
-          "faculty": "Dr. Priya Patel",
-          "room": "Lab 102",
-          "contact": "+91 9876543213",
-          "progress": 65,
-          "attendance": 82,
-          "totalClasses": 18
-        },
-        {
-          "time": "10:00",
-          "subject": "English",
-          "faculty": "Ms. Sarah Johnson",
-          "room": "Room 205",
-          "contact": "+91 9876543214",
-          "progress": 70,
-          "attendance": 95,
-          "totalClasses": 16
-        },
-        {
-          "time": "15:00",
-          "subject": "Biology",
-          "faculty": "Dr. Amit Verma",
-          "room": "Lab 301",
-          "contact": "+91 9876543215",
-          "progress": 55,
-          "attendance": 87,
-          "totalClasses": 19
-        }
-      ]
-    },
-    {
-      "day": "Wednesday",
-      "date": "31",
-      "classes": [
-        {
-          "time": "09:00",
-          "subject": "Mathematics",
-          "faculty": "Dr. Rajesh Kumar",
-          "room": "Room 101",
-          "contact": "+91 9876543210",
-          "progress": 75,
-          "attendance": 85,
-          "totalClasses": 24
-        },
-        {
-          "time": "13:00",
-          "subject": "Computer Science",
-          "faculty": "Dr. Vikram Singh",
-          "room": "Room 301",
-          "contact": "+91 9876543212",
-          "progress": 80,
-          "attendance": 88,
-          "totalClasses": 22
-        }
-      ]
-    },
-    {
-      "day": "Thursday",
-      "date": "01",
-      "classes": [
-        {
-          "time": "10:00",
-          "subject": "Physics",
-          "faculty": "Prof. Anita Sharma",
-          "room": "Lab 201",
-          "contact": "+91 9876543211",
-          "progress": 60,
-          "attendance": 90,
-          "totalClasses": 20
-        },
-        {
-          "time": "14:00",
-          "subject": "English",
-          "faculty": "Ms. Sarah Johnson",
-          "room": "Room 205",
-          "contact": "+91 9876543214",
-          "progress": 70,
-          "attendance": 95,
-          "totalClasses": 16
-        }
-      ]
-    },
-    {
-      "day": "Friday",
-      "date": "02",
-      "classes": [
-        {
-          "time": "08:00",
-          "subject": "Chemistry",
-          "faculty": "Dr. Priya Patel",
-          "room": "Lab 102",
-          "contact": "+91 9876543213",
-          "progress": 65,
-          "attendance": 82,
-          "totalClasses": 18
-        },
-        {
-          "time": "11:00",
-          "subject": "Biology",
-          "faculty": "Dr. Amit Verma",
-          "room": "Lab 301",
-          "contact": "+91 9876543215",
-          "progress": 55,
-          "attendance": 87,
-          "totalClasses": 19
-        },
-        {
-          "time": "16:00",
-          "subject": "Computer Science",
-          "faculty": "Dr. Vikram Singh",
-          "room": "Room 301",
-          "contact": "+91 9876543212",
-          "progress": 80,
-          "attendance": 88,
-          "totalClasses": 22
-        }
-      ]
-    }
-  ];
 
   @override
   Widget build(BuildContext context) {
+    final weeklySchedule = ref.watch(facultyWeeklyScheduleProvider);
+    
     return Scaffold(
       backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
       appBar: _buildAppBar(),
       body: RefreshIndicator(
-        onRefresh: _refreshSchedule,
+        onRefresh: () async {
+          ref.refresh(facultyWeeklyScheduleProvider);
+        },
         child: Column(
           children: [
             WeekNavigationWidget(
@@ -208,8 +51,11 @@ class _WeeklyScheduleScreenState extends State<WeeklyScheduleScreen> {
               onFilterTap: _showFilterBottomSheet,
             ),
             Expanded(
-              child:
-                  _isLoading ? _buildLoadingWidget() : _buildScheduleContent(),
+              child: weeklySchedule.when(
+                data: (schedule) => _buildScheduleContent(schedule),
+                loading: () => _buildLoadingWidget(),
+                error: (error, stack) => _buildErrorWidget(),
+              ),
             ),
           ],
         ),
@@ -284,7 +130,9 @@ class _WeeklyScheduleScreenState extends State<WeeklyScheduleScreen> {
     );
   }
 
-  Widget _buildScheduleContent() {
+  Widget _buildScheduleContent(Map<String, List<Map<String, dynamic>>> schedule) {
+    final daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    
     return Container(
       width: double.infinity,
       child: SingleChildScrollView(
@@ -292,14 +140,27 @@ class _WeeklyScheduleScreenState extends State<WeeklyScheduleScreen> {
         padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: _mockScheduleData.map((dayData) {
-            final isToday = _isToday(dayData['day'] as String);
+          children: daysOfWeek.map((day) {
+            final isToday = _isToday(day);
+            final classes = schedule[day] ?? [];
+            final dayDate = _getDateForDay(day);
+            
             return DayColumnWidget(
-              dayName: dayData['day'] as String,
-              dayDate: dayData['date'] as String,
+              dayName: day,
+              dayDate: dayDate,
               isToday: isToday,
-              classes:
-                  (dayData['classes'] as List).cast<Map<String, dynamic>>(),
+              classes: classes.map((classData) => {
+                'time': classData['time'],
+                'subject': classData['subject'],
+                'faculty': 'You', // Faculty viewing their own schedule
+                'room': classData['room'],
+                'contact': '', // Faculty's own contact
+                'progress': 0, // Could be derived from attendance/assignments
+                'attendance': 0, // Could be derived from attendance records
+                'totalClasses': 0, // Could be calculated
+                'section': classData['section'],
+                'semester': classData['semester'],
+              }).toList(),
               onClassTap: _showClassDetails,
               onClassLongPress: _showQuickActions,
             );
@@ -307,6 +168,35 @@ class _WeeklyScheduleScreenState extends State<WeeklyScheduleScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildErrorWidget() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error, size: 64, color: Colors.red),
+          SizedBox(height: 16),
+          Text('Error loading schedule'),
+          TextButton(
+            onPressed: () => ref.refresh(facultyWeeklyScheduleProvider),
+            child: Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getDateForDay(String dayName) {
+    final now = DateTime.now();
+    final today = now.weekday;
+    final daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    final targetDay = daysOfWeek.indexOf(dayName) + 1;
+    
+    final difference = targetDay - today;
+    final targetDate = now.add(Duration(days: difference));
+    
+    return targetDate.day.toString().padLeft(2, '0');
   }
 
   bool _isToday(String dayName) {
@@ -328,27 +218,14 @@ class _WeeklyScheduleScreenState extends State<WeeklyScheduleScreen> {
     setState(() {
       _currentWeek = _currentWeek.subtract(Duration(days: 7));
     });
-    _refreshSchedule();
+    ref.refresh(facultyWeeklyScheduleProvider);
   }
 
   void _goToNextWeek() {
     setState(() {
       _currentWeek = _currentWeek.add(Duration(days: 7));
     });
-    _refreshSchedule();
-  }
-
-  Future<void> _refreshSchedule() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    // Simulate API call
-    await Future.delayed(Duration(seconds: 1));
-
-    setState(() {
-      _isLoading = false;
-    });
+    ref.refresh(facultyWeeklyScheduleProvider);
   }
 
   void _showFilterBottomSheet() {
@@ -369,7 +246,7 @@ class _WeeklyScheduleScreenState extends State<WeeklyScheduleScreen> {
       _selectedDepartment = department;
       _selectedSection = section;
     });
-    _refreshSchedule();
+    ref.refresh(facultyWeeklyScheduleProvider);
   }
 
   void _showClassDetails(Map<String, dynamic> classData) {
