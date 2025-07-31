@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../controllers/attendance_controller.dart';
+import '../../models/class_session_model.dart';
 import './widgets/attendance_filter_widget.dart';
-import './widgets/attendance_stats_widget.dart';
 import './widgets/student_attendance_list_widget.dart';
 
 class FacultyAttendanceScreen extends ConsumerStatefulWidget {
@@ -24,8 +25,10 @@ class FacultyAttendanceScreen extends ConsumerStatefulWidget {
 class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
-  bool isMarkingMode = false;
-  bool isLoading = false;
+  String? selectedDepartment;
+  String? selectedSection;
+  String? selectedSubject;
+  String? selectedSessionId;
   Map<String, dynamic> currentFilters = {
     'subject': 'All Subjects',
     'attendanceThreshold': 0.0,
@@ -33,107 +36,20 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
     'dateRange': null,
   };
 
-  // Mock data for faculty attendance
-  final Map<String, dynamic> mockFacultyAttendanceData = {
-    "todayClasses": [
-      {
-        "className": "CSE-A Mathematics",
-        "time": "09:00 AM - 10:00 AM",
-        "isCompleted": true,
-        "studentsPresent": 45,
-        "totalStudents": 50,
-      },
-      {
-        "className": "CSE-B Physics",
-        "time": "11:00 AM - 12:00 PM",
-        "isCompleted": false,
-        "studentsPresent": 0,
-        "totalStudents": 48,
-      },
-      {
-        "className": "CSE-C Chemistry",
-        "time": "02:00 PM - 03:00 PM",
-        "isCompleted": false,
-        "studentsPresent": 0,
-        "totalStudents": 52,
-      },
-    ],
-    "pendingSessions": 2,
+  // Available departments and sections - should come from backend
+  final List<String> departments = ['CSE', 'ECE', 'MECH', 'CIVIL'];
+  final Map<String, List<String>> sectionsByDepartment = {
+    'CSE': ['A', 'B', 'C'],
+    'ECE': ['A', 'B'],
+    'MECH': ['A', 'B'],
+    'CIVIL': ['A'],
   };
-
-  // Mock student list for faculty
-  final List<Map<String, dynamic>> mockStudentList = [
-    {
-      "id": "1",
-      "name": "Aarav Sharma",
-      "usn": "1BK21CS001",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": true,
-    },
-    {
-      "id": "2",
-      "name": "Priya Patel",
-      "usn": "1BK21CS002",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": false,
-    },
-    {
-      "id": "3",
-      "name": "Rohit Kumar",
-      "usn": "1BK21CS003",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": true,
-    },
-    {
-      "id": "4",
-      "name": "Sneha Reddy",
-      "usn": "1BK21CS004",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": true,
-    },
-    {
-      "id": "5",
-      "name": "Arjun Singh",
-      "usn": "1BK21CS005",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": false,
-    },
-    {
-      "id": "6",
-      "name": "Kavya Nair",
-      "usn": "1BK21CS006",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": true,
-    },
-    {
-      "id": "7",
-      "name": "Vikram Joshi",
-      "usn": "1BK21CS007",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": false,
-    },
-    {
-      "id": "8",
-      "name": "Ananya Gupta",
-      "usn": "1BK21CS008",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": true,
-    },
-  ];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadAttendanceData();
+    _loadTodayClasses();
   }
 
   @override
@@ -193,17 +109,24 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
         ),
       ),
       actions: [
-        if (isMarkingMode)
-          TextButton(
-            onPressed: _saveAttendance,
-            child: Text(
-              'Save',
-              style: TextStyle(
-                color: AppTheme.getRoleColor('faculty'),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
+        Consumer(
+          builder: (context, ref, _) {
+            final attendanceState = ref.watch(attendanceControllerProvider);
+            if (attendanceState.isMarkingMode) {
+              return TextButton(
+                onPressed: _saveAttendance,
+                child: Text(
+                  'Save',
+                  style: TextStyle(
+                    color: AppTheme.getRoleColor('faculty'),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
         IconButton(
           onPressed: _showFilterOptions,
           icon: CustomIconWidget(
@@ -287,15 +210,20 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
   }
 
   Widget _buildStudentListTab() {
+    final attendanceState = ref.watch(attendanceControllerProvider);
+    
     return SingleChildScrollView(
       child: Column(
         children: [
           _buildClassSelector(),
-          StudentAttendanceListWidget(
-            students: mockStudentList,
-            onAttendanceToggle: _onAttendanceToggle,
-            isMarkingMode: isMarkingMode,
-          ),
+          if (attendanceState.isLoading)
+            const Center(child: CircularProgressIndicator())
+          else if (attendanceState.error != null)
+            _buildErrorWidget(attendanceState.error!)
+          else if (attendanceState.students.isEmpty)
+            _buildEmptyStateWidget()
+          else
+            _buildStudentsList(attendanceState),
           SizedBox(height: 10.h),
         ],
       ),
@@ -303,14 +231,16 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
   }
 
   Widget _buildOverviewTab() {
+    final todayClassesAsync = ref.watch(todayClassesProvider);
+    
     return SingleChildScrollView(
       child: Column(
         children: [
-          AttendanceStatsWidget(
-            attendanceData: mockFacultyAttendanceData,
-            userRole: 'faculty',
+          todayClassesAsync.when(
+            data: (classes) => _buildTodayClassesList(classes),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, _) => _buildErrorWidget(error.toString()),
           ),
-          _buildTodayClassesList(),
           SizedBox(height: 10.h),
         ],
       ),
@@ -352,34 +282,71 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
             ],
           ),
           SizedBox(height: 2.h),
-          DropdownButtonFormField<String>(
-            decoration: InputDecoration(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  decoration: InputDecoration(
+                    labelText: 'Department',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+                  ),
+                  value: selectedDepartment,
+                  items: departments.map((String dept) {
+                    return DropdownMenuItem<String>(
+                      value: dept,
+                      child: Text(dept),
+                    );
+                  }).toList(),
+                  onChanged: (String? value) {
+                    setState(() {
+                      selectedDepartment = value;
+                      selectedSection = null;
+                    });
+                  },
+                ),
               ),
-              contentPadding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
-            ),
-            value: 'CSE-A Mathematics',
-            items: [
-              'CSE-A Mathematics',
-              'CSE-B Physics',
-              'CSE-C Chemistry',
-            ].map((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(value),
-              );
-            }).toList(),
-            onChanged: (String? value) {
-              // Handle class selection
-            },
+              SizedBox(width: 2.w),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  decoration: InputDecoration(
+                    labelText: 'Section',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+                  ),
+                  value: selectedSection,
+                  items: selectedDepartment != null
+                      ? sectionsByDepartment[selectedDepartment]?.map((String section) {
+                          return DropdownMenuItem<String>(
+                            value: section,
+                            child: Text(section),
+                          );
+                        }).toList()
+                      : [],
+                  onChanged: selectedDepartment != null
+                      ? (String? value) {
+                          setState(() {
+                            selectedSection = value;
+                          });
+                          if (value != null && selectedDepartment != null) {
+                            _loadStudentsForSection();
+                          }
+                        }
+                      : null,
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTodayClassesList() {
+  Widget _buildTodayClassesList(List<ClassSession> classes) {
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
       padding: EdgeInsets.all(4.w),
@@ -414,18 +381,25 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
             ],
           ),
           SizedBox(height: 2.h),
-          ...mockFacultyAttendanceData['todayClasses'].map<Widget>((classItem) {
-            return _buildClassItem(classItem);
-          }).toList(),
+          if (classes.isEmpty)
+            Center(
+              child: Text(
+                'No classes scheduled for today',
+                style: AppTheme.lightTheme.textTheme.bodyMedium,
+              ),
+            )
+          else
+            ...classes.map<Widget>((classSession) {
+              return _buildClassItem(classSession);
+            }).toList(),
         ],
       ),
     );
   }
 
-  Widget _buildClassItem(Map<String, dynamic> classItem) {
-    final isCompleted = classItem['isCompleted'] as bool;
-    final studentsPresent = classItem['studentsPresent'] as int;
-    final totalStudents = classItem['totalStudents'] as int;
+  Widget _buildClassItem(ClassSession classSession) {
+    final isCompleted = classSession.status == 'completed';
+    final attendeesCount = classSession.attendees.length;
     
     return Container(
       margin: EdgeInsets.only(bottom: 2.h),
@@ -449,7 +423,7 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
             children: [
               Expanded(
                 child: Text(
-                  classItem['className'] as String,
+                  '${classSession.department}-${classSession.section} ${classSession.subject}',
                   style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -483,7 +457,7 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
               ),
               SizedBox(width: 1.w),
               Text(
-                classItem['time'] as String,
+                '${classSession.startTime.hour.toString().padLeft(2, '0')}:${classSession.startTime.minute.toString().padLeft(2, '0')} - ${classSession.endTime.hour.toString().padLeft(2, '0')}:${classSession.endTime.minute.toString().padLeft(2, '0')}',
                 style: AppTheme.lightTheme.textTheme.bodySmall,
               ),
               const Spacer(),
@@ -494,9 +468,26 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
               ),
               SizedBox(width: 1.w),
               Text(
-                '$studentsPresent/$totalStudents',
+                '$attendeesCount students',
                 style: AppTheme.lightTheme.textTheme.bodySmall,
               ),
+              if (!isCompleted) ...[
+                SizedBox(width: 2.w),
+                ElevatedButton(
+                  onPressed: () => _startAttendanceForSession(classSession),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.getRoleColor('faculty'),
+                    padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
+                  ),
+                  child: Text(
+                    'Mark',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10.sp,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ],
@@ -505,16 +496,18 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
   }
 
   Widget _buildFloatingActionButton() {
+    final attendanceState = ref.watch(attendanceControllerProvider);
+    
     return FloatingActionButton.extended(
-      onPressed: _startAttendanceSession,
+      onPressed: attendanceState.isMarkingMode ? _saveAttendance : null,
       backgroundColor: AppTheme.getRoleColor('faculty'),
       icon: CustomIconWidget(
-        iconName: isMarkingMode ? 'save' : 'add',
+        iconName: attendanceState.isMarkingMode ? 'save' : 'add',
         color: Colors.white,
         size: 24,
       ),
       label: Text(
-        isMarkingMode ? 'Save Attendance' : 'Mark Attendance',
+        attendanceState.isMarkingMode ? 'Save Attendance' : 'Select Class to Mark',
         style: const TextStyle(color: Colors.white),
       ),
     );
@@ -598,48 +591,159 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
     }
   }
 
-  Future<void> _loadAttendanceData() async {
-    setState(() {
-      isLoading = true;
-    });
-
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 1));
-
-    setState(() {
-      isLoading = false;
-    });
+  Future<void> _loadTodayClasses() async {
+    // Get current faculty ID from authentication or user state
+    const facultyId = 'current_faculty_id'; // Replace with actual faculty ID
+    ref.read(todayClassesProvider.notifier).loadTodayClasses(facultyId);
   }
 
   Future<void> _refreshData() async {
-    await _loadAttendanceData();
-  }
-
-  void _onAttendanceToggle(String studentId, bool isPresent) {
-    // Handle attendance toggle for faculty
-    print('Student $studentId marked as ${isPresent ? 'present' : 'absent'}');
-  }
-
-  void _startAttendanceSession() {
-    if (isMarkingMode) {
-      _saveAttendance();
-    } else {
-      setState(() {
-        isMarkingMode = true;
-      });
+    await _loadTodayClasses();
+    if (selectedDepartment != null && selectedSection != null) {
+      _loadStudentsForSection();
     }
   }
 
-  void _saveAttendance() {
-    setState(() {
-      isMarkingMode = false;
-    });
+  void _loadStudentsForSection() {
+    if (selectedDepartment != null && selectedSection != null) {
+      ref.read(attendanceControllerProvider.notifier)
+          .loadStudentsBySection(selectedDepartment!, selectedSection!);
+    }
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Attendance saved successfully'),
-        backgroundColor: AppTheme.getStatusColor('success'),
+  void _onAttendanceToggle(String studentId, bool isPresent) {
+    ref.read(attendanceControllerProvider.notifier)
+        .toggleAttendance(studentId, isPresent);
+  }
+
+  void _startAttendanceForSession(ClassSession session) {
+    setState(() {
+      selectedSessionId = session.id;
+      selectedSubject = session.subject;
+      selectedDepartment = session.department;
+      selectedSection = session.section;
+    });
+    
+    ref.read(attendanceControllerProvider.notifier)
+        .startMarkingMode(session.id);
+    
+    _loadStudentsForSection();
+    _tabController.animateTo(0); // Switch to students tab
+  }
+
+  Future<void> _saveAttendance() async {
+    const facultyId = 'current_faculty_id'; // Replace with actual faculty ID
+    final success = await ref.read(attendanceControllerProvider.notifier)
+        .saveAttendance(facultyId, selectedSubject ?? 'Unknown Subject');
+    
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Attendance saved successfully'),
+          backgroundColor: AppTheme.getStatusColor('success'),
+        ),
+      );
+      _loadTodayClasses(); // Refresh today's classes
+    } else {
+      final error = ref.read(attendanceControllerProvider).error;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to save attendance: ${error ?? 'Unknown error'}'),
+          backgroundColor: AppTheme.getStatusColor('error'),
+        ),
+      );
+    }
+  }
+
+  Widget _buildErrorWidget(String error) {
+    return Container(
+      margin: EdgeInsets.all(4.w),
+      padding: EdgeInsets.all(4.w),
+      decoration: BoxDecoration(
+        color: AppTheme.getStatusColor('error').withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppTheme.getStatusColor('error'),
+          width: 1,
+        ),
       ),
+      child: Column(
+        children: [
+          CustomIconWidget(
+            iconName: 'error',
+            color: AppTheme.getStatusColor('error'),
+            size: 32,
+          ),
+          SizedBox(height: 2.h),
+          Text(
+            'Error',
+            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+              color: AppTheme.getStatusColor('error'),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(height: 1.h),
+          Text(
+            error,
+            style: AppTheme.lightTheme.textTheme.bodyMedium,
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 2.h),
+          ElevatedButton(
+            onPressed: _refreshData,
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyStateWidget() {
+    return Container(
+      margin: EdgeInsets.all(4.w),
+      padding: EdgeInsets.all(4.w),
+      child: Column(
+        children: [
+          CustomIconWidget(
+            iconName: 'people',
+            color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+            size: 48,
+          ),
+          SizedBox(height: 2.h),
+          Text(
+            'No Students Found',
+            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(height: 1.h),
+          Text(
+            selectedDepartment != null && selectedSection != null
+                ? 'No students found for $selectedDepartment-$selectedSection'
+                : 'Please select a department and section to view students',
+            style: AppTheme.lightTheme.textTheme.bodyMedium,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStudentsList(AttendanceState attendanceState) {
+    final studentsList = attendanceState.students.map((student) {
+      return {
+        'id': student.id,
+        'name': student.name,
+        'usn': student.usn,
+        'profileImage': student.profileImage,
+        'isPresent': attendanceState.attendance[student.id] ?? false,
+      };
+    }).toList();
+
+    return StudentAttendanceListWidget(
+      students: studentsList,
+      onAttendanceToggle: _onAttendanceToggle,
+      isMarkingMode: attendanceState.isMarkingMode,
     );
   }
 

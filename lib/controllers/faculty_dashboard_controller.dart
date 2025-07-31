@@ -132,9 +132,8 @@ final facultyAnnouncementsProvider =
 
     // Filter announcements for this faculty's department or general announcements
     final filteredAnnouncements = announcements.where((announcement) {
-      return announcement.department == null ||
-          announcement.department == faculty.department ||
-          announcement.department == 'All';
+      return announcement.departments.contains('All') ||
+          announcement.departments.contains(faculty.department);
     }).toList();
 
     // Sort by creation date (newest first) and take only 3

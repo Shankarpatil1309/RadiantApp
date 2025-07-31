@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "41878494840-h0llqg1mnieihd7oprj2emmc7dolm587.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bkit_college_app.app",
+            "certificate_hash": "eeef5957faf338f6185653208df67183ec0fc66f"
+          }
+        },
+        {
           "client_id": "41878494840-6tnp4jtdhksrf8qpql461rl8fp7ddnoo.apps.googleusercontent.com",
           "client_type": 3
         }

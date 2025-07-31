@@ -1,11 +1,15 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../../core/app_export.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/faculty_dashboard_controller.dart';
 import '../../models/announcement_model.dart';
+import '../../services/storage_service.dart';
 import './widgets/assignment_status_card.dart';
 import './widgets/faculty_bottom_sheet.dart';
 import './widgets/faculty_header_widget.dart';
@@ -77,6 +81,14 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
 
   void _showAnnouncementDialog(Map<String, dynamic> facultyData) {
     _showCreateAnnouncementBottomSheet(facultyData);
+  }
+
+  void _showAssignmentDialog(Map<String, dynamic> facultyData) {
+    _showCreateAssignmentBottomSheet(facultyData);
+  }
+
+  void _showScheduleClassDialog(Map<String, dynamic> facultyData) {
+    _showScheduleClassBottomSheet(facultyData);
   }
 
   void _showLogoutDialog() {
@@ -247,6 +259,8 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
               onManageAssignments: () {
                 widget.onNavigateToTab?.call(2);
               },
+              onCreateAssignment: () => _showAssignmentDialog(facultyData),
+              onScheduleClass: () => _showScheduleClassDialog(facultyData),
             ),
             SizedBox(height: 10.h),
           ],
@@ -473,9 +487,11 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
     final _formKey = GlobalKey<FormState>();
     
     String _selectedPriority = 'normal';
+    List<String> _selectedDepartments = [facultyData['department']];
     bool _isLoading = false;
 
     final List<String> _priorities = ['normal', 'important', 'urgent'];
+    final List<String> _departments = ['All', 'CSE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'IT'];
 
     showModalBottomSheet(
       context: context,
@@ -483,7 +499,7 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
       backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => Container(
-          height: 75.h,
+          height: 85.h,
           decoration: BoxDecoration(
             color: AppTheme.lightTheme.scaffoldBackgroundColor,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -513,7 +529,7 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                     ),
                     SizedBox(width: 3.w),
                     Text(
-                      'Post Announcement',
+                      'Create Announcement',
                       style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -620,6 +636,57 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                           }).toList(),
                           onChanged: (value) => setModalState(() => _selectedPriority = value!),
                         ),
+                        SizedBox(height: 2.h),
+                        
+                        // Department selection
+                        Text(
+                          'Target Departments',
+                          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        SizedBox(height: 1.h),
+                        Container(
+                          padding: EdgeInsets.all(3.w),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Wrap(
+                            spacing: 2.w,
+                            runSpacing: 1.h,
+                            children: _departments.map((dept) {
+                              final isSelected = _selectedDepartments.contains(dept);
+                              return FilterChip(
+                                label: Text(dept),
+                                selected: isSelected,
+                                onSelected: (selected) {
+                                  setModalState(() {
+                                    if (dept == 'All') {
+                                      if (selected) {
+                                        _selectedDepartments = ['All'];
+                                      } else {
+                                        _selectedDepartments.remove('All');
+                                      }
+                                    } else {
+                                      if (selected) {
+                                        _selectedDepartments.remove('All');
+                                        _selectedDepartments.add(dept);
+                                      } else {
+                                        _selectedDepartments.remove(dept);
+                                        if (_selectedDepartments.isEmpty) {
+                                          _selectedDepartments.add(facultyData['department']);
+                                        }
+                                      }
+                                    }
+                                  });
+                                },
+                                selectedColor: AppTheme.getRoleColor('faculty').withValues(alpha: 0.2),
+                                checkmarkColor: AppTheme.getRoleColor('faculty'),
+                              );
+                            }).toList(),
+                          ),
+                        ),
                         SizedBox(height: 4.h),
                       ],
                     ),
@@ -649,22 +716,36 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                         return;
                       }
 
+                      if (_selectedDepartments.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Please select at least one department'),
+                            backgroundColor: AppTheme.getStatusColor('error'),
+                          ),
+                        );
+                        return;
+                      }
+
                       setModalState(() => _isLoading = true);
 
                       try {
-                        final announcementService = ref.read(announcementServiceProvider);
-                        
-                        final announcement = Announcement(
-                          id: '', // Firestore will generate
-                          title: _titleController.text.trim(),
-                          message: _contentController.text.trim(),
-                          priority: _selectedPriority,
-                          department: facultyData['department'],
-                          createdBy: facultyData['name'],
-                          createdAt: DateTime.now(),
-                        );
+                        // Create announcement document with same structure as admin
+                        final announcementData = {
+                          'title': _titleController.text.trim(),
+                          'content': _contentController.text.trim(),
+                          'priority': _selectedPriority,
+                          'departments': _selectedDepartments,
+                          'author': facultyData['name'],
+                          'authorId': facultyData['employeeId'],
+                          'isActive': true,
+                          'readBy': <String>[],
+                          'createdAt': FieldValue.serverTimestamp(),
+                          'updatedAt': FieldValue.serverTimestamp(),
+                        };
 
-                        await announcementService.addAnnouncement(announcement);
+                        await FirebaseFirestore.instance
+                            .collection('announcements')
+                            .add(announcementData);
 
                         // Refresh announcements
                         ref.refresh(facultyAnnouncementsProvider);
@@ -672,7 +753,7 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                         // Show success message
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Announcement "${_titleController.text}" posted successfully!'),
+                            content: Text('Announcement "${_titleController.text}" created successfully!'),
                             backgroundColor: AppTheme.getStatusColor('success'),
                           ),
                         );
@@ -708,7 +789,1282 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                             ),
                           )
                         : Text(
-                            'Post Announcement',
+                            'Create Announcement',
+                            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showCreateAssignmentBottomSheet(Map<String, dynamic> facultyData) {
+    final _titleController = TextEditingController();
+    final _descriptionController = TextEditingController();
+    final _instructionsController = TextEditingController();
+    final _formKey = GlobalKey<FormState>();
+    final _storageService = StorageService();
+    
+    String _selectedType = 'assignment';
+    String _selectedSubject = '';
+    String _selectedSection = '';
+    int _selectedSemester = 1;
+    int _maxMarks = 100;
+    DateTime _dueDate = DateTime.now().add(Duration(days: 7));
+    List<String> _allowedFormats = ['pdf', 'docx'];
+    bool _isLoading = false;
+    File? _selectedFile;
+    String? _fileName;
+    double _uploadProgress = 0.0;
+    bool _isUploading = false;
+
+    final List<String> _types = ['assignment', 'project', 'lab', 'quiz', 'presentation'];
+    final List<String> _subjects = ['Data Structures', 'Algorithms', 'Database', 'Software Engineering', 'Computer Networks', 'Operating Systems'];
+    final List<String> _sections = ['A', 'B', 'C', 'D'];
+    final List<String> _formats = ['pdf', 'docx', 'jpg', 'png', 'txt', 'zip'];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: 90.h,
+          decoration: BoxDecoration(
+            color: AppTheme.lightTheme.scaffoldBackgroundColor,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                width: 12.w,
+                height: 0.5.h,
+                margin: EdgeInsets.only(top: 2.h),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              
+              // Header
+              Padding(
+                padding: EdgeInsets.all(4.w),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.assignment,
+                      color: AppTheme.getRoleColor('faculty'),
+                      size: 28,
+                    ),
+                    SizedBox(width: 3.w),
+                    Text(
+                      'Create Assignment',
+                      style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(Icons.close),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Form
+              Expanded(
+                child: Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(horizontal: 4.w),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Title field
+                        TextFormField(
+                          controller: _titleController,
+                          decoration: InputDecoration(
+                            labelText: 'Assignment Title',
+                            hintText: 'Enter assignment title',
+                            prefixIcon: Icon(Icons.title, color: AppTheme.getRoleColor('faculty')),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value?.isEmpty ?? true) return 'Title is required';
+                            if (value!.length < 5) return 'Title must be at least 5 characters';
+                            return null;
+                          },
+                          maxLength: 100,
+                        ),
+                        SizedBox(height: 2.h),
+                        
+                        // Description field
+                        TextFormField(
+                          controller: _descriptionController,
+                          decoration: InputDecoration(
+                            labelText: 'Description',
+                            hintText: 'Enter assignment description',
+                            prefixIcon: Icon(Icons.description, color: AppTheme.getRoleColor('faculty')),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                            ),
+                          ),
+                          maxLines: 3,
+                          validator: (value) {
+                            if (value?.isEmpty ?? true) return 'Description is required';
+                            if (value!.length < 10) return 'Description must be at least 10 characters';
+                            return null;
+                          },
+                          maxLength: 300,
+                        ),
+                        SizedBox(height: 2.h),
+                        
+                        // Type and Subject Row
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: _selectedType,
+                                decoration: InputDecoration(
+                                  labelText: 'Type',
+                                  prefixIcon: Icon(Icons.category, color: AppTheme.getRoleColor('faculty')),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                                  ),
+                                ),
+                                items: _types.map((type) {
+                                  return DropdownMenuItem<String>(
+                                    value: type,
+                                    child: Text(type.toUpperCase()),
+                                  );
+                                }).toList(),
+                                onChanged: (value) => setModalState(() => _selectedType = value!),
+                              ),
+                            ),
+                            SizedBox(width: 3.w),
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: _selectedSubject.isEmpty ? null : _selectedSubject,
+                                decoration: InputDecoration(
+                                  labelText: 'Subject',
+                                  prefixIcon: Icon(Icons.book, color: AppTheme.getRoleColor('faculty')),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                                  ),
+                                ),
+                                items: _subjects.map((subject) {
+                                  return DropdownMenuItem<String>(
+                                    value: subject,
+                                    child: Text(subject),
+                                  );
+                                }).toList(),
+                                onChanged: (value) => setModalState(() => _selectedSubject = value!),
+                                validator: (value) => value == null ? 'Subject is required' : null,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 2.h),
+                        
+                        // Section and Semester Row
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: _selectedSection.isEmpty ? null : _selectedSection,
+                                decoration: InputDecoration(
+                                  labelText: 'Section',
+                                  prefixIcon: Icon(Icons.group, color: AppTheme.getRoleColor('faculty')),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                                  ),
+                                ),
+                                items: _sections.map((section) {
+                                  return DropdownMenuItem<String>(
+                                    value: section,
+                                    child: Text('Section $section'),
+                                  );
+                                }).toList(),
+                                onChanged: (value) => setModalState(() => _selectedSection = value!),
+                                validator: (value) => value == null ? 'Section is required' : null,
+                              ),
+                            ),
+                            SizedBox(width: 3.w),
+                            Expanded(
+                              child: DropdownButtonFormField<int>(
+                                value: _selectedSemester,
+                                decoration: InputDecoration(
+                                  labelText: 'Semester',
+                                  prefixIcon: Icon(Icons.school, color: AppTheme.getRoleColor('faculty')),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                                  ),
+                                ),
+                                items: List.generate(8, (index) => index + 1).map((sem) {
+                                  return DropdownMenuItem<int>(
+                                    value: sem,
+                                    child: Text('Semester $sem'),
+                                  );
+                                }).toList(),
+                                onChanged: (value) => setModalState(() => _selectedSemester = value!),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 2.h),
+                        
+                        // Max Marks field
+                        TextFormField(
+                          initialValue: _maxMarks.toString(),
+                          decoration: InputDecoration(
+                            labelText: 'Maximum Marks',
+                            hintText: 'Enter maximum marks',
+                            prefixIcon: Icon(Icons.grade, color: AppTheme.getRoleColor('faculty')),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                            ),
+                          ),
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value?.isEmpty ?? true) return 'Max marks is required';
+                            final marks = int.tryParse(value!);
+                            if (marks == null || marks <= 0) return 'Enter valid marks';
+                            return null;
+                          },
+                          onChanged: (value) {
+                            final marks = int.tryParse(value);
+                            if (marks != null) _maxMarks = marks;
+                          },
+                        ),
+                        SizedBox(height: 2.h),
+                        
+                        // Due Date
+                        InkWell(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: _dueDate,
+                              firstDate: DateTime.now(),
+                              lastDate: DateTime.now().add(Duration(days: 365)),
+                            );
+                            if (picked != null) {
+                              final time = await showTimePicker(
+                                context: context,
+                                initialTime: TimeOfDay.fromDateTime(_dueDate),
+                              );
+                              if (time != null) {
+                                setModalState(() {
+                                  _dueDate = DateTime(
+                                    picked.year,
+                                    picked.month,
+                                    picked.day,
+                                    time.hour,
+                                    time.minute,
+                                  );
+                                });
+                              }
+                            }
+                          },
+                          child: Container(
+                            padding: EdgeInsets.all(4.w),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.event, color: AppTheme.getRoleColor('faculty')),
+                                SizedBox(width: 3.w),
+                                Text(
+                                  'Due: ${_dueDate.day}/${_dueDate.month}/${_dueDate.year} at ${_dueDate.hour}:${_dueDate.minute.toString().padLeft(2, '0')}',
+                                  style: AppTheme.lightTheme.textTheme.bodyMedium,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 2.h),
+                        
+                        // Allowed Formats
+                        Text(
+                          'Allowed File Formats',
+                          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        SizedBox(height: 1.h),
+                        Container(
+                          padding: EdgeInsets.all(3.w),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Wrap(
+                            spacing: 2.w,
+                            runSpacing: 1.h,
+                            children: _formats.map((format) {
+                              final isSelected = _allowedFormats.contains(format);
+                              return FilterChip(
+                                label: Text(format.toUpperCase()),
+                                selected: isSelected,
+                                onSelected: (selected) {
+                                  setModalState(() {
+                                    if (selected) {
+                                      _allowedFormats.add(format);
+                                    } else {
+                                      _allowedFormats.remove(format);
+                                    }
+                                  });
+                                },
+                                selectedColor: AppTheme.getRoleColor('faculty').withValues(alpha: 0.2),
+                                checkmarkColor: AppTheme.getRoleColor('faculty'),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        SizedBox(height: 2.h),
+                        
+                        // Instructions field
+                        TextFormField(
+                          controller: _instructionsController,
+                          decoration: InputDecoration(
+                            labelText: 'Instructions (Optional)',
+                            hintText: 'Enter additional instructions for students',
+                            prefixIcon: Icon(Icons.info, color: AppTheme.getRoleColor('faculty')),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                            ),
+                          ),
+                          maxLines: 3,
+                          maxLength: 200,
+                        ),
+                        SizedBox(height: 2.h),
+                        
+                        // PDF Upload Section
+                        Text(
+                          'Assignment PDF',
+                          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        SizedBox(height: 1.h),
+                        InkWell(
+                          onTap: _isLoading || _isUploading 
+                              ? null 
+                              : () async {
+                                  try {
+                                    final result = await FilePicker.platform.pickFiles(
+                                      type: FileType.custom,
+                                      allowedExtensions: ['pdf'],
+                                      allowMultiple: false,
+                                    );
+
+                                    if (result != null && result.files.isNotEmpty) {
+                                      final file = File(result.files.single.path!);
+                                      final fileSize = await file.length();
+                                      const maxSize = 10 * 1024 * 1024; // 10MB
+
+                                      if (fileSize > maxSize) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('File size must be less than 10MB'),
+                                            backgroundColor: AppTheme.getStatusColor('error'),
+                                          ),
+                                        );
+                                        return;
+                                      }
+
+                                      setModalState(() {
+                                        _selectedFile = file;
+                                        _fileName = result.files.single.name;
+                                      });
+                                    }
+                                  } catch (e) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Error selecting file: ${e.toString()}'),
+                                        backgroundColor: AppTheme.getStatusColor('error'),
+                                      ),
+                                    );
+                                  }
+                                },
+                          child: Container(
+                            padding: EdgeInsets.all(4.w),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: _selectedFile != null 
+                                    ? AppTheme.getRoleColor('faculty')
+                                    : Colors.grey,
+                                width: _selectedFile != null ? 2 : 1,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                              color: _selectedFile != null 
+                                  ? AppTheme.getRoleColor('faculty').withValues(alpha: 0.05)
+                                  : Colors.grey.withValues(alpha: 0.05),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  _selectedFile != null ? Icons.check_circle : Icons.upload_file,
+                                  color: _selectedFile != null 
+                                      ? AppTheme.getRoleColor('faculty')
+                                      : Colors.grey[600],
+                                  size: 28,
+                                ),
+                                SizedBox(width: 3.w),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _selectedFile != null 
+                                            ? _fileName ?? 'Selected PDF'
+                                            : 'Select Assignment PDF',
+                                        style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                                          color: _selectedFile != null 
+                                              ? AppTheme.getRoleColor('faculty')
+                                              : Colors.grey[700],
+                                          fontWeight: _selectedFile != null 
+                                              ? FontWeight.w600
+                                              : FontWeight.normal,
+                                        ),
+                                      ),
+                                      if (_selectedFile != null) ...[
+                                        SizedBox(height: 0.5.h),
+                                        FutureBuilder<int>(
+                                          future: _selectedFile!.length(),
+                                          builder: (context, snapshot) {
+                                            if (snapshot.hasData) {
+                                              return Text(
+                                                'Size: ${StorageService.getFileSizeString(snapshot.data!)}',
+                                                style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                                                  color: Colors.grey[600],
+                                                ),
+                                              );
+                                            }
+                                            return SizedBox.shrink();
+                                          },
+                                        ),
+                                      ] else ...[
+                                        SizedBox(height: 0.5.h),
+                                        Text(
+                                          'Tap to select PDF file (Max 10MB)',
+                                          style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                if (_selectedFile != null)
+                                  IconButton(
+                                    onPressed: () {
+                                      setModalState(() {
+                                        _selectedFile = null;
+                                        _fileName = null;
+                                      });
+                                    },
+                                    icon: Icon(
+                                      Icons.close,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        
+                        // Upload Progress
+                        if (_isUploading) ...[
+                          SizedBox(height: 2.h),
+                          Container(
+                            padding: EdgeInsets.all(3.w),
+                            decoration: BoxDecoration(
+                              color: AppTheme.getRoleColor('faculty').withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: AppTheme.getRoleColor('faculty').withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.cloud_upload,
+                                      color: AppTheme.getRoleColor('faculty'),
+                                      size: 20,
+                                    ),
+                                    SizedBox(width: 2.w),
+                                    Text(
+                                      'Uploading PDF... ${(_uploadProgress * 100).toStringAsFixed(1)}%',
+                                      style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                                        color: AppTheme.getRoleColor('faculty'),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 1.h),
+                                LinearProgressIndicator(
+                                  value: _uploadProgress,
+                                  backgroundColor: Colors.grey[300],
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    AppTheme.getRoleColor('faculty'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        
+                        SizedBox(height: 4.h),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              
+              // Submit button
+              Container(
+                padding: EdgeInsets.all(4.w),
+                decoration: BoxDecoration(
+                  color: AppTheme.lightTheme.scaffoldBackgroundColor,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 6.h,
+                  child: ElevatedButton(
+                    onPressed: _isLoading || _isUploading ? null : () async {
+                      if (!_formKey.currentState!.validate()) {
+                        return;
+                      }
+
+                      if (_allowedFormats.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Please select at least one file format'),
+                            backgroundColor: AppTheme.getStatusColor('error'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      setModalState(() => _isLoading = true);
+
+                      String? fileUrl; // Declare outside try block for cleanup access
+                      
+                      try {
+                        // Upload PDF file if selected
+                        if (_selectedFile != null) {
+                          setModalState(() => _isUploading = true);
+                          
+                          fileUrl = await _storageService.uploadAssignmentPDF(
+                            file: _selectedFile!,
+                            facultyId: facultyData['employeeId'],
+                            assignmentTitle: _titleController.text.trim(),
+                            onProgress: (progress) {
+                              setModalState(() => _uploadProgress = progress);
+                            },
+                          );
+                          
+                          setModalState(() => _isUploading = false);
+                        }
+
+                        // Create assignment document
+                        final assignmentData = {
+                          'title': _titleController.text.trim(),
+                          'description': _descriptionController.text.trim(),
+                          'subject': _selectedSubject,
+                          'department': facultyData['department'],
+                          'section': _selectedSection,
+                          'semester': _selectedSemester,
+                          'dueDate': Timestamp.fromDate(_dueDate),
+                          'facultyId': facultyData['employeeId'],
+                          'facultyName': facultyData['name'],
+                          'maxMarks': _maxMarks,
+                          'type': _selectedType,
+                          'isActive': true,
+                          'allowedFormats': _allowedFormats,
+                          'instructions': _instructionsController.text.trim().isEmpty 
+                              ? null 
+                              : _instructionsController.text.trim(),
+                          'fileUrl': fileUrl, // Add the uploaded file URL
+                          'createdAt': FieldValue.serverTimestamp(),
+                          'updatedAt': FieldValue.serverTimestamp(),
+                        };
+
+                        await FirebaseFirestore.instance
+                            .collection('assignments')
+                            .add(assignmentData);
+
+                        // Show success message
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Assignment "${_titleController.text}" created successfully!'),
+                            backgroundColor: AppTheme.getStatusColor('success'),
+                          ),
+                        );
+
+                        // Close bottom sheet
+                        Navigator.pop(context);
+
+                      } catch (e) {
+                        // Clean up uploaded file if assignment creation fails
+                        if (fileUrl != null) {
+                          try {
+                            await _storageService.deleteFile(fileUrl);
+                          } catch (deleteError) {
+                            print('Failed to delete uploaded file: $deleteError');
+                          }
+                        }
+                        
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error: ${e.toString()}'),
+                            backgroundColor: AppTheme.getStatusColor('error'),
+                          ),
+                        );
+                      } finally {
+                        setModalState(() {
+                          _isLoading = false;
+                          _isUploading = false;
+                          _uploadProgress = 0.0;
+                        });
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.getRoleColor('faculty'),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: _isLoading || _isUploading
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                              SizedBox(width: 2.w),
+                              Text(
+                                _isUploading ? 'Uploading PDF...' : 'Creating Assignment...',
+                                style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          )
+                        : Text(
+                            'Create Assignment',
+                            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showScheduleClassBottomSheet(Map<String, dynamic> facultyData) {
+    final _titleController = TextEditingController();
+    final _descriptionController = TextEditingController();
+    final _roomController = TextEditingController();
+    final _formKey = GlobalKey<FormState>();
+    
+    String _selectedType = 'lecture';
+    String _selectedSubject = '';
+    String _selectedSection = '';
+    int _selectedSemester = 1;
+    DateTime _startTime = DateTime.now().add(Duration(hours: 1));
+    DateTime _endTime = DateTime.now().add(Duration(hours: 2, minutes: 30));
+    bool _isRecurring = false;
+    String _recurringPattern = 'weekly';
+    DateTime? _recurringEndDate;
+    bool _isLoading = false;
+
+    final List<String> _types = ['lecture', 'lab', 'tutorial', 'exam', 'seminar'];
+    final List<String> _subjects = ['Data Structures', 'Algorithms', 'Database', 'Software Engineering', 'Computer Networks', 'Operating Systems'];
+    final List<String> _sections = ['A', 'B', 'C', 'D'];
+    final List<String> _recurringPatterns = ['daily', 'weekly', 'monthly'];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: 85.h,
+          decoration: BoxDecoration(
+            color: AppTheme.lightTheme.scaffoldBackgroundColor,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                width: 12.w,
+                height: 0.5.h,
+                margin: EdgeInsets.only(top: 2.h),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              
+              // Header
+              Padding(
+                padding: EdgeInsets.all(4.w),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.schedule,
+                      color: AppTheme.getRoleColor('faculty'),
+                      size: 28,
+                    ),
+                    SizedBox(width: 3.w),
+                    Text(
+                      'Schedule Class',
+                      style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(Icons.close),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Form
+              Expanded(
+                child: Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(horizontal: 4.w),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Title field
+                        TextFormField(
+                          controller: _titleController,
+                          decoration: InputDecoration(
+                            labelText: 'Class Title',
+                            hintText: 'Enter class title',
+                            prefixIcon: Icon(Icons.title, color: AppTheme.getRoleColor('faculty')),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value?.isEmpty ?? true) return 'Title is required';
+                            if (value!.length < 3) return 'Title must be at least 3 characters';
+                            return null;
+                          },
+                          maxLength: 100,
+                        ),
+                        SizedBox(height: 2.h),
+                        
+                        // Type and Subject Row
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: _selectedType,
+                                decoration: InputDecoration(
+                                  labelText: 'Type',
+                                  prefixIcon: Icon(Icons.category, color: AppTheme.getRoleColor('faculty')),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                                  ),
+                                ),
+                                items: _types.map((type) {
+                                  return DropdownMenuItem<String>(
+                                    value: type,
+                                    child: Text(type.toUpperCase()),
+                                  );
+                                }).toList(),
+                                onChanged: (value) => setModalState(() => _selectedType = value!),
+                              ),
+                            ),
+                            SizedBox(width: 3.w),
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: _selectedSubject.isEmpty ? null : _selectedSubject,
+                                decoration: InputDecoration(
+                                  labelText: 'Subject',
+                                  prefixIcon: Icon(Icons.book, color: AppTheme.getRoleColor('faculty')),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                                  ),
+                                ),
+                                items: _subjects.map((subject) {
+                                  return DropdownMenuItem<String>(
+                                    value: subject,
+                                    child: Text(subject),
+                                  );
+                                }).toList(),
+                                onChanged: (value) => setModalState(() => _selectedSubject = value!),
+                                validator: (value) => value == null ? 'Subject is required' : null,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 2.h),
+                        
+                        // Section and Semester Row
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: _selectedSection.isEmpty ? null : _selectedSection,
+                                decoration: InputDecoration(
+                                  labelText: 'Section',
+                                  prefixIcon: Icon(Icons.group, color: AppTheme.getRoleColor('faculty')),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                                  ),
+                                ),
+                                items: _sections.map((section) {
+                                  return DropdownMenuItem<String>(
+                                    value: section,
+                                    child: Text('Section $section'),
+                                  );
+                                }).toList(),
+                                onChanged: (value) => setModalState(() => _selectedSection = value!),
+                                validator: (value) => value == null ? 'Section is required' : null,
+                              ),
+                            ),
+                            SizedBox(width: 3.w),
+                            Expanded(
+                              child: DropdownButtonFormField<int>(
+                                value: _selectedSemester,
+                                decoration: InputDecoration(
+                                  labelText: 'Semester',
+                                  prefixIcon: Icon(Icons.school, color: AppTheme.getRoleColor('faculty')),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                                  ),
+                                ),
+                                items: List.generate(8, (index) => index + 1).map((sem) {
+                                  return DropdownMenuItem<int>(
+                                    value: sem,
+                                    child: Text('Semester $sem'),
+                                  );
+                                }).toList(),
+                                onChanged: (value) => setModalState(() => _selectedSemester = value!),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 2.h),
+                        
+                        // Room field
+                        TextFormField(
+                          controller: _roomController,
+                          decoration: InputDecoration(
+                            labelText: 'Room/Location',
+                            hintText: 'Enter room number or location',
+                            prefixIcon: Icon(Icons.location_on, color: AppTheme.getRoleColor('faculty')),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value?.isEmpty ?? true) return 'Room is required';
+                            return null;
+                          },
+                        ),
+                        SizedBox(height: 2.h),
+                        
+                        // Start Time
+                        InkWell(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: _startTime,
+                              firstDate: DateTime.now(),
+                              lastDate: DateTime.now().add(Duration(days: 365)),
+                            );
+                            if (picked != null) {
+                              final time = await showTimePicker(
+                                context: context,
+                                initialTime: TimeOfDay.fromDateTime(_startTime),
+                              );
+                              if (time != null) {
+                                setModalState(() {
+                                  _startTime = DateTime(
+                                    picked.year,
+                                    picked.month,
+                                    picked.day,
+                                    time.hour,
+                                    time.minute,
+                                  );
+                                  // Auto-adjust end time to 1.5 hours later
+                                  _endTime = _startTime.add(Duration(hours: 1, minutes: 30));
+                                });
+                              }
+                            }
+                          },
+                          child: Container(
+                            padding: EdgeInsets.all(4.w),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.access_time, color: AppTheme.getRoleColor('faculty')),
+                                SizedBox(width: 3.w),
+                                Text(
+                                  'Start: ${_startTime.day}/${_startTime.month}/${_startTime.year} at ${_startTime.hour}:${_startTime.minute.toString().padLeft(2, '0')}',
+                                  style: AppTheme.lightTheme.textTheme.bodyMedium,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 2.h),
+                        
+                        // End Time
+                        InkWell(
+                          onTap: () async {
+                            final time = await showTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay.fromDateTime(_endTime),
+                            );
+                            if (time != null) {
+                              setModalState(() {
+                                _endTime = DateTime(
+                                  _startTime.year,
+                                  _startTime.month,
+                                  _startTime.day,
+                                  time.hour,
+                                  time.minute,
+                                );
+                              });
+                            }
+                          },
+                          child: Container(
+                            padding: EdgeInsets.all(4.w),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.access_time_filled, color: AppTheme.getRoleColor('faculty')),
+                                SizedBox(width: 3.w),
+                                Text(
+                                  'End: ${_endTime.hour}:${_endTime.minute.toString().padLeft(2, '0')}',
+                                  style: AppTheme.lightTheme.textTheme.bodyMedium,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 2.h),
+                        
+                        // Recurring checkbox
+                        CheckboxListTile(
+                          title: Text('Recurring Class'),
+                          subtitle: Text('Schedule this class to repeat'),
+                          value: _isRecurring,
+                          activeColor: AppTheme.getRoleColor('faculty'),
+                          onChanged: (value) => setModalState(() => _isRecurring = value!),
+                        ),
+                        
+                        if (_isRecurring) ...[
+                          SizedBox(height: 1.h),
+                          DropdownButtonFormField<String>(
+                            value: _recurringPattern,
+                            decoration: InputDecoration(
+                              labelText: 'Repeat Pattern',
+                              prefixIcon: Icon(Icons.repeat, color: AppTheme.getRoleColor('faculty')),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                              ),
+                            ),
+                            items: _recurringPatterns.map((pattern) {
+                              return DropdownMenuItem<String>(
+                                value: pattern,
+                                child: Text(pattern.toUpperCase()),
+                              );
+                            }).toList(),
+                            onChanged: (value) => setModalState(() => _recurringPattern = value!),
+                          ),
+                          SizedBox(height: 2.h),
+                          InkWell(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: _recurringEndDate ?? DateTime.now().add(Duration(days: 30)),
+                                firstDate: _startTime,
+                                lastDate: DateTime.now().add(Duration(days: 365)),
+                              );
+                              if (picked != null) {
+                                setModalState(() => _recurringEndDate = picked);
+                              }
+                            },
+                            child: Container(
+                              padding: EdgeInsets.all(4.w),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.event_repeat, color: AppTheme.getRoleColor('faculty')),
+                                  SizedBox(width: 3.w),
+                                  Text(
+                                    _recurringEndDate == null 
+                                        ? 'Select recurring end date' 
+                                        : 'Repeat until: ${_recurringEndDate!.day}/${_recurringEndDate!.month}/${_recurringEndDate!.year}',
+                                    style: AppTheme.lightTheme.textTheme.bodyMedium,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                        SizedBox(height: 2.h),
+                        
+                        // Description field
+                        TextFormField(
+                          controller: _descriptionController,
+                          decoration: InputDecoration(
+                            labelText: 'Description (Optional)',
+                            hintText: 'Enter class description or notes',
+                            prefixIcon: Icon(Icons.description, color: AppTheme.getRoleColor('faculty')),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                            ),
+                          ),
+                          maxLines: 3,
+                          maxLength: 200,
+                        ),
+                        SizedBox(height: 4.h),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              
+              // Submit button
+              Container(
+                padding: EdgeInsets.all(4.w),
+                decoration: BoxDecoration(
+                  color: AppTheme.lightTheme.scaffoldBackgroundColor,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 6.h,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : () async {
+                      if (!_formKey.currentState!.validate()) {
+                        return;
+                      }
+
+                      if (_endTime.isBefore(_startTime)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('End time must be after start time'),
+                            backgroundColor: AppTheme.getStatusColor('error'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      if (_isRecurring && _recurringEndDate == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Please select recurring end date'),
+                            backgroundColor: AppTheme.getStatusColor('error'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      setModalState(() => _isLoading = true);
+
+                      try {
+                        // Create class session document
+                        final sessionData = {
+                          'title': _titleController.text.trim(),
+                          'subject': _selectedSubject,
+                          'department': facultyData['department'],
+                          'section': _selectedSection,
+                          'semester': _selectedSemester,
+                          'facultyId': facultyData['employeeId'],
+                          'facultyName': facultyData['name'],
+                          'room': _roomController.text.trim(),
+                          'startTime': Timestamp.fromDate(_startTime),
+                          'endTime': Timestamp.fromDate(_endTime),
+                          'type': _selectedType,
+                          'description': _descriptionController.text.trim().isEmpty 
+                              ? null 
+                              : _descriptionController.text.trim(),
+                          'isActive': true,
+                          'isRecurring': _isRecurring,
+                          'recurringPattern': _isRecurring ? _recurringPattern : null,
+                          'recurringEndDate': _isRecurring && _recurringEndDate != null 
+                              ? Timestamp.fromDate(_recurringEndDate!) 
+                              : null,
+                          'attendees': <String>[],
+                          'status': 'scheduled',
+                          'createdAt': FieldValue.serverTimestamp(),
+                          'updatedAt': FieldValue.serverTimestamp(),
+                        };
+
+                        await FirebaseFirestore.instance
+                            .collection('class_sessions')
+                            .add(sessionData);
+
+                        // Show success message
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Class "${_titleController.text}" scheduled successfully!'),
+                            backgroundColor: AppTheme.getStatusColor('success'),
+                          ),
+                        );
+
+                        // Close bottom sheet
+                        Navigator.pop(context);
+
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error: ${e.toString()}'),
+                            backgroundColor: AppTheme.getStatusColor('error'),
+                          ),
+                        );
+                      } finally {
+                        setModalState(() => _isLoading = false);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.getRoleColor('faculty'),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            'Schedule Class',
                             style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,

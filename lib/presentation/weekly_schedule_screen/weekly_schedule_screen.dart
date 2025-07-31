@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
-import '../../controllers/faculty_dashboard_controller.dart';
+import '../../controllers/schedule_controller.dart';
+import '../../models/class_session_model.dart';
+import './widgets/add_class_session_widget.dart';
 import './widgets/class_detail_bottom_sheet.dart';
 import './widgets/day_column_widget.dart';
 import './widgets/filter_bottom_sheet.dart';
@@ -25,39 +27,41 @@ class WeeklyScheduleScreen extends ConsumerStatefulWidget {
 }
 
 class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
-  DateTime _currentWeek = DateTime.now();
-  String _selectedDepartment = 'CSE';
-  String _selectedSection = 'A';
-  bool _isLoading = false;
+  DateTime? _selectedDateForNewClass;
 
 
   @override
   Widget build(BuildContext context) {
-    final weeklySchedule = ref.watch(facultyWeeklyScheduleProvider);
+    final scheduleState = ref.watch(scheduleControllerProvider);
     
     return Scaffold(
       backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
       appBar: _buildAppBar(),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.refresh(facultyWeeklyScheduleProvider);
+          await ref.read(scheduleControllerProvider.notifier).loadWeeklySchedule();
         },
         child: Column(
           children: [
-            WeekNavigationWidget(
-              currentWeek: _currentWeek,
-              onPreviousWeek: _goToPreviousWeek,
-              onNextWeek: _goToNextWeek,
-              onFilterTap: _showFilterBottomSheet,
-            ),
+            _buildWeekNavigation(),
             Expanded(
-              child: weeklySchedule.when(
-                data: (schedule) => _buildScheduleContent(schedule),
-                loading: () => _buildLoadingWidget(),
-                error: (error, stack) => _buildErrorWidget(),
-              ),
+              child: scheduleState.isLoading
+                  ? _buildLoadingWidget()
+                  : scheduleState.error != null
+                      ? _buildErrorWidget(scheduleState.error!)
+                      : _buildScheduleContent(scheduleState.weeklySchedule),
             ),
           ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddClassDialog,
+        backgroundColor: AppTheme.getRoleColor('faculty'),
+        foregroundColor: Colors.white,
+        child: CustomIconWidget(
+          iconName: 'add',
+          color: Colors.white,
+          size: 24,
         ),
       ),
     );
@@ -130,7 +134,7 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
     );
   }
 
-  Widget _buildScheduleContent(Map<String, List<Map<String, dynamic>>> schedule) {
+  Widget _buildScheduleContent(Map<String, List<ClassSession>> schedule) {
     final daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     
     return Container(
@@ -149,17 +153,21 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
               dayName: day,
               dayDate: dayDate,
               isToday: isToday,
-              classes: classes.map((classData) => {
-                'time': classData['time'],
-                'subject': classData['subject'],
-                'faculty': 'You', // Faculty viewing their own schedule
-                'room': classData['room'],
+              classes: classes.map((session) => {
+                'time': '${session.startTime.hour.toString().padLeft(2, '0')}:${session.startTime.minute.toString().padLeft(2, '0')} - ${session.endTime.hour.toString().padLeft(2, '0')}:${session.endTime.minute.toString().padLeft(2, '0')}',
+                'subject': session.subject,
+                'faculty': session.facultyName,
+                'room': session.room,
                 'contact': '', // Faculty's own contact
                 'progress': 0, // Could be derived from attendance/assignments
                 'attendance': 0, // Could be derived from attendance records
                 'totalClasses': 0, // Could be calculated
-                'section': classData['section'],
-                'semester': classData['semester'],
+                'section': session.section,
+                'semester': session.semester.toString(),
+                'title': session.title,
+                'department': session.department,
+                'type': session.type,
+                'id': session.id,
               }).toList(),
               onClassTap: _showClassDetails,
               onClassLongPress: _showQuickActions,
@@ -170,16 +178,33 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
     );
   }
 
-  Widget _buildErrorWidget() {
+  Widget _buildErrorWidget(String error) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.error, size: 64, color: Colors.red),
-          SizedBox(height: 16),
-          Text('Error loading schedule'),
-          TextButton(
-            onPressed: () => ref.refresh(facultyWeeklyScheduleProvider),
+          CustomIconWidget(
+            iconName: 'error',
+            size: 64,
+            color: AppTheme.getStatusColor('error'),
+          ),
+          SizedBox(height: 2.h),
+          Text(
+            'Error Loading Schedule',
+            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+              color: AppTheme.getStatusColor('error'),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(height: 1.h),
+          Text(
+            error,
+            style: AppTheme.lightTheme.textTheme.bodyMedium,
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 2.h),
+          ElevatedButton(
+            onPressed: () => ref.read(scheduleControllerProvider.notifier).loadWeeklySchedule(),
             child: Text('Retry'),
           ),
         ],
@@ -187,15 +212,84 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
     );
   }
 
+  Widget _buildWeekNavigation() {
+    final scheduleState = ref.watch(scheduleControllerProvider);
+    
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
+      decoration: BoxDecoration(
+        color: AppTheme.lightTheme.cardColor,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: () => ref.read(scheduleControllerProvider.notifier).goToPreviousWeek(),
+            icon: CustomIconWidget(
+              iconName: 'chevron_left',
+              color: AppTheme.lightTheme.colorScheme.onSurface,
+              size: 24,
+            ),
+          ),
+          Expanded(
+            child: Column(
+              children: [
+                Text(
+                  ref.read(scheduleControllerProvider.notifier).weekRangeText,
+                  style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (!ref.read(scheduleControllerProvider.notifier).isCurrentWeek)
+                  TextButton(
+                    onPressed: () => ref.read(scheduleControllerProvider.notifier).goToCurrentWeek(),
+                    child: Text(
+                      'Go to Current Week',
+                      style: TextStyle(
+                        color: AppTheme.getRoleColor('faculty'),
+                        fontSize: 12.sp,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () => ref.read(scheduleControllerProvider.notifier).goToNextWeek(),
+            icon: CustomIconWidget(
+              iconName: 'chevron_right',
+              color: AppTheme.lightTheme.colorScheme.onSurface,
+              size: 24,
+            ),
+          ),
+          IconButton(
+            onPressed: _showFilterBottomSheet,
+            icon: CustomIconWidget(
+              iconName: 'filter_list',
+              color: AppTheme.getRoleColor('faculty'),
+              size: 24,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _getDateForDay(String dayName) {
-    final now = DateTime.now();
-    final today = now.weekday;
-    final daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    final targetDay = daysOfWeek.indexOf(dayName) + 1;
+    final scheduleState = ref.watch(scheduleControllerProvider);
+    final currentWeekStart = scheduleState.currentWeek;
+    final daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    final dayIndex = daysOfWeek.indexOf(dayName);
     
-    final difference = targetDay - today;
-    final targetDate = now.add(Duration(days: difference));
+    if (dayIndex == -1) return '';
     
+    final targetDate = currentWeekStart.add(Duration(days: dayIndex));
     return targetDate.day.toString().padLeft(2, '0');
   }
 
@@ -214,39 +308,26 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
     return weekdays[todayIndex] == dayName;
   }
 
-  void _goToPreviousWeek() {
-    setState(() {
-      _currentWeek = _currentWeek.subtract(Duration(days: 7));
-    });
-    ref.refresh(facultyWeeklyScheduleProvider);
-  }
-
-  void _goToNextWeek() {
-    setState(() {
-      _currentWeek = _currentWeek.add(Duration(days: 7));
-    });
-    ref.refresh(facultyWeeklyScheduleProvider);
-  }
 
   void _showFilterBottomSheet() {
+    final scheduleState = ref.read(scheduleControllerProvider);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => FilterBottomSheet(
-        selectedDepartment: _selectedDepartment,
-        selectedSection: _selectedSection,
+        selectedDepartment: scheduleState.selectedDepartment,
+        selectedSection: scheduleState.selectedSection,
         onApplyFilter: _applyFilter,
       ),
     );
   }
 
   void _applyFilter(String department, String section) {
-    setState(() {
-      _selectedDepartment = department;
-      _selectedSection = section;
-    });
-    ref.refresh(facultyWeeklyScheduleProvider);
+    ref.read(scheduleControllerProvider.notifier).updateFilters(
+      department: department,
+      section: section,
+    );
   }
 
   void _showClassDetails(Map<String, dynamic> classData) {
@@ -344,5 +425,70 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
         backgroundColor: AppTheme.getStatusColor('success'),
       ),
     );
+  }
+
+  void _showAddClassDialog() {
+    final scheduleState = ref.read(scheduleControllerProvider);
+    final today = DateTime.now();
+    final weekStart = scheduleState.currentWeek;
+    
+    // Default to today if within current week, otherwise first day of the week
+    DateTime selectedDate = today;
+    if (today.isBefore(weekStart) || today.isAfter(weekStart.add(Duration(days: 6)))) {
+      selectedDate = weekStart;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AddClassSessionWidget(
+        selectedDate: selectedDate,
+        onClose: () => Navigator.pop(context),
+        onSave: _addClassSession,
+      ),
+    );
+  }
+
+  void _showAddClassForTime(String dayName, String time) {
+    final scheduleState = ref.read(scheduleControllerProvider);
+    final daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    final dayIndex = daysOfWeek.indexOf(dayName);
+    
+    if (dayIndex == -1) return;
+    
+    final selectedDate = scheduleState.currentWeek.add(Duration(days: dayIndex));
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AddClassSessionWidget(
+        selectedDate: selectedDate,
+        onClose: () => Navigator.pop(context),
+        onSave: _addClassSession,
+      ),
+    );
+  }
+
+  Future<void> _addClassSession(ClassSession session) async {
+    Navigator.pop(context); // Close the add session sheet
+    
+    try {
+      await ref.read(scheduleControllerProvider.notifier).addClassSession(session);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Class session "${session.title}" added successfully'),
+          backgroundColor: AppTheme.getStatusColor('success'),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to add class session: $e'),
+          backgroundColor: AppTheme.getStatusColor('error'),
+        ),
+      );
+    }
   }
 }

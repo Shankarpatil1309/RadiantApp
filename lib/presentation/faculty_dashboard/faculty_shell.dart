@@ -1,8 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../../core/app_export.dart';
+import '../../controllers/faculty_dashboard_controller.dart';
+import '../../services/storage_service.dart';
 import '../attendance_screen/faculty_attendance_screen.dart';
 import '../faculty_assignment_management_screen/faculty_assignment_management_screen.dart';
 import '../weekly_schedule_screen/weekly_schedule_screen.dart';
@@ -215,37 +220,81 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
   }
 
   void _showQuickActions() {
+    // Get faculty data from the provider
+    final facultyDataAsync = ref.read(facultyDataProvider);
+    
+    facultyDataAsync.when(
+      data: (facultyData) {
+        if (facultyData != null) {
+          _showQuickActionsBottomSheet(facultyData);
+        } else {
+          _showComingSoon('Faculty data not available');
+        }
+      },
+      loading: () => _showComingSoon('Loading faculty data'),
+      error: (error, stack) => _showComingSoon('Error loading faculty data'),
+    );
+  }
+
+  void _showQuickActionsBottomSheet(Map<String, dynamic> facultyData) {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.transparent,
       builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: AppTheme.lightTheme.scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
         padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Quick Actions',
+              style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: AppTheme.getRoleColor(userRole),
+              ),
+            ),
+            const SizedBox(height: 20),
             ListTile(
               leading: Icon(Icons.announcement, color: AppTheme.getRoleColor(userRole)),
               title: const Text('Post Announcement'),
+              subtitle: const Text('Share announcements with students'),
               onTap: () {
                 Navigator.pop(context);
-                _showComingSoon('Post Announcement');
+                _showAnnouncementModal(facultyData);
               },
             ),
             ListTile(
               leading: Icon(Icons.assignment_add, color: AppTheme.getRoleColor(userRole)),
               title: const Text('Create Assignment'),
+              subtitle: const Text('Create and upload assignment PDFs'),
               onTap: () {
                 Navigator.pop(context);
-                _showComingSoon('Create Assignment');
+                _showAssignmentModal(facultyData);
               },
             ),
             ListTile(
               leading: Icon(Icons.schedule, color: AppTheme.getRoleColor(userRole)),
               title: const Text('Schedule Class'),
+              subtitle: const Text('Schedule one-time or recurring classes'),
               onTap: () {
                 Navigator.pop(context);
-                _showComingSoon('Schedule Class');
+                _showScheduleClassModal(facultyData);
               },
             ),
+            const SizedBox(height: 10),
           ],
         ),
       ),
@@ -258,6 +307,395 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
         content: Text('$feature feature coming soon!'),
         backgroundColor: AppTheme.getRoleColor(userRole),
         duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showAnnouncementModal(Map<String, dynamic> facultyData) {
+    _showCreateAnnouncementBottomSheet(facultyData);
+  }
+
+  void _showAssignmentModal(Map<String, dynamic> facultyData) {
+    _showCreateAssignmentBottomSheet(facultyData);
+  }
+
+  void _showScheduleClassModal(Map<String, dynamic> facultyData) {
+    _showScheduleClassBottomSheet(facultyData);
+  }
+
+  // Announcement Modal - Same as faculty_dashboard.dart
+  void _showCreateAnnouncementBottomSheet(Map<String, dynamic> facultyData) {
+    final _titleController = TextEditingController();
+    final _contentController = TextEditingController();
+    final _formKey = GlobalKey<FormState>();
+    
+    String _selectedPriority = 'normal';
+    List<String> _selectedDepartments = [facultyData['department']];
+    bool _isLoading = false;
+
+    final List<String> _priorities = ['normal', 'important', 'urgent'];
+    final List<String> _departments = ['All', 'CSE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'IT'];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: MediaQuery.of(context).size.height * 0.85,
+          decoration: BoxDecoration(
+            color: AppTheme.lightTheme.scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(top: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.campaign,
+                      color: AppTheme.getRoleColor('faculty'),
+                      size: 28,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Create Announcement',
+                      style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Form
+              Expanded(
+                child: Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Title field
+                        TextFormField(
+                          controller: _titleController,
+                          decoration: InputDecoration(
+                            labelText: 'Announcement Title',
+                            hintText: 'Enter announcement title',
+                            prefixIcon: Icon(Icons.title, color: AppTheme.getRoleColor('faculty')),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value?.isEmpty ?? true) return 'Title is required';
+                            if (value!.length < 5) return 'Title must be at least 5 characters';
+                            return null;
+                          },
+                          maxLength: 100,
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Content field
+                        TextFormField(
+                          controller: _contentController,
+                          decoration: InputDecoration(
+                            labelText: 'Announcement Content',
+                            hintText: 'Enter detailed announcement content',
+                            prefixIcon: Icon(Icons.description, color: AppTheme.getRoleColor('faculty')),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                            ),
+                          ),
+                          maxLines: 4,
+                          validator: (value) {
+                            if (value?.isEmpty ?? true) return 'Content is required';
+                            if (value!.length < 10) return 'Content must be at least 10 characters';
+                            return null;
+                          },
+                          maxLength: 500,
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Priority dropdown
+                        DropdownButtonFormField<String>(
+                          value: _selectedPriority,
+                          decoration: InputDecoration(
+                            labelText: 'Priority',
+                            prefixIcon: Icon(Icons.priority_high, color: AppTheme.getRoleColor('faculty')),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                            ),
+                          ),
+                          items: _priorities.map((priority) {
+                            return DropdownMenuItem<String>(
+                              value: priority,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      color: _getPriorityColor(priority),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(priority.toUpperCase()),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (value) => setModalState(() => _selectedPriority = value!),
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Department selection
+                        Text(
+                          'Target Departments',
+                          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _departments.map((dept) {
+                              final isSelected = _selectedDepartments.contains(dept);
+                              return FilterChip(
+                                label: Text(dept),
+                                selected: isSelected,
+                                onSelected: (selected) {
+                                  setModalState(() {
+                                    if (dept == 'All') {
+                                      if (selected) {
+                                        _selectedDepartments = ['All'];
+                                      } else {
+                                        _selectedDepartments.remove('All');
+                                      }
+                                    } else {
+                                      if (selected) {
+                                        _selectedDepartments.remove('All');
+                                        _selectedDepartments.add(dept);
+                                      } else {
+                                        _selectedDepartments.remove(dept);
+                                        if (_selectedDepartments.isEmpty) {
+                                          _selectedDepartments.add(facultyData['department']);
+                                        }
+                                      }
+                                    }
+                                  });
+                                },
+                                selectedColor: AppTheme.getRoleColor('faculty').withValues(alpha: 0.2),
+                                checkmarkColor: AppTheme.getRoleColor('faculty'),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              
+              // Submit button
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppTheme.lightTheme.scaffoldBackgroundColor,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : () async {
+                      if (!_formKey.currentState!.validate()) {
+                        return;
+                      }
+
+                      if (_selectedDepartments.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Please select at least one department'),
+                            backgroundColor: AppTheme.getStatusColor('error'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      setModalState(() => _isLoading = true);
+
+                      try {
+                        // Create announcement document with same structure as admin
+                        final announcementData = {
+                          'title': _titleController.text.trim(),
+                          'content': _contentController.text.trim(),
+                          'priority': _selectedPriority,
+                          'departments': _selectedDepartments,
+                          'author': facultyData['name'],
+                          'authorId': facultyData['employeeId'],
+                          'isActive': true,
+                          'readBy': <String>[],
+                          'createdAt': FieldValue.serverTimestamp(),
+                          'updatedAt': FieldValue.serverTimestamp(),
+                        };
+
+                        await FirebaseFirestore.instance
+                            .collection('announcements')
+                            .add(announcementData);
+
+                        // Refresh announcements
+                        ref.refresh(facultyAnnouncementsProvider);
+
+                        // Show success message
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Announcement "${_titleController.text}" created successfully!'),
+                            backgroundColor: AppTheme.getStatusColor('success'),
+                          ),
+                        );
+
+                        // Close bottom sheet
+                        Navigator.pop(context);
+
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error: ${e.toString()}'),
+                            backgroundColor: AppTheme.getStatusColor('error'),
+                          ),
+                        );
+                      } finally {
+                        setModalState(() => _isLoading = false);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.getRoleColor('faculty'),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            'Create Announcement',
+                            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getPriorityColor(String priority) {
+    switch (priority.toLowerCase()) {
+      case 'urgent':
+        return AppTheme.lightTheme.colorScheme.error;
+      case 'important':
+        return const Color(0xFFFF9800);
+      case 'normal':
+      default:
+        return AppTheme.getRoleColor('faculty');
+    }
+  }
+
+  // Assignment Modal - Simplified version
+  void _showCreateAssignmentBottomSheet(Map<String, dynamic> facultyData) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Assignment creation feature is available in the dashboard. Please use the Quick Actions card on the dashboard.'),
+        backgroundColor: AppTheme.getRoleColor(userRole),
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'Go to Dashboard',
+          textColor: Colors.white,
+          onPressed: () {
+            setState(() {
+              _selectedBottomNavIndex = 0;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  // Schedule Class Modal - Simplified version
+  void _showScheduleClassBottomSheet(Map<String, dynamic> facultyData) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Class scheduling feature is available in the dashboard. Please use the Quick Actions card on the dashboard.'),
+        backgroundColor: AppTheme.getRoleColor(userRole),
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'Go to Dashboard',
+          textColor: Colors.white,
+          onPressed: () {
+            setState(() {
+              _selectedBottomNavIndex = 0;
+            });
+          },
+        ),
       ),
     );
   }

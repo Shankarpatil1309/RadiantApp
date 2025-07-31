@@ -8,6 +8,8 @@ class QuickActionsCard extends StatelessWidget {
   final Function() onPostAnnouncement;
   final Function() onViewSchedule;
   final Function() onManageAssignments;
+  final Function() onCreateAssignment;
+  final Function() onScheduleClass;
 
   const QuickActionsCard({
     Key? key,
@@ -15,6 +17,8 @@ class QuickActionsCard extends StatelessWidget {
     required this.onPostAnnouncement,
     required this.onViewSchedule,
     required this.onManageAssignments,
+    required this.onCreateAssignment,
+    required this.onScheduleClass,
   }) : super(key: key);
 
   @override
@@ -87,6 +91,30 @@ class QuickActionsCard extends StatelessWidget {
                     'assignment',
                     AppTheme.getStatusColor('success'),
                     onManageAssignments,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 2.h),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildActionButton(
+                    context,
+                    "Create Assignment",
+                    'assignment_add',
+                    AppTheme.getStatusColor('info'),
+                    onCreateAssignment,
+                  ),
+                ),
+                SizedBox(width: 3.w),
+                Expanded(
+                  child: _buildActionButton(
+                    context,
+                    "Schedule Class",
+                    'schedule',
+                    AppTheme.getStatusColor('warning'),
+                    onScheduleClass,
                   ),
                 ),
               ],

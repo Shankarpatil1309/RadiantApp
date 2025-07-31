@@ -59,4 +59,5 @@ class DefaultFirebaseOptions {
     projectId: 'radiant-c7196',
     storageBucket: 'radiant-c7196.firebasestorage.app',
   );
+
 }
