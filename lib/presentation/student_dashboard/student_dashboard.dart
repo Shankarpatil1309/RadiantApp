@@ -5,6 +5,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
 import '../../controllers/auth_controller.dart';
+import '../../controllers/student_dashboard_controller.dart';
 import './widgets/greeting_header_widget.dart';
 import './widgets/pending_assignments_card_widget.dart';
 import './widgets/quick_stats_card_widget.dart';
@@ -486,6 +487,22 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
   }
 
   void _showProfileMenu() {
+    final studentDataAsync = ref.read(studentDataProvider);
+    
+    studentDataAsync.when(
+      data: (data) {
+        if (data != null) {
+          _showProfileMenuBottomSheet(data);
+        } else {
+          _showComingSoon('Profile data not available');
+        }
+      },
+      loading: () => _showComingSoon('Loading profile data'),
+      error: (error, stack) => _showComingSoon('Error loading profile data'),
+    );
+  }
+
+  void _showProfileMenuBottomSheet(Map<String, dynamic> studentData) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -509,10 +526,10 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
             SizedBox(height: 2.h),
             ListTile(
               leading: CircleAvatar(
-                backgroundImage: NetworkImage(
-                  studentData['profileImage'] as String,
-                ),
-                child: studentData['profileImage'] == null
+                backgroundImage: studentData['imageUrl'] != null 
+                    ? NetworkImage(studentData['imageUrl'] as String)
+                    : null,
+                child: studentData['imageUrl'] == null
                     ? Text((studentData['name'] as String)
                         .substring(0, 1)
                         .toUpperCase())
@@ -637,6 +654,11 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
 
   @override
   Widget build(BuildContext context) {
+    final studentData = ref.watch(studentDataProvider);
+    final todayClasses = ref.watch(studentTodayClassesProvider);
+    final announcements = ref.watch(studentAnnouncementsProvider);
+    final assignments = ref.watch(studentAssignmentsProvider);
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
@@ -657,44 +679,79 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
             ),
           ),
           actions: [
-            IconButton(
-              onPressed: _showProfileMenu,
-              icon: CircleAvatar(
-                radius: 16,
-                backgroundImage: NetworkImage(
-                  studentData['profileImage'] as String,
+            studentData.when(
+              data: (data) => IconButton(
+                onPressed: _showProfileMenu,
+                icon: CircleAvatar(
+                  radius: 16,
+                  backgroundImage: data?['imageUrl'] != null 
+                      ? NetworkImage(data!['imageUrl'] as String)
+                      : null,
+                  onBackgroundImageError: (exception, stackTrace) {
+                    // Fallback to initials
+                  },
+                  child: data?['imageUrl'] == null
+                      ? Text(
+                          data?['name']?.substring(0, 1)?.toUpperCase() ?? 'S',
+                          style:
+                              AppTheme.lightTheme.textTheme.labelMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        )
+                      : null,
                 ),
-                onBackgroundImageError: (exception, stackTrace) {
-                  // Fallback to initials
-                },
-                child: studentData['profileImage'] == null
-                    ? Text(
-                        (studentData['name'] as String)
-                            .substring(0, 1)
-                            .toUpperCase(),
-                        style:
-                            AppTheme.lightTheme.textTheme.labelMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      )
-                    : null,
               ),
+              loading: () => CircularProgressIndicator(),
+              error: (_, __) => Icon(Icons.person),
             ),
             SizedBox(width: 2.w),
           ],
         ),
         body: SafeArea(
-          child: _buildDashboardTab(),
+          child: studentData.when(
+            data: (data) {
+              if (data == null) {
+                return const Center(child: Text('Please complete your profile setup'));
+              }
+              return _buildDashboardTab(data, todayClasses, announcements, assignments);
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stack) => Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error, size: 64, color: Colors.red),
+                  SizedBox(height: 16),
+                  Text('Error loading student data'),
+                  TextButton(
+                    onPressed: () => ref.refresh(studentDataProvider),
+                    child: Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 
 
-  Widget _buildDashboardTab() {
+  Widget _buildDashboardTab(
+    Map<String, dynamic> studentData,
+    AsyncValue<List<dynamic>> todayClassesAsync,
+    AsyncValue<List<dynamic>> announcementsAsync,
+    AsyncValue<List<dynamic>> assignmentsAsync,
+  ) {
     return RefreshIndicator(
-      onRefresh: _refreshDashboard,
+      onRefresh: () async {
+        ref.refresh(studentDataProvider);
+        ref.refresh(studentTodayClassesProvider);
+        ref.refresh(studentAnnouncementsProvider);
+        ref.refresh(studentAssignmentsProvider);
+        await _refreshDashboard();
+      },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
@@ -706,35 +763,74 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
               child: GreetingHeaderWidget(
                 studentName: studentData['name'] as String,
                 usn: studentData['usn'] as String,
-                department: studentData['department'] as String,
+                department: studentData['branch'] as String,
                 section: studentData['section'] as String,
               ),
             ),
             SizedBox(height: 2.h),
             // Today's Schedule Card
-            TodayScheduleCardWidget(
-              todayClasses: todaySchedule,
-              onTap: () {
-                widget.onNavigateToTab?.call(1); // Navigate to Schedule tab
-              },
+            todayClassesAsync.when(
+              data: (todayClasses) => TodayScheduleCardWidget(
+                todayClasses: todayClasses.map((session) => {
+                  'id': session.id,
+                  'subject': session.subject,
+                  'faculty': session.facultyName,
+                  'room': session.room,
+                  'startTime': session.startTime.toIso8601String(),
+                  'endTime': session.endTime.toIso8601String(),
+                  'type': session.type,
+                }).toList(),
+                onTap: () {
+                  widget.onNavigateToTab?.call(1); // Navigate to Schedule tab
+                },
+              ),
+              loading: () => _buildLoadingCard('Loading today\'s classes...'),
+              error: (error, stack) => _buildErrorCard('Error loading classes'),
             ),
             // Recent Announcements Card
-            RecentAnnouncementsCardWidget(
-              announcements: announcements,
-              onAnnouncementTap: _onAnnouncementTap,
-              onAnnouncementLongPress: _onAnnouncementLongPress,
+            announcementsAsync.when(
+              data: (announcements) => RecentAnnouncementsCardWidget(
+                announcements: announcements.map((ann) => {
+                  'id': ann.id,
+                  'title': ann.title,
+                  'content': ann.message,
+                  'priority': ann.priority,
+                  'timestamp': ann.createdAt.toIso8601String(),
+                  'author': ann.createdBy,
+                  'department': ann.departments.join(', '),
+                  'isRead': false, // TODO: Implement read tracking
+                }).toList(),
+                onAnnouncementTap: _onAnnouncementTap,
+                onAnnouncementLongPress: _onAnnouncementLongPress,
+              ),
+              loading: () => _buildLoadingCard('Loading announcements...'),
+              error: (error, stack) => _buildErrorCard('Error loading announcements'),
             ),
             // Pending Assignments Card
-            PendingAssignmentsCardWidget(
-              assignments: assignments,
-              onViewAll: () {
-                widget.onNavigateToTab?.call(3); // Navigate to Assignments tab
-              },
+            assignmentsAsync.when(
+              data: (assignments) => PendingAssignmentsCardWidget(
+                assignments: assignments.map((assignment) => {
+                  'id': assignment.id,
+                  'title': assignment.title,
+                  'description': assignment.description,
+                  'subject': assignment.subject,
+                  'faculty': assignment.facultyName,
+                  'dueDate': assignment.dueDate.toIso8601String(),
+                  'marks': assignment.maxMarks,
+                  'status': 'pending',
+                  'submissionType': assignment.type,
+                }).toList(),
+                onViewAll: () {
+                  widget.onNavigateToTab?.call(3); // Navigate to Assignments tab
+                },
+              ),
+              loading: () => _buildLoadingCard('Loading assignments...'),
+              error: (error, stack) => _buildErrorCard('Error loading assignments'),
             ),
             // Quick Stats Card
             QuickStatsCardWidget(
-              attendancePercentage: 87.5,
-              recentMarks: recentMarks,
+              attendancePercentage: 87.5, // TODO: Calculate from attendance data
+              recentMarks: recentMarks, // TODO: Replace with real data
               onAttendanceTap: () {
                 widget.onNavigateToTab?.call(2); // Navigate to Attendance tab
               },
@@ -744,6 +840,59 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
             ),
             SizedBox(height: 10.h), // Space for FAB
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingCard(String message) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: EdgeInsets.all(4.w),
+      child: Container(
+        padding: EdgeInsets.all(4.w),
+        height: 20.h,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: AppTheme.lightTheme.primaryColor),
+              SizedBox(height: 2.h),
+              Text(message, style: AppTheme.lightTheme.textTheme.bodyMedium),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorCard(String message) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: EdgeInsets.all(4.w),
+      child: Container(
+        padding: EdgeInsets.all(4.w),
+        height: 20.h,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error, color: Colors.red, size: 48),
+              SizedBox(height: 2.h),
+              Text(message, style: AppTheme.lightTheme.textTheme.bodyMedium),
+              TextButton(
+                onPressed: () {
+                  ref.refresh(studentDataProvider);
+                  ref.refresh(studentTodayClassesProvider);
+                  ref.refresh(studentAnnouncementsProvider);
+                  ref.refresh(studentAssignmentsProvider);
+                },
+                child: Text('Retry'),
+              ),
+            ],
+          ),
         ),
       ),
     );

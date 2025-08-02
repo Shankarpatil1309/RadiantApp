@@ -253,4 +253,76 @@ class AssignmentService {
       'overdue': overdueCount,
     };
   }
+
+  // Student-specific methods
+  Future<List<Assignment>> getAssignmentsByStudent(
+    String department,
+    String section,
+    int semester,
+  ) async {
+    // Use only single field query to avoid composite index
+    final snapshot = await _firestore
+        .collection(_collection)
+        .where('department', isEqualTo: department)
+        .get();
+    
+    // Filter by section and semester in memory
+    final assignments = snapshot.docs
+        .map((doc) => Assignment.fromDoc(doc))
+        .where((assignment) => 
+            assignment.isActive &&
+            assignment.section == section &&
+            assignment.semester == semester)
+        .toList();
+    
+    // Sort by due date (earliest first)
+    assignments.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+    
+    return assignments;
+  }
+
+  Future<List<Assignment>> getActiveAssignmentsForStudent(
+    String department,
+    String section,
+    int semester,
+  ) async {
+    final assignments = await getAssignmentsByStudent(department, section, semester);
+    final now = DateTime.now();
+    
+    // Filter only active assignments that are not past due
+    return assignments
+        .where((assignment) => 
+            assignment.isActive && 
+            assignment.dueDate.isAfter(now))
+        .toList();
+  }
+
+  Future<List<Assignment>> getUpcomingAssignmentsForStudent(
+    String department,
+    String section,
+    int semester,
+    {int limit = 5}
+  ) async {
+    final assignments = await getActiveAssignmentsForStudent(department, section, semester);
+    
+    // Sort by due date and limit
+    assignments.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+    return assignments.take(limit).toList();
+  }
+
+  Future<List<Assignment>> getOverdueAssignmentsForStudent(
+    String department,
+    String section,
+    int semester,
+  ) async {
+    final assignments = await getAssignmentsByStudent(department, section, semester);
+    final now = DateTime.now();
+    
+    // Filter overdue assignments
+    return assignments
+        .where((assignment) => 
+            assignment.isActive && 
+            assignment.dueDate.isBefore(now))
+        .toList();
+  }
 }

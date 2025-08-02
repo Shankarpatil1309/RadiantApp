@@ -208,4 +208,70 @@ class ClassSessionService {
       'status': 'completed',
     });
   }
+
+  // Student-specific methods
+  Future<List<ClassSession>> getClassSessionsByDateRangeForStudent(
+    String department,
+    String section,
+    int semester,
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    // Use only single field query to avoid composite index
+    final snapshot = await _firestore
+        .collection(_collection)
+        .where('department', isEqualTo: department)
+        .get();
+    
+    // Filter by section, semester, date range and active status in memory
+    final sessions = snapshot.docs
+        .map((doc) => ClassSession.fromDoc(doc))
+        .where((session) => 
+            session.isActive &&
+            session.section == section &&
+            session.semester == semester &&
+            session.startTime.isAfter(startDate.subtract(Duration(seconds: 1))) &&
+            session.startTime.isBefore(endDate.add(Duration(days: 1))))
+        .toList();
+    
+    // Sort by start time
+    sessions.sort((a, b) => a.startTime.compareTo(b.startTime));
+    
+    return sessions;
+  }
+
+  Future<List<ClassSession>> getTodayClassesForStudent(
+    String department,
+    String section,
+    int semester,
+  ) async {
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final endOfDay = startOfDay.add(Duration(days: 1));
+    
+    return getClassSessionsByDateRangeForStudent(
+      department,
+      section, 
+      semester,
+      startOfDay,
+      endOfDay,
+    );
+  }
+
+  Future<List<ClassSession>> getWeeklyScheduleForStudent(
+    String department,
+    String section,
+    int semester,
+    DateTime weekStart,
+  ) async {
+    final weekEnd = weekStart.add(Duration(days: 6));
+    
+    return getClassSessionsByDateRangeForStudent(
+      department,
+      section,
+      semester,
+      weekStart,
+      weekEnd,
+    );
+  }
 }

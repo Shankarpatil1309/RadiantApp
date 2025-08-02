@@ -213,8 +213,6 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
   }
 
   Widget _buildWeekNavigation() {
-    final scheduleState = ref.watch(scheduleControllerProvider);
-    
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
       decoration: BoxDecoration(
@@ -450,26 +448,6 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
     );
   }
 
-  void _showAddClassForTime(String dayName, String time) {
-    final scheduleState = ref.read(scheduleControllerProvider);
-    final daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    final dayIndex = daysOfWeek.indexOf(dayName);
-    
-    if (dayIndex == -1) return;
-    
-    final selectedDate = scheduleState.currentWeek.add(Duration(days: dayIndex));
-    
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => AddClassSessionWidget(
-        selectedDate: selectedDate,
-        onClose: () => Navigator.pop(context),
-        onSave: _addClassSession,
-      ),
-    );
-  }
 
   Future<void> _addClassSession(ClassSession session) async {
     Navigator.pop(context); // Close the add session sheet
