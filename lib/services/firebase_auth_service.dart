@@ -41,10 +41,11 @@ class FirebaseAuthService {
       }
 
       // 3. Validate user exists in selected role collection BEFORE Firebase sign-in
-      await _validateUserRoleAccessByEmail(googleUser.email!, selectedRole);
+      await _validateUserRoleAccessByEmail(googleUser.email, selectedRole);
 
       // 4. Obtain the auth details from the request
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
       // 5. Create a new credential
       final credential = GoogleAuthProvider.credential(
@@ -58,12 +59,12 @@ class FirebaseAuthService {
       if (user != null) {
         // 7. Cache user data after successful authentication
         await _createOrUpdateUserCache(user, selectedRole);
-        
+
         // 8. For faculty users, link UID with their employeeId-based profile
         if (selectedRole.toUpperCase() == 'FACULTY') {
           await _linkFacultyUid(user);
         }
-        
+
         print('✅ Google Sign-In successful: ${user.email} as ${selectedRole}');
       }
       return user;
@@ -87,32 +88,11 @@ class FirebaseAuthService {
       '@student.bkit.edu',
       '@faculty.bkit.edu',
       '@bkit.ac.in',
+      '@gmail.com'
     ];
-
-    // Testing emails for development
-    final testingEmails = [
-      'uapatil614@gmail.com',
-      // Add more testing emails here as needed
-    ];
-
-    // For development: Allow Gmail domain (remove in production)
-    final devDomains = [
-      '@gmail.com', // TODO: Remove this in production
-    ];
-
-    // Check specific testing emails first
-    if (testingEmails.contains(emailLower)) {
-      return true;
-    }
 
     // Check college domains
     if (collegeDomains.any((domain) => emailLower.endsWith(domain))) {
-      return true;
-    }
-
-    // Check dev domains (for testing only)
-    if (devDomains.any((domain) => emailLower.endsWith(domain))) {
-      print('⚠️ Development mode: Allowing ${email} for testing');
       return true;
     }
 
@@ -120,7 +100,8 @@ class FirebaseAuthService {
   }
 
   /// Validates if user exists in the selected role collection by email (before Firebase sign-in)
-  Future<void> _validateUserRoleAccessByEmail(String email, String selectedRole) async {
+  Future<void> _validateUserRoleAccessByEmail(
+      String email, String selectedRole) async {
     try {
       final emailLower = email.toLowerCase();
       bool hasAccess = false;
@@ -141,11 +122,10 @@ class FirebaseAuthService {
 
       if (!hasAccess) {
         throw Exception(
-          'You don\'t have access to the app as ${selectedRole}.\n'
-          'Please contact the college administration if this is an error.\n\n'
-          'Email: admin@bkit.edu.in\n'
-          'Phone: +91 80-12345678'
-        );
+            'You don\'t have access to the app as ${selectedRole}.\n'
+            'Please contact the college administration if this is an error.\n\n'
+            'Email: admin@bkit.edu.in\n'
+            'Phone: +91 80-12345678');
       }
     } catch (e) {
       print('❌ Role validation error: $e');
@@ -165,7 +145,6 @@ class FirebaseAuthService {
 
       // Update or create user document in 'users' collection for caching
       await _createOrUpdateUserCache(user, selectedRole);
-      
     } catch (e) {
       print('❌ Role validation error: $e');
       rethrow;
@@ -176,13 +155,12 @@ class FirebaseAuthService {
   Future<bool> _checkAdminAccess(String email) async {
     try {
       // First check allowedAdmins collection
-      final allowedAdminsDoc = await _firestore
-          .collection('allowedAdmins')
-          .doc('admins')
-          .get();
-      
+      final allowedAdminsDoc =
+          await _firestore.collection('allowedAdmins').doc('admins').get();
+
       if (allowedAdminsDoc.exists) {
-        final List<dynamic> allowedEmails = allowedAdminsDoc.data()?['emails'] ?? [];
+        final List<dynamic> allowedEmails =
+            allowedAdminsDoc.data()?['emails'] ?? [];
         if (allowedEmails.contains(email)) {
           return true;
         }
@@ -239,7 +217,7 @@ class FirebaseAuthService {
   Future<void> _createOrUpdateUserCache(User user, String role) async {
     try {
       final userRef = _firestore.collection('users').doc(user.uid);
-      
+
       // Only store essential fields for lookup/cache purposes
       final userData = {
         'uid': user.uid,
@@ -278,7 +256,7 @@ class FirebaseAuthService {
   Future<void> _linkFacultyUid(User user) async {
     try {
       if (user.email == null) return;
-      
+
       // Search for existing faculty by email
       final emailQuery = await _firestore
           .collection('faculty')
@@ -286,18 +264,18 @@ class FirebaseAuthService {
           .where('isActive', isEqualTo: true)
           .limit(1)
           .get();
-      
+
       if (emailQuery.docs.isNotEmpty) {
         final facultyDoc = emailQuery.docs.first;
         final facultyData = facultyDoc.data();
         final employeeId = facultyData['employeeId'] as String?;
-        
+
         // Update faculty document with UID
         await facultyDoc.reference.update({
           'uid': user.uid,
           'updatedAt': FieldValue.serverTimestamp(),
         });
-        
+
         // Update user cache with employeeId for reference
         if (employeeId != null) {
           await _firestore.collection('users').doc(user.uid).update({
@@ -305,7 +283,7 @@ class FirebaseAuthService {
             'lastLoginAt': FieldValue.serverTimestamp(),
           });
         }
-        
+
         print('✅ Linked UID ${user.uid} to faculty $employeeId');
       }
     } catch (e) {

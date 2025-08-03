@@ -8,7 +8,6 @@ import 'package:file_picker/file_picker.dart';
 import '../../core/app_export.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/faculty_dashboard_controller.dart';
-import '../../models/announcement_model.dart';
 import '../../services/storage_service.dart';
 import './widgets/assignment_status_card.dart';
 import './widgets/faculty_bottom_sheet.dart';

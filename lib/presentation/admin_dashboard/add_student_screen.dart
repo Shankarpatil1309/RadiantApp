@@ -488,7 +488,7 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
         ),
         child: Text(
           selectedDate != null
-              ? '${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}'
+              ? '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}'
               : 'Select date',
           style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
             color: selectedDate != null 

@@ -1,13 +1,10 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:file_picker/file_picker.dart';
 
 import '../../core/app_export.dart';
 import '../../controllers/faculty_dashboard_controller.dart';
-import '../../services/storage_service.dart';
 import '../attendance_screen/faculty_attendance_screen.dart';
 import '../faculty_assignment_management_screen/faculty_assignment_management_screen.dart';
 import '../weekly_schedule_screen/weekly_schedule_screen.dart';

@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../models/faculty_model.dart';
 import '../models/announcement_model.dart';
 import '../services/faculty_service.dart';

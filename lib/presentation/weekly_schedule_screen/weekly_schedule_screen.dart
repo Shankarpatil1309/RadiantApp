@@ -10,7 +10,6 @@ import './widgets/class_detail_bottom_sheet.dart';
 import './widgets/day_column_widget.dart';
 import './widgets/filter_bottom_sheet.dart';
 import './widgets/quick_actions_bottom_sheet.dart';
-import './widgets/week_navigation_widget.dart';
 
 class WeeklyScheduleScreen extends ConsumerStatefulWidget {
   final bool isEmbedded;
