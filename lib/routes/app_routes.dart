@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:radiant_app/presentation/faculty_assignment_management_screen/faculty_assignment_management_screen.dart';
 import 'package:radiant_app/presentation/login_screen/login_screen2.dart';
 import 'package:radiant_app/presentation/splash_screen/splash_screen.dart';
-import '../presentation/assignments_screen/assignments_screen.dart';
+import '../presentation/assignments_screen/student_assignments_screen.dart';
 import '../presentation/weekly_schedule_screen/weekly_schedule_screen.dart';
 import '../presentation/faculty_dashboard/faculty_shell.dart';
 import '../presentation/admin_dashboard/admin_dashboard.dart';
@@ -35,7 +35,7 @@ class AppRoutes {
     initial: (context) => const SplashScreen(),
     splashScreen: (context) => const SplashScreen(),
     loginScreen: (context) => const LoginScreen(),
-    studentAssignmentsScreen: (context) => AssignmentsScreen(),
+    studentAssignmentsScreen: (context) => StudentAssignmentsScreen(),
     weeklyScheduleScreen: (context) => WeeklyScheduleScreen(),
     facultyDashboard: (context) => const FacultyShell(),
     adminDashboard: (context) => AdminDashboard(),

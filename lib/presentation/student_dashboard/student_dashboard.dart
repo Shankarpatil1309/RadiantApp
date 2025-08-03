@@ -120,69 +120,6 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
     },
   ];
 
-  // Mock assignments data
-  final List<Map<String, dynamic>> assignments = [
-    {
-      "id": 1,
-      "title": "Design and Analysis of Algorithms Assignment",
-      "description":
-          "Implement and analyze time complexity of sorting algorithms including Quick Sort, Merge Sort, and Heap Sort.",
-      "subject": "Data Structures and Algorithms",
-      "faculty": "Dr. Priya Nair",
-      "dueDate": "2025-08-05T23:59:00.000Z",
-      "marks": 25,
-      "status": "pending",
-      "submissionType": "file",
-    },
-    {
-      "id": 2,
-      "title": "Database Design Project",
-      "description":
-          "Design a complete database schema for a library management system with ER diagrams and normalization.",
-      "subject": "Database Management Systems",
-      "faculty": "Prof. Rajesh Kumar",
-      "dueDate": "2025-08-08T23:59:00.000Z",
-      "marks": 30,
-      "status": "pending",
-      "submissionType": "file",
-    },
-    {
-      "id": 3,
-      "title": "Network Protocol Analysis",
-      "description":
-          "Analyze TCP/IP protocol stack and create a detailed report on packet flow and routing mechanisms.",
-      "subject": "Computer Networks",
-      "faculty": "Dr. Meera Patel",
-      "dueDate": "2025-07-31T23:59:00.000Z",
-      "marks": 20,
-      "status": "pending",
-      "submissionType": "report",
-    },
-    {
-      "id": 4,
-      "title": "Software Engineering Case Study",
-      "description":
-          "Complete case study analysis of a real-world software project using SDLC methodologies.",
-      "subject": "Software Engineering",
-      "faculty": "Prof. Anita Desai",
-      "dueDate": "2025-08-12T23:59:00.000Z",
-      "marks": 35,
-      "status": "pending",
-      "submissionType": "presentation",
-    },
-    {
-      "id": 5,
-      "title": "Operating Systems Lab Report",
-      "description":
-          "Submit lab report covering process scheduling algorithms and memory management techniques.",
-      "subject": "Operating Systems",
-      "faculty": "Dr. Vikram Singh",
-      "dueDate": "2025-08-01T23:59:00.000Z",
-      "marks": 15,
-      "status": "pending",
-      "submissionType": "report",
-    },
-  ];
 
   // Mock recent marks data
   final List<Map<String, dynamic>> recentMarks = [

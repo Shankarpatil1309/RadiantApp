@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/app_export.dart';
-import '../assignments_screen/assignments_screen.dart';
+import '../assignments_screen/student_assignments_screen.dart';
 import '../attendance_screen/student_attendance_screen.dart';
 import '../weekly_schedule_screen/weekly_schedule_screen.dart';
 import 'student_dashboard.dart';
@@ -44,8 +44,8 @@ class _StudentShellState extends ConsumerState<StudentShell>
           });
           HapticFeedback.selectionClick();
         },
-      ), 
-      AssignmentsScreen(
+      ),
+      StudentAssignmentsScreen(
         isEmbedded: true,
         onBackPressed: () {
           setState(() {

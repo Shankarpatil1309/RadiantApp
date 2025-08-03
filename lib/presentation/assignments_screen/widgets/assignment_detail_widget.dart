@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../models/assignment_model.dart';
 
 class AssignmentDetailWidget extends StatelessWidget {
-  final Map<String, dynamic> assignment;
+  final Assignment assignment;
   final VoidCallback onDownloadAttachment;
   final VoidCallback onSubmit;
   final VoidCallback onClose;
@@ -18,9 +19,8 @@ class AssignmentDetailWidget extends StatelessWidget {
   }) : super(key: key);
 
   Color _getDueDateColor() {
-    final dueDate = assignment['dueDate'] as DateTime;
     final now = DateTime.now();
-    final difference = dueDate.difference(now).inDays;
+    final difference = assignment.dueDate.difference(now).inDays;
 
     if (difference < 0) {
       return AppTheme.getStatusColor('error');
@@ -29,6 +29,20 @@ class AssignmentDetailWidget extends StatelessWidget {
     } else {
       return AppTheme.getStatusColor('success');
     }
+  }
+
+  String _getSubmissionStatus() {
+    if (!assignment.isActive) {
+      return 'submitted';
+    }
+    if (assignment.dueDate.isBefore(DateTime.now())) {
+      return 'overdue';
+    }
+    return 'pending';
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
   }
 
   @override
@@ -70,7 +84,7 @@ class AssignmentDetailWidget extends StatelessWidget {
                 children: [
                   // Title and Status
                   Text(
-                    assignment['title'] as String,
+                    assignment.title,
                     style: AppTheme.lightTheme.textTheme.headlineSmall,
                   ),
                   SizedBox(height: 2.h),
@@ -94,7 +108,7 @@ class AssignmentDetailWidget extends StatelessWidget {
                             ),
                             SizedBox(width: 1.w),
                             Text(
-                              'Due: ${assignment['dueDate'].toString().split(' ')[0]}',
+                              'Due: ${_formatDate(assignment.dueDate)}',
                               style: AppTheme.lightTheme.textTheme.labelSmall
                                   ?.copyWith(
                                 color: _getDueDateColor(),
@@ -114,7 +128,7 @@ class AssignmentDetailWidget extends StatelessWidget {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          assignment['subject'] as String,
+                          assignment.subject,
                           style: AppTheme.lightTheme.textTheme.labelSmall
                               ?.copyWith(
                             color: AppTheme.lightTheme.primaryColor,
@@ -133,13 +147,13 @@ class AssignmentDetailWidget extends StatelessWidget {
                   ),
                   SizedBox(height: 1.h),
                   Text(
-                    assignment['description'] as String,
+                    assignment.description,
                     style: AppTheme.lightTheme.textTheme.bodyMedium,
                   ),
                   SizedBox(height: 3.h),
 
                   // Attachments
-                  if (assignment['hasAttachments'] == true) ...[
+                  if (assignment.hasFile) ...[
                     Text(
                       'Attachments',
                       style: AppTheme.lightTheme.textTheme.titleMedium,
@@ -164,7 +178,9 @@ class AssignmentDetailWidget extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Assignment_Materials.pdf',
+                                  assignment.fileName.isNotEmpty 
+                                      ? assignment.fileName 
+                                      : 'Assignment File',
                                   style: AppTheme
                                       .lightTheme.textTheme.bodyMedium
                                       ?.copyWith(
@@ -172,7 +188,9 @@ class AssignmentDetailWidget extends StatelessWidget {
                                   ),
                                 ),
                                 Text(
-                                  '2.5 MB',
+                                  assignment.fileExtension.isNotEmpty 
+                                      ? assignment.fileExtension.toUpperCase() 
+                                      : 'File',
                                   style:
                                       AppTheme.lightTheme.textTheme.bodySmall,
                                 ),
@@ -195,105 +213,166 @@ class AssignmentDetailWidget extends StatelessWidget {
                   ],
 
                   // Submission Status
-                  if (assignment['submissionStatus'] != null) ...[
-                    Text(
-                      'Submission Status',
-                      style: AppTheme.lightTheme.textTheme.titleMedium,
-                    ),
-                    SizedBox(height: 1.h),
-                    Container(
-                      padding: EdgeInsets.all(3.w),
-                      decoration: BoxDecoration(
-                        color: assignment['submissionStatus'] == 'submitted'
-                            ? AppTheme.getStatusColor('success')
-                                .withValues(alpha: 0.1)
-                            : AppTheme.getStatusColor('warning')
-                                .withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          CustomIconWidget(
-                            iconName:
-                                assignment['submissionStatus'] == 'submitted'
-                                    ? 'check_circle'
-                                    : 'pending',
-                            color: assignment['submissionStatus'] == 'submitted'
+                  Container(
+                    margin: EdgeInsets.only(bottom: 3.h),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Submission Status',
+                          style: AppTheme.lightTheme.textTheme.titleMedium,
+                        ),
+                        SizedBox(height: 1.h),
+                        Container(
+                          padding: EdgeInsets.all(3.w),
+                          decoration: BoxDecoration(
+                            color: _getSubmissionStatus() == 'submitted'
                                 ? AppTheme.getStatusColor('success')
-                                : AppTheme.getStatusColor('warning'),
-                            size: 24,
+                                    .withValues(alpha: 0.1)
+                                : _getSubmissionStatus() == 'overdue'
+                                    ? AppTheme.getStatusColor('error')
+                                        .withValues(alpha: 0.1)
+                                    : AppTheme.getStatusColor('warning')
+                                        .withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          SizedBox(width: 3.w),
-                          Expanded(
-                            child: Text(
-                              assignment['submissionStatus'] == 'submitted'
-                                  ? 'Assignment submitted successfully'
-                                  : 'Submission pending',
-                              style: AppTheme.lightTheme.textTheme.bodyMedium
-                                  ?.copyWith(
-                                color: assignment['submissionStatus'] ==
-                                        'submitted'
+                          child: Row(
+                            children: [
+                              CustomIconWidget(
+                                iconName: _getSubmissionStatus() == 'submitted'
+                                    ? 'check_circle'
+                                    : _getSubmissionStatus() == 'overdue'
+                                        ? 'warning'
+                                        : 'pending',
+                                color: _getSubmissionStatus() == 'submitted'
                                     ? AppTheme.getStatusColor('success')
-                                    : AppTheme.getStatusColor('warning'),
-                                fontWeight: FontWeight.w500,
+                                    : _getSubmissionStatus() == 'overdue'
+                                        ? AppTheme.getStatusColor('error')
+                                        : AppTheme.getStatusColor('warning'),
+                                size: 24,
                               ),
-                            ),
+                              SizedBox(width: 3.w),
+                              Expanded(
+                                child: Text(
+                                  _getSubmissionStatus() == 'submitted'
+                                      ? 'Assignment submitted successfully'
+                                      : _getSubmissionStatus() == 'overdue'
+                                          ? 'Assignment is overdue'
+                                          : 'Submission pending',
+                                  style: AppTheme.lightTheme.textTheme.bodyMedium
+                                      ?.copyWith(
+                                    color: _getSubmissionStatus() == 'submitted'
+                                        ? AppTheme.getStatusColor('success')
+                                        : _getSubmissionStatus() == 'overdue'
+                                            ? AppTheme.getStatusColor('error')
+                                            : AppTheme.getStatusColor('warning'),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    SizedBox(height: 3.h),
-                  ],
+                  ),
 
-                  // Grade (if available)
-                  if (assignment['grade'] != null) ...[
-                    Text(
-                      'Grade',
-                      style: AppTheme.lightTheme.textTheme.titleMedium,
-                    ),
-                    SizedBox(height: 1.h),
-                    Container(
-                      padding: EdgeInsets.all(3.w),
-                      decoration: BoxDecoration(
-                        color: AppTheme.getStatusColor('success')
-                            .withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          CustomIconWidget(
-                            iconName: 'grade',
-                            color: AppTheme.getStatusColor('success'),
-                            size: 24,
+                  // Assignment Details
+                  Container(
+                    margin: EdgeInsets.only(bottom: 3.h),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Assignment Details',
+                          style: AppTheme.lightTheme.textTheme.titleMedium,
+                        ),
+                        SizedBox(height: 1.h),
+                        Container(
+                          padding: EdgeInsets.all(3.w),
+                          decoration: BoxDecoration(
+                            color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          SizedBox(width: 3.w),
-                          Text(
-                            '${assignment['grade']}/100',
-                            style: AppTheme.lightTheme.textTheme.titleLarge
-                                ?.copyWith(
-                              color: AppTheme.getStatusColor('success'),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          SizedBox(width: 3.w),
-                          if (assignment['feedback'] != null)
-                            Expanded(
-                              child: Text(
-                                assignment['feedback'] as String,
-                                style: AppTheme.lightTheme.textTheme.bodySmall,
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  CustomIconWidget(
+                                    iconName: 'person',
+                                    color: AppTheme.lightTheme.primaryColor,
+                                    size: 20,
+                                  ),
+                                  SizedBox(width: 2.w),
+                                  Text(
+                                    'Faculty: ${assignment.facultyName}',
+                                    style: AppTheme.lightTheme.textTheme.bodyMedium,
+                                  ),
+                                ],
                               ),
-                            ),
-                        ],
-                      ),
+                              SizedBox(height: 1.h),
+                              Row(
+                                children: [
+                                  CustomIconWidget(
+                                    iconName: 'grading',
+                                    color: AppTheme.lightTheme.primaryColor,
+                                    size: 20,
+                                  ),
+                                  SizedBox(width: 2.w),
+                                  Text(
+                                    'Max Marks: ${assignment.maxMarks}',
+                                    style: AppTheme.lightTheme.textTheme.bodyMedium,
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 1.h),
+                              Row(
+                                children: [
+                                  CustomIconWidget(
+                                    iconName: 'category',
+                                    color: AppTheme.lightTheme.primaryColor,
+                                    size: 20,
+                                  ),
+                                  SizedBox(width: 2.w),
+                                  Text(
+                                    'Type: ${assignment.type.toUpperCase()}',
+                                    style: AppTheme.lightTheme.textTheme.bodyMedium,
+                                  ),
+                                ],
+                              ),
+                              if (assignment.instructions != null && assignment.instructions!.isNotEmpty) ...[
+                                SizedBox(height: 1.h),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    CustomIconWidget(
+                                      iconName: 'info',
+                                      color: AppTheme.lightTheme.primaryColor,
+                                      size: 20,
+                                    ),
+                                    SizedBox(width: 2.w),
+                                    Expanded(
+                                      child: Text(
+                                        'Instructions: ${assignment.instructions}',
+                                        style: AppTheme.lightTheme.textTheme.bodyMedium,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
           ),
 
           // Submit Button (if not submitted)
-          if (assignment['submissionStatus'] != 'submitted')
+          if (_getSubmissionStatus() != 'submitted')
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
