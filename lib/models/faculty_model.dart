@@ -23,6 +23,7 @@ class Faculty {
   final DateTime createdAt;
   final DateTime updatedAt;
   final String createdBy;
+  final String? profileImage;
 
   Faculty({
     required this.id,
@@ -47,6 +48,7 @@ class Faculty {
     required this.createdAt,
     required this.updatedAt,
     required this.createdBy,
+    this.profileImage,
   });
 
   factory Faculty.fromDoc(DocumentSnapshot doc) {
@@ -84,6 +86,7 @@ class Faculty {
           ? (data['updatedAt'] as Timestamp).toDate()
           : DateTime.now(),
       createdBy: data['createdBy'] ?? '',
+      profileImage: data['profileImage'],
     );
   }
 
@@ -110,6 +113,7 @@ class Faculty {
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
       'createdBy': createdBy,
+      'profileImage': profileImage,
     };
   }
 

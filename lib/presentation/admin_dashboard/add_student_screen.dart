@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:radiant_app/config/app_config.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
@@ -16,7 +17,7 @@ class AddStudentScreen extends ConsumerStatefulWidget {
 class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
   final _formKey = GlobalKey<FormState>();
   final _scrollController = ScrollController();
-  
+
   // Controllers for form fields
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -26,7 +27,7 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
   final _guardianNameController = TextEditingController();
   final _guardianPhoneController = TextEditingController();
   final _emergencyContactController = TextEditingController();
-  
+
   // Form state
   bool _isLoading = false;
   String _selectedDepartment = 'CSE';
@@ -36,11 +37,6 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
   String _selectedGender = 'Male';
   DateTime? _selectedDateOfBirth;
   DateTime? _selectedAdmissionDate;
-
-  // Department and section options
-  final List<String> _departments = ['CSE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'IT'];
-  final List<String> _sections = ['A', 'B', 'C', 'D'];
-  final List<String> _genders = ['Male', 'Female', 'Other'];
 
   @override
   void initState() {
@@ -118,15 +114,15 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
             _buildSectionHeader('Personal Information', Icons.person),
             _buildPersonalInfoSection(),
             SizedBox(height: 3.h),
-            
+
             _buildSectionHeader('Academic Information', Icons.school),
             _buildAcademicInfoSection(),
             SizedBox(height: 3.h),
-            
+
             _buildSectionHeader('Contact Information', Icons.contact_phone),
             _buildContactInfoSection(),
             SizedBox(height: 3.h),
-            
+
             _buildSectionHeader('Guardian Information', Icons.family_restroom),
             _buildGuardianInfoSection(),
             SizedBox(height: 10.h), // Space for bottom button
@@ -174,7 +170,8 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
               icon: Icons.person,
               validator: (value) {
                 if (value?.isEmpty ?? true) return 'Name is required';
-                if (value!.length < 2) return 'Name must be at least 2 characters';
+                if (value!.length < 2)
+                  return 'Name must be at least 2 characters';
                 return null;
               },
             ),
@@ -185,8 +182,9 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                   child: _buildDropdownField(
                     label: 'Gender',
                     value: _selectedGender,
-                    items: _genders,
-                    onChanged: (value) => setState(() => _selectedGender = value!),
+                    items: AppConfig.genders,
+                    onChanged: (value) =>
+                        setState(() => _selectedGender = value!),
                     icon: Icons.person_outline,
                   ),
                 ),
@@ -195,7 +193,8 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                   child: _buildDateField(
                     label: 'Date of Birth',
                     selectedDate: _selectedDateOfBirth,
-                    onDateSelected: (date) => setState(() => _selectedDateOfBirth = date),
+                    onDateSelected: (date) =>
+                        setState(() => _selectedDateOfBirth = date),
                     icon: Icons.cake,
                   ),
                 ),
@@ -208,6 +207,8 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
   }
 
   Widget _buildAcademicInfoSection() {
+    final List<String> _sections =
+        AppConfig.sectionsByDepartment[_selectedDepartment] ?? ['A', 'B'];
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -222,7 +223,8 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
               icon: Icons.confirmation_number,
               validator: (value) {
                 if (value?.isEmpty ?? true) return 'USN is required';
-                if (!RegExp(r'^[0-9][A-Z]{2}[0-9]{2}[A-Z]{2,3}[0-9]{3}$').hasMatch(value!)) {
+                if (!RegExp(r'^[0-9][A-Z]{2}[0-9]{2}[A-Z]{2,3}[0-9]{3}$')
+                    .hasMatch(value!)) {
                   return 'Invalid USN format (e.g., 1BK21CS001)';
                 }
                 return null;
@@ -235,8 +237,9 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                   child: _buildDropdownField(
                     label: 'Department',
                     value: _selectedDepartment,
-                    items: _departments,
-                    onChanged: (value) => setState(() => _selectedDepartment = value!),
+                    items: AppConfig.departments,
+                    onChanged: (value) =>
+                        setState(() => _selectedDepartment = value!),
                     icon: Icons.business,
                   ),
                 ),
@@ -246,7 +249,8 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                     label: 'Section',
                     value: _selectedSection,
                     items: _sections,
-                    onChanged: (value) => setState(() => _selectedSection = value!),
+                    onChanged: (value) =>
+                        setState(() => _selectedSection = value!),
                     icon: Icons.class_,
                   ),
                 ),
@@ -260,7 +264,8 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                     label: 'Year',
                     value: _selectedYear.toString(),
                     items: ['1', '2', '3', '4'],
-                    onChanged: (value) => setState(() => _selectedYear = int.parse(value!)),
+                    onChanged: (value) =>
+                        setState(() => _selectedYear = int.parse(value!)),
                     icon: Icons.timeline,
                   ),
                 ),
@@ -270,7 +275,8 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                     label: 'Semester',
                     value: _selectedSemester.toString(),
                     items: ['1', '2', '3', '4', '5', '6', '7', '8'],
-                    onChanged: (value) => setState(() => _selectedSemester = int.parse(value!)),
+                    onChanged: (value) =>
+                        setState(() => _selectedSemester = int.parse(value!)),
                     icon: Icons.schedule,
                   ),
                 ),
@@ -280,7 +286,8 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
             _buildDateField(
               label: 'Admission Date',
               selectedDate: _selectedAdmissionDate,
-              onDateSelected: (date) => setState(() => _selectedAdmissionDate = date),
+              onDateSelected: (date) =>
+                  setState(() => _selectedAdmissionDate = date),
               icon: Icons.event,
             ),
           ],
@@ -305,7 +312,8 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
               keyboardType: TextInputType.emailAddress,
               validator: (value) {
                 if (value?.isEmpty ?? true) return 'Email is required';
-                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value!)) {
+                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                    .hasMatch(value!)) {
                   return 'Enter a valid email address';
                 }
                 return null;
@@ -320,7 +328,8 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
               keyboardType: TextInputType.phone,
               validator: (value) {
                 if (value?.isEmpty ?? true) return 'Phone number is required';
-                if (!RegExp(r'^\+?[0-9]{10,13}$').hasMatch(value!.replaceAll(' ', ''))) {
+                if (!RegExp(r'^\+?[0-9]{10,13}$')
+                    .hasMatch(value!.replaceAll(' ', ''))) {
                   return 'Enter a valid phone number';
                 }
                 return null;
@@ -371,7 +380,8 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
               keyboardType: TextInputType.phone,
               validator: (value) {
                 if (value?.isEmpty ?? true) return 'Guardian phone is required';
-                if (!RegExp(r'^\+?[0-9]{10,13}$').hasMatch(value!.replaceAll(' ', ''))) {
+                if (!RegExp(r'^\+?[0-9]{10,13}$')
+                    .hasMatch(value!.replaceAll(' ', ''))) {
                   return 'Enter a valid phone number';
                 }
                 return null;
@@ -385,8 +395,10 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
               icon: Icons.emergency,
               keyboardType: TextInputType.phone,
               validator: (value) {
-                if (value?.isEmpty ?? true) return 'Emergency contact is required';
-                if (!RegExp(r'^\+?[0-9]{10,13}$').hasMatch(value!.replaceAll(' ', ''))) {
+                if (value?.isEmpty ?? true)
+                  return 'Emergency contact is required';
+                if (!RegExp(r'^\+?[0-9]{10,13}$')
+                    .hasMatch(value!.replaceAll(' ', ''))) {
                   return 'Enter a valid phone number';
                 }
                 return null;
@@ -492,9 +504,10 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
               ? '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}'
               : 'Select date',
           style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-            color: selectedDate != null 
+            color: selectedDate != null
                 ? AppTheme.lightTheme.colorScheme.onSurface
-                : AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.6),
+                : AppTheme.lightTheme.colorScheme.onSurface
+                    .withValues(alpha: 0.6),
           ),
         ),
       ),
@@ -557,7 +570,7 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
     _guardianNameController.clear();
     _guardianPhoneController.clear();
     _emergencyContactController.clear();
-    
+
     setState(() {
       _selectedDepartment = 'CSE';
       _selectedSection = 'A';
@@ -638,7 +651,11 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
         createdBy: 'admin', // TODO: Get current admin user ID
       );
 
-      await FirebaseFirestore.instance.collection('students').add(student.toMap());
+      // Use studentID as document ID for direct access
+      await FirebaseFirestore.instance
+          .collection('students')
+          .doc(_usnController.text.trim().toUpperCase())
+          .set(student.toMap());
 
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
@@ -651,7 +668,6 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
       // Reset form and navigate back
       _resetForm();
       Navigator.pop(context);
-
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

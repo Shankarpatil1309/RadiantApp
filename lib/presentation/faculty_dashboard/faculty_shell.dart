@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:radiant_app/config/app_config.dart';
 
 import '../../core/app_export.dart';
 import '../../controllers/faculty_dashboard_controller.dart';
+import '../../models/faculty_model.dart';
 import '../attendance_screen/faculty_attendance_screen.dart';
 import '../faculty_assignment_management_screen/faculty_assignment_management_screen.dart';
 import '../weekly_schedule_screen/weekly_schedule_screen.dart';
@@ -23,36 +25,36 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
   final String userRole = 'faculty';
 
   List<Widget> get _screens => [
-    FacultyDashboard(onNavigateToTab: _onBottomNavTap),
-    WeeklyScheduleScreen(
-      isEmbedded: true,
-      onBackPressed: () {
-        setState(() {
-          _selectedBottomNavIndex = 0;
-        });
-        HapticFeedback.selectionClick();
-      },
-    ),
-    FacultyAssignmentManagementScreen(
-      isEmbedded: true,
-      onBackPressed: () {
-        setState(() {
-          _selectedBottomNavIndex = 0;
-        });
-        HapticFeedback.selectionClick();
-      },
-    ),
-    FacultyAttendanceScreen(
-      isEmbedded: true,
-      onBackPressed: () {
-        setState(() {
-          _selectedBottomNavIndex = 0;
-        });
-        HapticFeedback.selectionClick();
-      },
-    ),
-    _buildProfileTab(),
-  ];
+        FacultyDashboard(onNavigateToTab: _onBottomNavTap),
+        WeeklyScheduleScreen(
+          isEmbedded: true,
+          onBackPressed: () {
+            setState(() {
+              _selectedBottomNavIndex = 0;
+            });
+            HapticFeedback.selectionClick();
+          },
+        ),
+        FacultyAssignmentManagementScreen(
+          isEmbedded: true,
+          onBackPressed: () {
+            setState(() {
+              _selectedBottomNavIndex = 0;
+            });
+            HapticFeedback.selectionClick();
+          },
+        ),
+        FacultyAttendanceScreen(
+          isEmbedded: true,
+          onBackPressed: () {
+            setState(() {
+              _selectedBottomNavIndex = 0;
+            });
+            HapticFeedback.selectionClick();
+          },
+        ),
+        _buildProfileTab(),
+      ];
 
   void _onBottomNavTap(int index) {
     setState(() {
@@ -220,7 +222,7 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
   void _showQuickActions() {
     // Get faculty data from the provider
     final facultyDataAsync = ref.read(facultyDataProvider);
-    
+
     facultyDataAsync.when(
       data: (facultyData) {
         if (facultyData != null) {
@@ -234,7 +236,7 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
     );
   }
 
-  void _showQuickActionsBottomSheet(Map<String, dynamic> facultyData) {
+  void _showQuickActionsBottomSheet(Faculty facultyData) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -266,7 +268,8 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
             ),
             const SizedBox(height: 20),
             ListTile(
-              leading: Icon(Icons.announcement, color: AppTheme.getRoleColor(userRole)),
+              leading: Icon(Icons.announcement,
+                  color: AppTheme.getRoleColor(userRole)),
               title: const Text('Post Announcement'),
               subtitle: const Text('Share announcements with students'),
               onTap: () {
@@ -275,7 +278,8 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
               },
             ),
             ListTile(
-              leading: Icon(Icons.assignment_add, color: AppTheme.getRoleColor(userRole)),
+              leading: Icon(Icons.assignment_add,
+                  color: AppTheme.getRoleColor(userRole)),
               title: const Text('Create Assignment'),
               subtitle: const Text('Create and upload assignment PDFs'),
               onTap: () {
@@ -284,7 +288,8 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
               },
             ),
             ListTile(
-              leading: Icon(Icons.schedule, color: AppTheme.getRoleColor(userRole)),
+              leading:
+                  Icon(Icons.schedule, color: AppTheme.getRoleColor(userRole)),
               title: const Text('Schedule Class'),
               subtitle: const Text('Schedule one-time or recurring classes'),
               onTap: () {
@@ -309,30 +314,29 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
     );
   }
 
-  void _showAnnouncementModal(Map<String, dynamic> facultyData) {
+  void _showAnnouncementModal(Faculty facultyData) {
     _showCreateAnnouncementBottomSheet(facultyData);
   }
 
-  void _showAssignmentModal(Map<String, dynamic> facultyData) {
+  void _showAssignmentModal(Faculty facultyData) {
     _showCreateAssignmentBottomSheet(facultyData);
   }
 
-  void _showScheduleClassModal(Map<String, dynamic> facultyData) {
+  void _showScheduleClassModal(Faculty facultyData) {
     _showScheduleClassBottomSheet(facultyData);
   }
 
   // Announcement Modal - Same as faculty_dashboard.dart
-  void _showCreateAnnouncementBottomSheet(Map<String, dynamic> facultyData) {
+  void _showCreateAnnouncementBottomSheet(Faculty facultyData) {
     final _titleController = TextEditingController();
     final _contentController = TextEditingController();
     final _formKey = GlobalKey<FormState>();
-    
+
     String _selectedPriority = 'normal';
-    List<String> _selectedDepartments = [facultyData['department']];
+    List<String> _selectedDepartments = [facultyData.department];
     bool _isLoading = false;
 
     final List<String> _priorities = ['normal', 'important', 'urgent'];
-    final List<String> _departments = ['All', 'CSE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'IT'];
 
     showModalBottomSheet(
       context: context,
@@ -357,7 +361,7 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              
+
               // Header
               Padding(
                 padding: const EdgeInsets.all(16),
@@ -383,7 +387,7 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
                   ],
                 ),
               ),
-              
+
               // Form
               Expanded(
                 child: Form(
@@ -399,61 +403,71 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
                           decoration: InputDecoration(
                             labelText: 'Announcement Title',
                             hintText: 'Enter announcement title',
-                            prefixIcon: Icon(Icons.title, color: AppTheme.getRoleColor('faculty')),
+                            prefixIcon: Icon(Icons.title,
+                                color: AppTheme.getRoleColor('faculty')),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                              borderSide: BorderSide(
+                                  color: AppTheme.getRoleColor('faculty')),
                             ),
                           ),
                           validator: (value) {
-                            if (value?.isEmpty ?? true) return 'Title is required';
-                            if (value!.length < 5) return 'Title must be at least 5 characters';
+                            if (value?.isEmpty ?? true)
+                              return 'Title is required';
+                            if (value!.length < 5)
+                              return 'Title must be at least 5 characters';
                             return null;
                           },
                           maxLength: 100,
                         ),
                         const SizedBox(height: 16),
-                        
+
                         // Content field
                         TextFormField(
                           controller: _contentController,
                           decoration: InputDecoration(
                             labelText: 'Announcement Content',
                             hintText: 'Enter detailed announcement content',
-                            prefixIcon: Icon(Icons.description, color: AppTheme.getRoleColor('faculty')),
+                            prefixIcon: Icon(Icons.description,
+                                color: AppTheme.getRoleColor('faculty')),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                              borderSide: BorderSide(
+                                  color: AppTheme.getRoleColor('faculty')),
                             ),
                           ),
                           maxLines: 4,
                           validator: (value) {
-                            if (value?.isEmpty ?? true) return 'Content is required';
-                            if (value!.length < 10) return 'Content must be at least 10 characters';
+                            if (value?.isEmpty ?? true)
+                              return 'Content is required';
+                            if (value!.length < 10)
+                              return 'Content must be at least 10 characters';
                             return null;
                           },
                           maxLength: 500,
                         ),
                         const SizedBox(height: 16),
-                        
+
                         // Priority dropdown
                         DropdownButtonFormField<String>(
                           value: _selectedPriority,
                           decoration: InputDecoration(
                             labelText: 'Priority',
-                            prefixIcon: Icon(Icons.priority_high, color: AppTheme.getRoleColor('faculty')),
+                            prefixIcon: Icon(Icons.priority_high,
+                                color: AppTheme.getRoleColor('faculty')),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                              borderSide: BorderSide(
+                                  color: AppTheme.getRoleColor('faculty')),
                             ),
                           ),
                           items: _priorities.map((priority) {
@@ -475,14 +489,16 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
                               ),
                             );
                           }).toList(),
-                          onChanged: (value) => setModalState(() => _selectedPriority = value!),
+                          onChanged: (value) =>
+                              setModalState(() => _selectedPriority = value!),
                         ),
                         const SizedBox(height: 16),
-                        
+
                         // Department selection
                         Text(
                           'Target Departments',
-                          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                          style: AppTheme.lightTheme.textTheme.bodyMedium
+                              ?.copyWith(
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -496,8 +512,9 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
                           child: Wrap(
                             spacing: 8,
                             runSpacing: 8,
-                            children: _departments.map((dept) {
-                              final isSelected = _selectedDepartments.contains(dept);
+                            children: AppConfig.departmentCodes.map((dept) {
+                              final isSelected =
+                                  _selectedDepartments.contains(dept);
                               return FilterChip(
                                 label: Text(dept),
                                 selected: isSelected,
@@ -516,14 +533,17 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
                                       } else {
                                         _selectedDepartments.remove(dept);
                                         if (_selectedDepartments.isEmpty) {
-                                          _selectedDepartments.add(facultyData['department']);
+                                          _selectedDepartments
+                                              .add(facultyData.department);
                                         }
                                       }
                                     }
                                   });
                                 },
-                                selectedColor: AppTheme.getRoleColor('faculty').withValues(alpha: 0.2),
-                                checkmarkColor: AppTheme.getRoleColor('faculty'),
+                                selectedColor: AppTheme.getRoleColor('faculty')
+                                    .withValues(alpha: 0.2),
+                                checkmarkColor:
+                                    AppTheme.getRoleColor('faculty'),
                               );
                             }).toList(),
                           ),
@@ -534,7 +554,7 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
                   ),
                 ),
               ),
-              
+
               // Submit button
               Container(
                 padding: const EdgeInsets.all(16),
@@ -552,67 +572,73 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : () async {
-                      if (!_formKey.currentState!.validate()) {
-                        return;
-                      }
+                    onPressed: _isLoading
+                        ? null
+                        : () async {
+                            if (!_formKey.currentState!.validate()) {
+                              return;
+                            }
 
-                      if (_selectedDepartments.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text('Please select at least one department'),
-                            backgroundColor: AppTheme.getStatusColor('error'),
-                          ),
-                        );
-                        return;
-                      }
+                            if (_selectedDepartments.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text(
+                                      'Please select at least one department'),
+                                  backgroundColor:
+                                      AppTheme.getStatusColor('error'),
+                                ),
+                              );
+                              return;
+                            }
 
-                      setModalState(() => _isLoading = true);
+                            setModalState(() => _isLoading = true);
 
-                      try {
-                        // Create announcement document with same structure as admin
-                        final announcementData = {
-                          'title': _titleController.text.trim(),
-                          'content': _contentController.text.trim(),
-                          'priority': _selectedPriority,
-                          'departments': _selectedDepartments,
-                          'author': facultyData['name'],
-                          'authorId': facultyData['employeeId'],
-                          'isActive': true,
-                          'readBy': <String>[],
-                          'createdAt': FieldValue.serverTimestamp(),
-                          'updatedAt': FieldValue.serverTimestamp(),
-                        };
+                            try {
+                              // Create announcement document with same structure as admin
+                              final announcementData = {
+                                'title': _titleController.text.trim(),
+                                'content': _contentController.text.trim(),
+                                'priority': _selectedPriority,
+                                'departments': _selectedDepartments,
+                                'author': facultyData.name,
+                                'authorId': facultyData.employeeId,
+                                'isActive': true,
+                                'readBy': <String>[],
+                                'createdAt': FieldValue.serverTimestamp(),
+                                'updatedAt': FieldValue.serverTimestamp(),
+                              };
 
-                        await FirebaseFirestore.instance
-                            .collection('announcements')
-                            .add(announcementData);
+                              await FirebaseFirestore.instance
+                                  .collection('announcements')
+                                  .add(announcementData);
 
-                        // Refresh announcements
-                        ref.refresh(facultyAnnouncementsProvider);
+                              // Refresh announcements
+                              ref.refresh(facultyAnnouncementsProvider);
 
-                        // Show success message
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Announcement "${_titleController.text}" created successfully!'),
-                            backgroundColor: AppTheme.getStatusColor('success'),
-                          ),
-                        );
+                              // Show success message
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'Announcement "${_titleController.text}" created successfully!'),
+                                  backgroundColor:
+                                      AppTheme.getStatusColor('success'),
+                                ),
+                              );
 
-                        // Close bottom sheet
-                        Navigator.pop(context);
-
-                      } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error: ${e.toString()}'),
-                            backgroundColor: AppTheme.getStatusColor('error'),
-                          ),
-                        );
-                      } finally {
-                        setModalState(() => _isLoading = false);
-                      }
-                    },
+                              // Close bottom sheet
+                              Navigator.pop(context);
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Error: ${e.toString()}'),
+                                  backgroundColor:
+                                      AppTheme.getStatusColor('error'),
+                                ),
+                              );
+                            } finally {
+                              setModalState(() => _isLoading = false);
+                            }
+                          },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.getRoleColor('faculty'),
                       foregroundColor: Colors.white,
@@ -631,7 +657,8 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
                           )
                         : Text(
                             'Create Announcement',
-                            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                            style: AppTheme.lightTheme.textTheme.titleMedium
+                                ?.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
                             ),
@@ -659,10 +686,11 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
   }
 
   // Assignment Modal - Simplified version
-  void _showCreateAssignmentBottomSheet(Map<String, dynamic> facultyData) {
+  void _showCreateAssignmentBottomSheet(Faculty facultyData) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Assignment creation feature is available in the dashboard. Please use the Quick Actions card on the dashboard.'),
+        content: const Text(
+            'Assignment creation feature is available in the dashboard. Please use the Quick Actions card on the dashboard.'),
         backgroundColor: AppTheme.getRoleColor(userRole),
         duration: const Duration(seconds: 3),
         action: SnackBarAction(
@@ -679,10 +707,11 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
   }
 
   // Schedule Class Modal - Simplified version
-  void _showScheduleClassBottomSheet(Map<String, dynamic> facultyData) {
+  void _showScheduleClassBottomSheet(Faculty facultyData) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Class scheduling feature is available in the dashboard. Please use the Quick Actions card on the dashboard.'),
+        content: const Text(
+            'Class scheduling feature is available in the dashboard. Please use the Quick Actions card on the dashboard.'),
         backgroundColor: AppTheme.getRoleColor(userRole),
         duration: const Duration(seconds: 3),
         action: SnackBarAction(

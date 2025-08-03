@@ -6,11 +6,13 @@ import '../../../core/app_export.dart';
 class PendingAssignmentsCardWidget extends StatelessWidget {
   final List<Map<String, dynamic>> assignments;
   final VoidCallback onViewAll;
+  final Function(Map<String, dynamic>)? onAssignmentTap;
 
   const PendingAssignmentsCardWidget({
     super.key,
     required this.assignments,
     required this.onViewAll,
+    this.onAssignmentTap,
   });
 
   @override
@@ -127,6 +129,7 @@ class PendingAssignmentsCardWidget extends StatelessWidget {
   Widget _buildEmptyState() {
     return Container(
       padding: EdgeInsets.all(4.w),
+      width: double.infinity,
       child: Column(
         children: [
           CustomIconWidget(
@@ -178,19 +181,22 @@ class PendingAssignmentsCardWidget extends StatelessWidget {
       statusText = '$daysLeft DAYS LEFT';
     }
 
-    return Container(
-      padding: EdgeInsets.all(3.w),
-      decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: statusColor.withValues(alpha: 0.3),
-          width: 1,
+    return InkWell(
+      onTap: onAssignmentTap != null ? () => onAssignmentTap!(assignment) : null,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: EdgeInsets.all(3.w),
+        decoration: BoxDecoration(
+          color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: statusColor.withValues(alpha: 0.3),
+            width: 1,
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           Row(
             children: [
               Expanded(
@@ -313,6 +319,7 @@ class PendingAssignmentsCardWidget extends StatelessWidget {
             ],
           ),
         ],
+        ),
       ),
     );
   }

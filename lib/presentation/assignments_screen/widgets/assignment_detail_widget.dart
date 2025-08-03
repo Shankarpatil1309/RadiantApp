@@ -162,7 +162,8 @@ class AssignmentDetailWidget extends StatelessWidget {
                     Container(
                       padding: EdgeInsets.all(3.w),
                       decoration: BoxDecoration(
-                        color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest,
+                        color: AppTheme
+                            .lightTheme.colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -178,8 +179,8 @@ class AssignmentDetailWidget extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  assignment.fileName.isNotEmpty 
-                                      ? assignment.fileName 
+                                  assignment.fileName.isNotEmpty
+                                      ? assignment.fileName
                                       : 'Assignment File',
                                   style: AppTheme
                                       .lightTheme.textTheme.bodyMedium
@@ -188,8 +189,8 @@ class AssignmentDetailWidget extends StatelessWidget {
                                   ),
                                 ),
                                 Text(
-                                  assignment.fileExtension.isNotEmpty 
-                                      ? assignment.fileExtension.toUpperCase() 
+                                  assignment.fileExtension.isNotEmpty
+                                      ? assignment.fileExtension.toUpperCase()
                                       : 'File',
                                   style:
                                       AppTheme.lightTheme.textTheme.bodySmall,
@@ -259,13 +260,15 @@ class AssignmentDetailWidget extends StatelessWidget {
                                       : _getSubmissionStatus() == 'overdue'
                                           ? 'Assignment is overdue'
                                           : 'Submission pending',
-                                  style: AppTheme.lightTheme.textTheme.bodyMedium
+                                  style: AppTheme
+                                      .lightTheme.textTheme.bodyMedium
                                       ?.copyWith(
                                     color: _getSubmissionStatus() == 'submitted'
                                         ? AppTheme.getStatusColor('success')
                                         : _getSubmissionStatus() == 'overdue'
                                             ? AppTheme.getStatusColor('error')
-                                            : AppTheme.getStatusColor('warning'),
+                                            : AppTheme.getStatusColor(
+                                                'warning'),
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -291,7 +294,8 @@ class AssignmentDetailWidget extends StatelessWidget {
                         Container(
                           padding: EdgeInsets.all(3.w),
                           decoration: BoxDecoration(
-                            color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest,
+                            color: AppTheme
+                                .lightTheme.colorScheme.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Column(
@@ -306,7 +310,8 @@ class AssignmentDetailWidget extends StatelessWidget {
                                   SizedBox(width: 2.w),
                                   Text(
                                     'Faculty: ${assignment.facultyName}',
-                                    style: AppTheme.lightTheme.textTheme.bodyMedium,
+                                    style: AppTheme
+                                        .lightTheme.textTheme.bodyMedium,
                                   ),
                                 ],
                               ),
@@ -321,7 +326,8 @@ class AssignmentDetailWidget extends StatelessWidget {
                                   SizedBox(width: 2.w),
                                   Text(
                                     'Max Marks: ${assignment.maxMarks}',
-                                    style: AppTheme.lightTheme.textTheme.bodyMedium,
+                                    style: AppTheme
+                                        .lightTheme.textTheme.bodyMedium,
                                   ),
                                 ],
                               ),
@@ -336,11 +342,13 @@ class AssignmentDetailWidget extends StatelessWidget {
                                   SizedBox(width: 2.w),
                                   Text(
                                     'Type: ${assignment.type.toUpperCase()}',
-                                    style: AppTheme.lightTheme.textTheme.bodyMedium,
+                                    style: AppTheme
+                                        .lightTheme.textTheme.bodyMedium,
                                   ),
                                 ],
                               ),
-                              if (assignment.instructions != null && assignment.instructions!.isNotEmpty) ...[
+                              if (assignment.instructions != null &&
+                                  assignment.instructions!.isNotEmpty) ...[
                                 SizedBox(height: 1.h),
                                 Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -354,7 +362,8 @@ class AssignmentDetailWidget extends StatelessWidget {
                                     Expanded(
                                       child: Text(
                                         'Instructions: ${assignment.instructions}',
-                                        style: AppTheme.lightTheme.textTheme.bodyMedium,
+                                        style: AppTheme
+                                            .lightTheme.textTheme.bodyMedium,
                                       ),
                                     ),
                                   ],
@@ -372,19 +381,20 @@ class AssignmentDetailWidget extends StatelessWidget {
           ),
 
           // Submit Button (if not submitted)
-          if (_getSubmissionStatus() != 'submitted')
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: onSubmit,
-                icon: CustomIconWidget(
-                  iconName: 'upload',
-                  color: Colors.white,
-                  size: 20,
-                ),
-                label: Text('Submit Assignment'),
-              ),
-            ),
+          // TODO: Implement submission logic
+          // if (_getSubmissionStatus() != 'submitted')
+          //   SizedBox(
+          //     width: double.infinity,
+          //     child: ElevatedButton.icon(
+          //       onPressed: onSubmit,
+          //       icon: CustomIconWidget(
+          //         iconName: 'upload',
+          //         color: Colors.white,
+          //         size: 20,
+          //       ),
+          //       label: Text('Submit Assignment'),
+          //     ),
+          //   ),
         ],
       ),
     );

@@ -34,6 +34,10 @@ class _AssignmentUploadBottomSheetWidgetState
 
   List<PlatformFile> _attachedFiles = [];
   bool _isUploading = false;
+  
+  // File attachment method: 'upload' or 'url'
+  String _attachmentMethod = 'upload';
+  final _fileUrlController = TextEditingController();
 
   final List<String> _departments = [
     'Engineering',
@@ -103,6 +107,7 @@ class _AssignmentUploadBottomSheetWidgetState
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
+    _fileUrlController.dispose();
     super.dispose();
   }
 
@@ -192,6 +197,16 @@ class _AssignmentUploadBottomSheetWidgetState
       // Simulate file upload delay
       await Future.delayed(Duration(seconds: 2));
 
+      // Determine file URL based on attachment method
+      String? fileUrl;
+      if (_attachmentMethod == 'url' && _fileUrlController.text.trim().isNotEmpty) {
+        fileUrl = _fileUrlController.text.trim();
+      } else if (_attachmentMethod == 'upload' && _attachedFiles.isNotEmpty) {
+        // TODO: Handle actual file upload and get the uploaded file URL
+        // For now, we'll use a placeholder
+        fileUrl = null; // Will be set after actual file upload
+      }
+      
       final assignmentData = {
         'title': _titleController.text.trim(),
         'description': _descriptionController.text.trim(),
@@ -200,8 +215,9 @@ class _AssignmentUploadBottomSheetWidgetState
         'semester': _selectedSemester,
         'deadline': _selectedDeadline,
         'totalStudents': _totalStudents,
-        'hasAttachments': _attachedFiles.isNotEmpty,
-        'attachmentCount': _attachedFiles.length,
+        'hasAttachments': _attachedFiles.isNotEmpty || (_attachmentMethod == 'url' && _fileUrlController.text.trim().isNotEmpty),
+        'attachmentCount': _attachmentMethod == 'upload' ? _attachedFiles.length : (_fileUrlController.text.trim().isNotEmpty ? 1 : 0),
+        'fileUrl': fileUrl,
       };
 
       widget.onUploadAssignment(assignmentData);
@@ -587,49 +603,230 @@ class _AssignmentUploadBottomSheetWidgetState
                       ),
                     ),
                     SizedBox(height: 1.h),
-
-                    // File Upload Button
-                    OutlinedButton.icon(
-                      onPressed: _pickFiles,
-                      icon: CustomIconWidget(
-                        iconName: 'attach_file',
-                        color: AppTheme.getRoleColor('faculty'),
-                        size: 20,
+                    
+                    // Attachment Method Selection
+                    Container(
+                      padding: EdgeInsets.all(3.w),
+                      decoration: BoxDecoration(
+                        color: AppTheme.getRoleColor('faculty').withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppTheme.getRoleColor('faculty').withValues(alpha: 0.2),
+                        ),
                       ),
-                      label: Text(
-                        'Attach Files',
-                        style:
-                            TextStyle(color: AppTheme.getRoleColor('faculty')),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        side:
-                            BorderSide(color: AppTheme.getRoleColor('faculty')),
-                        padding: EdgeInsets.symmetric(
-                            horizontal: 4.w, vertical: 3.h),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: RadioListTile<String>(
+                                  title: Text(
+                                    'Upload Files',
+                                    style: AppTheme.lightTheme.textTheme.bodyMedium,
+                                  ),
+                                  subtitle: Text(
+                                    'Upload files from device',
+                                    style: AppTheme.lightTheme.textTheme.bodySmall,
+                                  ),
+                                  value: 'upload',
+                                  groupValue: _attachmentMethod,
+                                  activeColor: AppTheme.getRoleColor('faculty'),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _attachmentMethod = value!;
+                                      if (value == 'upload') {
+                                        _fileUrlController.clear();
+                                      } else {
+                                        _attachedFiles.clear();
+                                      }
+                                    });
+                                  },
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: RadioListTile<String>(
+                                  title: Text(
+                                    'Use File URL',
+                                    style: AppTheme.lightTheme.textTheme.bodyMedium,
+                                  ),
+                                  subtitle: Text(
+                                    'Google Drive, Dropbox, etc.',
+                                    style: AppTheme.lightTheme.textTheme.bodySmall,
+                                  ),
+                                  value: 'url',
+                                  groupValue: _attachmentMethod,
+                                  activeColor: AppTheme.getRoleColor('faculty'),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _attachmentMethod = value!;
+                                      if (value == 'url') {
+                                        _attachedFiles.clear();
+                                      } else {
+                                        _fileUrlController.clear();
+                                      }
+                                    });
+                                  },
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-
-                    // Attached Files List
-                    if (_attachedFiles.isNotEmpty) ...[
-                      SizedBox(height: 2.h),
-                      ...List.generate(_attachedFiles.length, (index) {
-                        final file = _attachedFiles[index];
-                        return Container(
-                          margin: EdgeInsets.only(bottom: 1.h),
+                    
+                    SizedBox(height: 2.h),
+                    
+                    // File Upload Section
+                    if (_attachmentMethod == 'upload') ...[
+                      OutlinedButton.icon(
+                        onPressed: _pickFiles,
+                        icon: CustomIconWidget(
+                          iconName: 'attach_file',
+                          color: AppTheme.getRoleColor('faculty'),
+                          size: 20,
+                        ),
+                        label: Text(
+                          'Attach Files',
+                          style: TextStyle(color: AppTheme.getRoleColor('faculty')),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                          padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 3.h),
+                        ),
+                      ),
+                      
+                      // Attached Files List for Upload
+                      if (_attachedFiles.isNotEmpty) ...[
+                        SizedBox(height: 2.h),
+                        ...List.generate(_attachedFiles.length, (index) {
+                          final file = _attachedFiles[index];
+                          return Container(
+                            margin: EdgeInsets.only(bottom: 1.h),
+                            padding: EdgeInsets.all(3.w),
+                            decoration: BoxDecoration(
+                              color: AppTheme.getRoleColor('faculty').withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: AppTheme.getRoleColor('faculty').withValues(alpha: 0.2),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                CustomIconWidget(
+                                  iconName: 'description',
+                                  color: AppTheme.getRoleColor('faculty'),
+                                  size: 20,
+                                ),
+                                SizedBox(width: 3.w),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        file.name,
+                                        style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        _formatFileSize(file.size),
+                                        style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                                          color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: () => _removeFile(index),
+                                  icon: CustomIconWidget(
+                                    iconName: 'close',
+                                    color: AppTheme.getStatusColor('error'),
+                                    size: 20,
+                                  ),
+                                  padding: EdgeInsets.all(1.w),
+                                  constraints: BoxConstraints(),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ],
+                    
+                    // File URL Section
+                    if (_attachmentMethod == 'url') ...[
+                      TextFormField(
+                        controller: _fileUrlController,
+                        decoration: InputDecoration(
+                          hintText: 'Enter file URL (Google Drive, Dropbox, etc.)',
+                          prefixIcon: Padding(
+                            padding: EdgeInsets.all(3.w),
+                            child: CustomIconWidget(
+                              iconName: 'link',
+                              color: AppTheme.getRoleColor('faculty'),
+                              size: 20,
+                            ),
+                          ),
+                          suffixIcon: _fileUrlController.text.isNotEmpty
+                              ? IconButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _fileUrlController.clear();
+                                    });
+                                  },
+                                  icon: CustomIconWidget(
+                                    iconName: 'clear',
+                                    color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                    size: 20,
+                                  ),
+                                )
+                              : null,
+                        ),
+                        validator: (value) {
+                          if (_attachmentMethod == 'url' && value != null && value.trim().isNotEmpty) {
+                            // Basic URL validation
+                            try {
+                              final uri = Uri.parse(value.trim());
+                              if (!uri.hasScheme || (!uri.scheme.startsWith('http') && !uri.scheme.startsWith('https'))) {
+                                return 'Please enter a valid URL starting with http:// or https://';
+                              }
+                            } catch (e) {
+                              return 'Please enter a valid URL';
+                            }
+                          }
+                          return null;
+                        },
+                        onChanged: (value) {
+                          setState(() {}); // Trigger rebuild to show/hide clear button
+                        },
+                      ),
+                      
+                      SizedBox(height: 1.h),
+                      
+                      // URL Preview/Info
+                      if (_fileUrlController.text.trim().isNotEmpty) ...[
+                        Container(
                           padding: EdgeInsets.all(3.w),
                           decoration: BoxDecoration(
-                            color: AppTheme.getRoleColor('faculty')
-                                .withValues(alpha: 0.05),
+                            color: AppTheme.getRoleColor('faculty').withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: AppTheme.getRoleColor('faculty')
-                                  .withValues(alpha: 0.2),
+                              color: AppTheme.getRoleColor('faculty').withValues(alpha: 0.2),
                             ),
                           ),
                           child: Row(
                             children: [
                               CustomIconWidget(
-                                iconName: 'description',
+                                iconName: 'cloud',
                                 color: AppTheme.getRoleColor('faculty'),
                                 size: 20,
                               ),
@@ -639,42 +836,56 @@ class _AssignmentUploadBottomSheetWidgetState
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      file.name,
-                                      style: AppTheme
-                                          .lightTheme.textTheme.bodyMedium
-                                          ?.copyWith(
+                                      'File URL Added',
+                                      style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
                                         fontWeight: FontWeight.w500,
+                                        color: AppTheme.getRoleColor('faculty'),
                                       ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
                                     ),
                                     Text(
-                                      _formatFileSize(file.size),
-                                      style: AppTheme
-                                          .lightTheme.textTheme.bodySmall
-                                          ?.copyWith(
-                                        color: AppTheme
-                                            .lightTheme.colorScheme.onSurface
-                                            .withValues(alpha: 0.6),
+                                      _fileUrlController.text.length > 50 
+                                          ? '${_fileUrlController.text.substring(0, 50)}...'
+                                          : _fileUrlController.text,
+                                      style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                                        color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.6),
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
-                              IconButton(
-                                onPressed: () => _removeFile(index),
-                                icon: CustomIconWidget(
-                                  iconName: 'close',
-                                  color: AppTheme.getStatusColor('error'),
-                                  size: 20,
-                                ),
-                                padding: EdgeInsets.all(1.w),
-                                constraints: BoxConstraints(),
-                              ),
                             ],
                           ),
-                        );
-                      }),
+                        ),
+                      ],
+                      
+                      SizedBox(height: 1.h),
+                      
+                      // Helper text for URL sharing
+                      Container(
+                        padding: EdgeInsets.all(3.w),
+                        decoration: BoxDecoration(
+                          color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            CustomIconWidget(
+                              iconName: 'info',
+                              color: AppTheme.lightTheme.colorScheme.primary,
+                              size: 16,
+                            ),
+                            SizedBox(width: 2.w),
+                            Expanded(
+                              child: Text(
+                                'Make sure the file URL is publicly accessible or shared with proper permissions for students to download.',
+                                style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                                  color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
 
                     SizedBox(height: 4.h),

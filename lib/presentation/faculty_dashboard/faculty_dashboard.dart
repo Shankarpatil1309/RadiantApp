@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:radiant_app/config/app_config.dart';
+import 'package:radiant_app/models/faculty_model.dart';
 import 'package:sizer/sizer.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
@@ -18,7 +20,7 @@ import './widgets/today_classes_card.dart';
 
 class FacultyDashboard extends ConsumerStatefulWidget {
   final Function(int)? onNavigateToTab;
-  
+
   const FacultyDashboard({Key? key, this.onNavigateToTab}) : super(key: key);
 
   @override
@@ -29,7 +31,6 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
     with TickerProviderStateMixin {
   late TabController _tabController;
   bool _isLoading = false;
-
 
   final Map<String, dynamic> assignmentStats = {
     "total": 12,
@@ -78,15 +79,15 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
             }));
   }
 
-  void _showAnnouncementDialog(Map<String, dynamic> facultyData) {
+  void _showAnnouncementDialog(Faculty facultyData) {
     _showCreateAnnouncementBottomSheet(facultyData);
   }
 
-  void _showAssignmentDialog(Map<String, dynamic> facultyData) {
+  void _showAssignmentDialog(Faculty facultyData) {
     _showCreateAssignmentBottomSheet(facultyData);
   }
 
-  void _showScheduleClassDialog(Map<String, dynamic> facultyData) {
+  void _showScheduleClassDialog(Faculty facultyData) {
     _showScheduleClassBottomSheet(facultyData);
   }
 
@@ -147,9 +148,10 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
       body: facultyData.when(
         data: (data) {
           if (data == null) {
-            return const Center(child: Text('Please complete your profile setup'));
+            return const Center(
+                child: Text('Please complete your profile setup'));
           }
-          
+
           return Column(
             children: [
               FacultyHeaderWidget(
@@ -190,7 +192,7 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
   }
 
   Widget _buildDashboardTab(
-    Map<String, dynamic> facultyData,
+    Faculty facultyData,
     AsyncValue<List<Map<String, dynamic>>> todayClassesAsync,
     AsyncValue<List<dynamic>> announcementsAsync,
   ) {
@@ -221,17 +223,20 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
             ),
             announcementsAsync.when(
               data: (announcements) => RecentAnnouncementsCard(
-                announcements: announcements.map((ann) => {
-                  'id': ann.id,
-                  'title': ann.title,
-                  'content': ann.message,
-                  'priority': ann.priority,
-                  'timeAgo': _formatTimeAgo(ann.createdAt),
-                  'author': ann.createdBy,
-                }).toList(),
+                announcements: announcements
+                    .map((ann) => {
+                          'id': ann.id,
+                          'title': ann.title,
+                          'content': ann.message,
+                          'priority': ann.priority,
+                          'timeAgo': _formatTimeAgo(ann.createdAt),
+                          'author': ann.createdBy,
+                        })
+                    .toList(),
                 onAnnouncementTap: (announcement) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Opening: ${announcement["title"]}")),
+                    SnackBar(
+                        content: Text("Opening: ${announcement["title"]}")),
                   );
                 },
                 onAnnouncementLongPress: (announcement) {
@@ -239,7 +244,8 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                 },
               ),
               loading: () => _buildLoadingCard('Loading announcements...'),
-              error: (error, stack) => _buildErrorCard('Error loading announcements'),
+              error: (error, stack) =>
+                  _buildErrorCard('Error loading announcements'),
             ),
             AssignmentStatusCard(
               assignmentStats: assignmentStats,
@@ -426,7 +432,8 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(color: AppTheme.getRoleColor('faculty')),
+              CircularProgressIndicator(
+                  color: AppTheme.getRoleColor('faculty')),
               SizedBox(height: 2.h),
               Text(message, style: AppTheme.lightTheme.textTheme.bodyMedium),
             ],
@@ -480,17 +487,16 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
     }
   }
 
-  void _showCreateAnnouncementBottomSheet(Map<String, dynamic> facultyData) {
+  void _showCreateAnnouncementBottomSheet(Faculty facultyData) {
     final _titleController = TextEditingController();
     final _contentController = TextEditingController();
     final _formKey = GlobalKey<FormState>();
-    
+
     String _selectedPriority = 'normal';
-    List<String> _selectedDepartments = [facultyData['department']];
+    List<String> _selectedDepartments = [facultyData.department];
     bool _isLoading = false;
 
     final List<String> _priorities = ['normal', 'important', 'urgent'];
-    final List<String> _departments = ['All', 'CSE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'IT'];
 
     showModalBottomSheet(
       context: context,
@@ -515,7 +521,7 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              
+
               // Header
               Padding(
                 padding: EdgeInsets.all(4.w),
@@ -541,7 +547,7 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                   ],
                 ),
               ),
-              
+
               // Form
               Expanded(
                 child: Form(
@@ -557,61 +563,71 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                           decoration: InputDecoration(
                             labelText: 'Announcement Title',
                             hintText: 'Enter announcement title',
-                            prefixIcon: Icon(Icons.title, color: AppTheme.getRoleColor('faculty')),
+                            prefixIcon: Icon(Icons.title,
+                                color: AppTheme.getRoleColor('faculty')),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                              borderSide: BorderSide(
+                                  color: AppTheme.getRoleColor('faculty')),
                             ),
                           ),
                           validator: (value) {
-                            if (value?.isEmpty ?? true) return 'Title is required';
-                            if (value!.length < 5) return 'Title must be at least 5 characters';
+                            if (value?.isEmpty ?? true)
+                              return 'Title is required';
+                            if (value!.length < 5)
+                              return 'Title must be at least 5 characters';
                             return null;
                           },
                           maxLength: 100,
                         ),
                         SizedBox(height: 2.h),
-                        
+
                         // Content field
                         TextFormField(
                           controller: _contentController,
                           decoration: InputDecoration(
                             labelText: 'Announcement Content',
                             hintText: 'Enter detailed announcement content',
-                            prefixIcon: Icon(Icons.description, color: AppTheme.getRoleColor('faculty')),
+                            prefixIcon: Icon(Icons.description,
+                                color: AppTheme.getRoleColor('faculty')),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                              borderSide: BorderSide(
+                                  color: AppTheme.getRoleColor('faculty')),
                             ),
                           ),
                           maxLines: 4,
                           validator: (value) {
-                            if (value?.isEmpty ?? true) return 'Content is required';
-                            if (value!.length < 10) return 'Content must be at least 10 characters';
+                            if (value?.isEmpty ?? true)
+                              return 'Content is required';
+                            if (value!.length < 10)
+                              return 'Content must be at least 10 characters';
                             return null;
                           },
                           maxLength: 500,
                         ),
                         SizedBox(height: 2.h),
-                        
+
                         // Priority dropdown
                         DropdownButtonFormField<String>(
                           value: _selectedPriority,
                           decoration: InputDecoration(
                             labelText: 'Priority',
-                            prefixIcon: Icon(Icons.priority_high, color: AppTheme.getRoleColor('faculty')),
+                            prefixIcon: Icon(Icons.priority_high,
+                                color: AppTheme.getRoleColor('faculty')),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                              borderSide: BorderSide(
+                                  color: AppTheme.getRoleColor('faculty')),
                             ),
                           ),
                           items: _priorities.map((priority) {
@@ -633,14 +649,16 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                               ),
                             );
                           }).toList(),
-                          onChanged: (value) => setModalState(() => _selectedPriority = value!),
+                          onChanged: (value) =>
+                              setModalState(() => _selectedPriority = value!),
                         ),
                         SizedBox(height: 2.h),
-                        
+
                         // Department selection
                         Text(
                           'Target Departments',
-                          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                          style: AppTheme.lightTheme.textTheme.bodyMedium
+                              ?.copyWith(
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -654,8 +672,9 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                           child: Wrap(
                             spacing: 2.w,
                             runSpacing: 1.h,
-                            children: _departments.map((dept) {
-                              final isSelected = _selectedDepartments.contains(dept);
+                            children: AppConfig.departmentCodes.map((dept) {
+                              final isSelected =
+                                  _selectedDepartments.contains(dept);
                               return FilterChip(
                                 label: Text(dept),
                                 selected: isSelected,
@@ -674,14 +693,17 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                                       } else {
                                         _selectedDepartments.remove(dept);
                                         if (_selectedDepartments.isEmpty) {
-                                          _selectedDepartments.add(facultyData['department']);
+                                          _selectedDepartments
+                                              .add(facultyData.department);
                                         }
                                       }
                                     }
                                   });
                                 },
-                                selectedColor: AppTheme.getRoleColor('faculty').withValues(alpha: 0.2),
-                                checkmarkColor: AppTheme.getRoleColor('faculty'),
+                                selectedColor: AppTheme.getRoleColor('faculty')
+                                    .withValues(alpha: 0.2),
+                                checkmarkColor:
+                                    AppTheme.getRoleColor('faculty'),
                               );
                             }).toList(),
                           ),
@@ -692,7 +714,7 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                   ),
                 ),
               ),
-              
+
               // Submit button
               Container(
                 padding: EdgeInsets.all(4.w),
@@ -710,67 +732,73 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                   width: double.infinity,
                   height: 6.h,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : () async {
-                      if (!_formKey.currentState!.validate()) {
-                        return;
-                      }
+                    onPressed: _isLoading
+                        ? null
+                        : () async {
+                            if (!_formKey.currentState!.validate()) {
+                              return;
+                            }
 
-                      if (_selectedDepartments.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text('Please select at least one department'),
-                            backgroundColor: AppTheme.getStatusColor('error'),
-                          ),
-                        );
-                        return;
-                      }
+                            if (_selectedDepartments.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text(
+                                      'Please select at least one department'),
+                                  backgroundColor:
+                                      AppTheme.getStatusColor('error'),
+                                ),
+                              );
+                              return;
+                            }
 
-                      setModalState(() => _isLoading = true);
+                            setModalState(() => _isLoading = true);
 
-                      try {
-                        // Create announcement document with same structure as admin
-                        final announcementData = {
-                          'title': _titleController.text.trim(),
-                          'content': _contentController.text.trim(),
-                          'priority': _selectedPriority,
-                          'departments': _selectedDepartments,
-                          'author': facultyData['name'],
-                          'authorId': facultyData['employeeId'],
-                          'isActive': true,
-                          'readBy': <String>[],
-                          'createdAt': FieldValue.serverTimestamp(),
-                          'updatedAt': FieldValue.serverTimestamp(),
-                        };
+                            try {
+                              // Create announcement document with same structure as admin
+                              final announcementData = {
+                                'title': _titleController.text.trim(),
+                                'content': _contentController.text.trim(),
+                                'priority': _selectedPriority,
+                                'departments': _selectedDepartments,
+                                'author': facultyData.name,
+                                'authorId': facultyData.employeeId,
+                                'isActive': true,
+                                'readBy': <String>[],
+                                'createdAt': FieldValue.serverTimestamp(),
+                                'updatedAt': FieldValue.serverTimestamp(),
+                              };
 
-                        await FirebaseFirestore.instance
-                            .collection('announcements')
-                            .add(announcementData);
+                              await FirebaseFirestore.instance
+                                  .collection('announcements')
+                                  .add(announcementData);
 
-                        // Refresh announcements
-                        ref.refresh(facultyAnnouncementsProvider);
+                              // Refresh announcements
+                              ref.refresh(facultyAnnouncementsProvider);
 
-                        // Show success message
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Announcement "${_titleController.text}" created successfully!'),
-                            backgroundColor: AppTheme.getStatusColor('success'),
-                          ),
-                        );
+                              // Show success message
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'Announcement "${_titleController.text}" created successfully!'),
+                                  backgroundColor:
+                                      AppTheme.getStatusColor('success'),
+                                ),
+                              );
 
-                        // Close bottom sheet
-                        Navigator.pop(context);
-
-                      } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error: ${e.toString()}'),
-                            backgroundColor: AppTheme.getStatusColor('error'),
-                          ),
-                        );
-                      } finally {
-                        setModalState(() => _isLoading = false);
-                      }
-                    },
+                              // Close bottom sheet
+                              Navigator.pop(context);
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Error: ${e.toString()}'),
+                                  backgroundColor:
+                                      AppTheme.getStatusColor('error'),
+                                ),
+                              );
+                            } finally {
+                              setModalState(() => _isLoading = false);
+                            }
+                          },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.getRoleColor('faculty'),
                       foregroundColor: Colors.white,
@@ -789,7 +817,8 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                           )
                         : Text(
                             'Create Announcement',
-                            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                            style: AppTheme.lightTheme.textTheme.titleMedium
+                                ?.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
                             ),
@@ -804,13 +833,13 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
     );
   }
 
-  void _showCreateAssignmentBottomSheet(Map<String, dynamic> facultyData) {
+  void _showCreateAssignmentBottomSheet(Faculty facultyData) {
     final _titleController = TextEditingController();
     final _descriptionController = TextEditingController();
     final _instructionsController = TextEditingController();
     final _formKey = GlobalKey<FormState>();
     final _storageService = StorageService();
-    
+
     String _selectedType = 'assignment';
     String _selectedSubject = '';
     String _selectedSection = '';
@@ -824,9 +853,22 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
     double _uploadProgress = 0.0;
     bool _isUploading = false;
 
-    final List<String> _types = ['assignment', 'project', 'lab', 'quiz', 'presentation'];
-    final List<String> _subjects = ['Data Structures', 'Algorithms', 'Database', 'Software Engineering', 'Computer Networks', 'Operating Systems'];
-    final List<String> _sections = ['A', 'B', 'C', 'D'];
+    final List<String> _types = [
+      'assignment',
+      'project',
+      'lab',
+      'quiz',
+      'presentation'
+    ];
+    final List<String> _subjects = [
+      'Data Structures',
+      'Algorithms',
+      'Database',
+      'Software Engineering',
+      'Computer Networks',
+      'Operating Systems'
+    ];
+    final List<String> _sections = ['A', 'B'];
     final List<String> _formats = ['pdf', 'docx', 'jpg', 'png', 'txt', 'zip'];
 
     showModalBottomSheet(
@@ -852,7 +894,7 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              
+
               // Header
               Padding(
                 padding: EdgeInsets.all(4.w),
@@ -878,7 +920,7 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                   ],
                 ),
               ),
-              
+
               // Form
               Expanded(
                 child: Form(
@@ -894,49 +936,57 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                           decoration: InputDecoration(
                             labelText: 'Assignment Title',
                             hintText: 'Enter assignment title',
-                            prefixIcon: Icon(Icons.title, color: AppTheme.getRoleColor('faculty')),
+                            prefixIcon: Icon(Icons.title,
+                                color: AppTheme.getRoleColor('faculty')),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                              borderSide: BorderSide(
+                                  color: AppTheme.getRoleColor('faculty')),
                             ),
                           ),
                           validator: (value) {
-                            if (value?.isEmpty ?? true) return 'Title is required';
-                            if (value!.length < 5) return 'Title must be at least 5 characters';
+                            if (value?.isEmpty ?? true)
+                              return 'Title is required';
+                            if (value!.length < 5)
+                              return 'Title must be at least 5 characters';
                             return null;
                           },
                           maxLength: 100,
                         ),
                         SizedBox(height: 2.h),
-                        
+
                         // Description field
                         TextFormField(
                           controller: _descriptionController,
                           decoration: InputDecoration(
                             labelText: 'Description',
                             hintText: 'Enter assignment description',
-                            prefixIcon: Icon(Icons.description, color: AppTheme.getRoleColor('faculty')),
+                            prefixIcon: Icon(Icons.description,
+                                color: AppTheme.getRoleColor('faculty')),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                              borderSide: BorderSide(
+                                  color: AppTheme.getRoleColor('faculty')),
                             ),
                           ),
                           maxLines: 3,
                           validator: (value) {
-                            if (value?.isEmpty ?? true) return 'Description is required';
-                            if (value!.length < 10) return 'Description must be at least 10 characters';
+                            if (value?.isEmpty ?? true)
+                              return 'Description is required';
+                            if (value!.length < 10)
+                              return 'Description must be at least 10 characters';
                             return null;
                           },
                           maxLength: 300,
                         ),
                         SizedBox(height: 2.h),
-                        
+
                         // Type and Subject Row
                         Row(
                           children: [
@@ -945,13 +995,16 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                                 value: _selectedType,
                                 decoration: InputDecoration(
                                   labelText: 'Type',
-                                  prefixIcon: Icon(Icons.category, color: AppTheme.getRoleColor('faculty')),
+                                  prefixIcon: Icon(Icons.category,
+                                      color: AppTheme.getRoleColor('faculty')),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                                    borderSide: BorderSide(
+                                        color:
+                                            AppTheme.getRoleColor('faculty')),
                                   ),
                                 ),
                                 items: _types.map((type) {
@@ -960,22 +1013,28 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                                     child: Text(type.toUpperCase()),
                                   );
                                 }).toList(),
-                                onChanged: (value) => setModalState(() => _selectedType = value!),
+                                onChanged: (value) =>
+                                    setModalState(() => _selectedType = value!),
                               ),
                             ),
                             SizedBox(width: 3.w),
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: _selectedSubject.isEmpty ? null : _selectedSubject,
+                                value: _selectedSubject.isEmpty
+                                    ? null
+                                    : _selectedSubject,
                                 decoration: InputDecoration(
                                   labelText: 'Subject',
-                                  prefixIcon: Icon(Icons.book, color: AppTheme.getRoleColor('faculty')),
+                                  prefixIcon: Icon(Icons.book,
+                                      color: AppTheme.getRoleColor('faculty')),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                                    borderSide: BorderSide(
+                                        color:
+                                            AppTheme.getRoleColor('faculty')),
                                   ),
                                 ),
                                 items: _subjects.map((subject) {
@@ -984,29 +1043,37 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                                     child: Text(subject),
                                   );
                                 }).toList(),
-                                onChanged: (value) => setModalState(() => _selectedSubject = value!),
-                                validator: (value) => value == null ? 'Subject is required' : null,
+                                onChanged: (value) => setModalState(
+                                    () => _selectedSubject = value!),
+                                validator: (value) => value == null
+                                    ? 'Subject is required'
+                                    : null,
                               ),
                             ),
                           ],
                         ),
                         SizedBox(height: 2.h),
-                        
+
                         // Section and Semester Row
                         Row(
                           children: [
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: _selectedSection.isEmpty ? null : _selectedSection,
+                                value: _selectedSection.isEmpty
+                                    ? null
+                                    : _selectedSection,
                                 decoration: InputDecoration(
                                   labelText: 'Section',
-                                  prefixIcon: Icon(Icons.group, color: AppTheme.getRoleColor('faculty')),
+                                  prefixIcon: Icon(Icons.group,
+                                      color: AppTheme.getRoleColor('faculty')),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                                    borderSide: BorderSide(
+                                        color:
+                                            AppTheme.getRoleColor('faculty')),
                                   ),
                                 ),
                                 items: _sections.map((section) {
@@ -1015,8 +1082,11 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                                     child: Text('Section $section'),
                                   );
                                 }).toList(),
-                                onChanged: (value) => setModalState(() => _selectedSection = value!),
-                                validator: (value) => value == null ? 'Section is required' : null,
+                                onChanged: (value) => setModalState(
+                                    () => _selectedSection = value!),
+                                validator: (value) => value == null
+                                    ? 'Section is required'
+                                    : null,
                               ),
                             ),
                             SizedBox(width: 3.w),
@@ -1025,48 +1095,57 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                                 value: _selectedSemester,
                                 decoration: InputDecoration(
                                   labelText: 'Semester',
-                                  prefixIcon: Icon(Icons.school, color: AppTheme.getRoleColor('faculty')),
+                                  prefixIcon: Icon(Icons.school,
+                                      color: AppTheme.getRoleColor('faculty')),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                                    borderSide: BorderSide(
+                                        color:
+                                            AppTheme.getRoleColor('faculty')),
                                   ),
                                 ),
-                                items: List.generate(8, (index) => index + 1).map((sem) {
+                                items: List.generate(8, (index) => index + 1)
+                                    .map((sem) {
                                   return DropdownMenuItem<int>(
                                     value: sem,
                                     child: Text('Semester $sem'),
                                   );
                                 }).toList(),
-                                onChanged: (value) => setModalState(() => _selectedSemester = value!),
+                                onChanged: (value) => setModalState(
+                                    () => _selectedSemester = value!),
                               ),
                             ),
                           ],
                         ),
                         SizedBox(height: 2.h),
-                        
+
                         // Max Marks field
                         TextFormField(
                           initialValue: _maxMarks.toString(),
                           decoration: InputDecoration(
                             labelText: 'Maximum Marks',
                             hintText: 'Enter maximum marks',
-                            prefixIcon: Icon(Icons.grade, color: AppTheme.getRoleColor('faculty')),
+                            prefixIcon: Icon(Icons.grade,
+                                color: AppTheme.getRoleColor('faculty')),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                              borderSide: BorderSide(
+                                  color: AppTheme.getRoleColor('faculty')),
                             ),
                           ),
                           keyboardType: TextInputType.number,
                           validator: (value) {
-                            if (value?.isEmpty ?? true) return 'Max marks is required';
+                            if (value?.isEmpty ?? true)
+                              return 'Max marks is required';
                             final marks = int.tryParse(value!);
-                            if (marks == null || marks <= 0) return 'Enter valid marks';
+                            if (marks == null || marks <= 0)
+                              return 'Enter valid marks';
                             return null;
                           },
                           onChanged: (value) {
@@ -1075,7 +1154,7 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                           },
                         ),
                         SizedBox(height: 2.h),
-                        
+
                         // Due Date
                         InkWell(
                           onTap: () async {
@@ -1111,22 +1190,25 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.event, color: AppTheme.getRoleColor('faculty')),
+                                Icon(Icons.event,
+                                    color: AppTheme.getRoleColor('faculty')),
                                 SizedBox(width: 3.w),
                                 Text(
                                   'Due: ${_dueDate.day}/${_dueDate.month}/${_dueDate.year} at ${_dueDate.hour}:${_dueDate.minute.toString().padLeft(2, '0')}',
-                                  style: AppTheme.lightTheme.textTheme.bodyMedium,
+                                  style:
+                                      AppTheme.lightTheme.textTheme.bodyMedium,
                                 ),
                               ],
                             ),
                           ),
                         ),
                         SizedBox(height: 2.h),
-                        
+
                         // Allowed Formats
                         Text(
                           'Allowed File Formats',
-                          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                          style: AppTheme.lightTheme.textTheme.bodyMedium
+                              ?.copyWith(
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -1141,7 +1223,8 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                             spacing: 2.w,
                             runSpacing: 1.h,
                             children: _formats.map((format) {
-                              final isSelected = _allowedFormats.contains(format);
+                              final isSelected =
+                                  _allowedFormats.contains(format);
                               return FilterChip(
                                 label: Text(format.toUpperCase()),
                                 selected: isSelected,
@@ -1154,63 +1237,76 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                                     }
                                   });
                                 },
-                                selectedColor: AppTheme.getRoleColor('faculty').withValues(alpha: 0.2),
-                                checkmarkColor: AppTheme.getRoleColor('faculty'),
+                                selectedColor: AppTheme.getRoleColor('faculty')
+                                    .withValues(alpha: 0.2),
+                                checkmarkColor:
+                                    AppTheme.getRoleColor('faculty'),
                               );
                             }).toList(),
                           ),
                         ),
                         SizedBox(height: 2.h),
-                        
+
                         // Instructions field
                         TextFormField(
                           controller: _instructionsController,
                           decoration: InputDecoration(
                             labelText: 'Instructions (Optional)',
-                            hintText: 'Enter additional instructions for students',
-                            prefixIcon: Icon(Icons.info, color: AppTheme.getRoleColor('faculty')),
+                            hintText:
+                                'Enter additional instructions for students',
+                            prefixIcon: Icon(Icons.info,
+                                color: AppTheme.getRoleColor('faculty')),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                              borderSide: BorderSide(
+                                  color: AppTheme.getRoleColor('faculty')),
                             ),
                           ),
                           maxLines: 3,
                           maxLength: 200,
                         ),
                         SizedBox(height: 2.h),
-                        
+
                         // PDF Upload Section
                         Text(
                           'Assignment PDF',
-                          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                          style: AppTheme.lightTheme.textTheme.bodyMedium
+                              ?.copyWith(
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                         SizedBox(height: 1.h),
                         InkWell(
-                          onTap: _isLoading || _isUploading 
-                              ? null 
+                          onTap: _isLoading || _isUploading
+                              ? null
                               : () async {
                                   try {
-                                    final result = await FilePicker.platform.pickFiles(
+                                    final result =
+                                        await FilePicker.platform.pickFiles(
                                       type: FileType.custom,
                                       allowedExtensions: ['pdf'],
                                       allowMultiple: false,
                                     );
 
-                                    if (result != null && result.files.isNotEmpty) {
-                                      final file = File(result.files.single.path!);
+                                    if (result != null &&
+                                        result.files.isNotEmpty) {
+                                      final file =
+                                          File(result.files.single.path!);
                                       final fileSize = await file.length();
                                       const maxSize = 10 * 1024 * 1024; // 10MB
 
                                       if (fileSize > maxSize) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
                                           SnackBar(
-                                            content: Text('File size must be less than 10MB'),
-                                            backgroundColor: AppTheme.getStatusColor('error'),
+                                            content: Text(
+                                                'File size must be less than 10MB'),
+                                            backgroundColor:
+                                                AppTheme.getStatusColor(
+                                                    'error'),
                                           ),
                                         );
                                         return;
@@ -1224,8 +1320,10 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                                   } catch (e) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                        content: Text('Error selecting file: ${e.toString()}'),
-                                        backgroundColor: AppTheme.getStatusColor('error'),
+                                        content: Text(
+                                            'Error selecting file: ${e.toString()}'),
+                                        backgroundColor:
+                                            AppTheme.getStatusColor('error'),
                                       ),
                                     );
                                   }
@@ -1234,21 +1332,24 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                             padding: EdgeInsets.all(4.w),
                             decoration: BoxDecoration(
                               border: Border.all(
-                                color: _selectedFile != null 
+                                color: _selectedFile != null
                                     ? AppTheme.getRoleColor('faculty')
                                     : Colors.grey,
                                 width: _selectedFile != null ? 2 : 1,
                               ),
                               borderRadius: BorderRadius.circular(8),
-                              color: _selectedFile != null 
-                                  ? AppTheme.getRoleColor('faculty').withValues(alpha: 0.05)
+                              color: _selectedFile != null
+                                  ? AppTheme.getRoleColor('faculty')
+                                      .withValues(alpha: 0.05)
                                   : Colors.grey.withValues(alpha: 0.05),
                             ),
                             child: Row(
                               children: [
                                 Icon(
-                                  _selectedFile != null ? Icons.check_circle : Icons.upload_file,
-                                  color: _selectedFile != null 
+                                  _selectedFile != null
+                                      ? Icons.check_circle
+                                      : Icons.upload_file,
+                                  color: _selectedFile != null
                                       ? AppTheme.getRoleColor('faculty')
                                       : Colors.grey[600],
                                   size: 28,
@@ -1256,17 +1357,20 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                                 SizedBox(width: 3.w),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        _selectedFile != null 
+                                        _selectedFile != null
                                             ? _fileName ?? 'Selected PDF'
                                             : 'Select Assignment PDF',
-                                        style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                                          color: _selectedFile != null 
+                                        style: AppTheme
+                                            .lightTheme.textTheme.bodyMedium
+                                            ?.copyWith(
+                                          color: _selectedFile != null
                                               ? AppTheme.getRoleColor('faculty')
                                               : Colors.grey[700],
-                                          fontWeight: _selectedFile != null 
+                                          fontWeight: _selectedFile != null
                                               ? FontWeight.w600
                                               : FontWeight.normal,
                                         ),
@@ -1279,7 +1383,9 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                                             if (snapshot.hasData) {
                                               return Text(
                                                 'Size: ${StorageService.getFileSizeString(snapshot.data!)}',
-                                                style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                                                style: AppTheme.lightTheme
+                                                    .textTheme.bodySmall
+                                                    ?.copyWith(
                                                   color: Colors.grey[600],
                                                 ),
                                               );
@@ -1291,7 +1397,9 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                                         SizedBox(height: 0.5.h),
                                         Text(
                                           'Tap to select PDF file (Max 10MB)',
-                                          style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                                          style: AppTheme
+                                              .lightTheme.textTheme.bodySmall
+                                              ?.copyWith(
                                             color: Colors.grey[600],
                                           ),
                                         ),
@@ -1316,17 +1424,19 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                             ),
                           ),
                         ),
-                        
+
                         // Upload Progress
                         if (_isUploading) ...[
                           SizedBox(height: 2.h),
                           Container(
                             padding: EdgeInsets.all(3.w),
                             decoration: BoxDecoration(
-                              color: AppTheme.getRoleColor('faculty').withValues(alpha: 0.1),
+                              color: AppTheme.getRoleColor('faculty')
+                                  .withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: AppTheme.getRoleColor('faculty').withValues(alpha: 0.3),
+                                color: AppTheme.getRoleColor('faculty')
+                                    .withValues(alpha: 0.3),
                               ),
                             ),
                             child: Column(
@@ -1341,7 +1451,9 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                                     SizedBox(width: 2.w),
                                     Text(
                                       'Uploading PDF... ${(_uploadProgress * 100).toStringAsFixed(1)}%',
-                                      style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                                      style: AppTheme
+                                          .lightTheme.textTheme.bodySmall
+                                          ?.copyWith(
                                         color: AppTheme.getRoleColor('faculty'),
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -1360,14 +1472,14 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                             ),
                           ),
                         ],
-                        
+
                         SizedBox(height: 4.h),
                       ],
                     ),
                   ),
                 ),
               ),
-              
+
               // Submit button
               Container(
                 padding: EdgeInsets.all(4.w),
@@ -1385,104 +1497,116 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                   width: double.infinity,
                   height: 6.h,
                   child: ElevatedButton(
-                    onPressed: _isLoading || _isUploading ? null : () async {
-                      if (!_formKey.currentState!.validate()) {
-                        return;
-                      }
+                    onPressed: _isLoading || _isUploading
+                        ? null
+                        : () async {
+                            if (!_formKey.currentState!.validate()) {
+                              return;
+                            }
 
-                      if (_allowedFormats.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text('Please select at least one file format'),
-                            backgroundColor: AppTheme.getStatusColor('error'),
-                          ),
-                        );
-                        return;
-                      }
+                            if (_allowedFormats.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text(
+                                      'Please select at least one file format'),
+                                  backgroundColor:
+                                      AppTheme.getStatusColor('error'),
+                                ),
+                              );
+                              return;
+                            }
 
-                      setModalState(() => _isLoading = true);
+                            setModalState(() => _isLoading = true);
 
-                      String? fileUrl; // Declare outside try block for cleanup access
-                      
-                      try {
-                        // Upload PDF file if selected
-                        if (_selectedFile != null) {
-                          setModalState(() => _isUploading = true);
-                          
-                          fileUrl = await _storageService.uploadAssignmentPDF(
-                            file: _selectedFile!,
-                            facultyId: facultyData['employeeId'],
-                            assignmentTitle: _titleController.text.trim(),
-                            onProgress: (progress) {
-                              setModalState(() => _uploadProgress = progress);
-                            },
-                          );
-                          
-                          setModalState(() => _isUploading = false);
-                        }
+                            String?
+                                fileUrl; // Declare outside try block for cleanup access
 
-                        // Create assignment document
-                        final assignmentData = {
-                          'title': _titleController.text.trim(),
-                          'description': _descriptionController.text.trim(),
-                          'subject': _selectedSubject,
-                          'department': facultyData['department'],
-                          'section': _selectedSection,
-                          'semester': _selectedSemester,
-                          'dueDate': Timestamp.fromDate(_dueDate),
-                          'facultyId': facultyData['employeeId'],
-                          'facultyName': facultyData['name'],
-                          'maxMarks': _maxMarks,
-                          'type': _selectedType,
-                          'isActive': true,
-                          'allowedFormats': _allowedFormats,
-                          'instructions': _instructionsController.text.trim().isEmpty 
-                              ? null 
-                              : _instructionsController.text.trim(),
-                          'fileUrl': fileUrl, // Add the uploaded file URL
-                          'createdAt': FieldValue.serverTimestamp(),
-                          'updatedAt': FieldValue.serverTimestamp(),
-                        };
+                            try {
+                              // Upload PDF file if selected
+                              if (_selectedFile != null) {
+                                setModalState(() => _isUploading = true);
 
-                        await FirebaseFirestore.instance
-                            .collection('assignments')
-                            .add(assignmentData);
+                                fileUrl =
+                                    await _storageService.uploadAssignmentPDF(
+                                  file: _selectedFile!,
+                                  facultyId: facultyData.employeeId,
+                                  assignmentTitle: _titleController.text.trim(),
+                                  onProgress: (progress) {
+                                    setModalState(
+                                        () => _uploadProgress = progress);
+                                  },
+                                );
 
-                        // Show success message
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Assignment "${_titleController.text}" created successfully!'),
-                            backgroundColor: AppTheme.getStatusColor('success'),
-                          ),
-                        );
+                                setModalState(() => _isUploading = false);
+                              }
 
-                        // Close bottom sheet
-                        Navigator.pop(context);
+                              // Create assignment document
+                              final assignmentData = {
+                                'title': _titleController.text.trim(),
+                                'description':
+                                    _descriptionController.text.trim(),
+                                'subject': _selectedSubject,
+                                'department': facultyData.department,
+                                'section': _selectedSection,
+                                'semester': _selectedSemester,
+                                'dueDate': Timestamp.fromDate(_dueDate),
+                                'facultyId': facultyData.employeeId,
+                                'facultyName': facultyData.name,
+                                'maxMarks': _maxMarks,
+                                'type': _selectedType,
+                                'isActive': true,
+                                'allowedFormats': _allowedFormats,
+                                'instructions':
+                                    _instructionsController.text.trim().isEmpty
+                                        ? null
+                                        : _instructionsController.text.trim(),
+                                'fileUrl': fileUrl, // Add the uploaded file URL
+                                'createdAt': FieldValue.serverTimestamp(),
+                                'updatedAt': FieldValue.serverTimestamp(),
+                              };
 
-                      } catch (e) {
-                        // Clean up uploaded file if assignment creation fails
-                        if (fileUrl != null) {
-                          try {
-                            await _storageService.deleteFile(fileUrl);
-                          } catch (deleteError) {
-                            print('Failed to delete uploaded file: $deleteError');
-                          }
-                        }
-                        
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error: ${e.toString()}'),
-                            backgroundColor: AppTheme.getStatusColor('error'),
-                          ),
-                        );
-                      } finally {
-                        setModalState(() {
-                          _isLoading = false;
-                          _isUploading = false;
-                          _uploadProgress = 0.0;
-                        });
-                      }
-                    },
+                              await FirebaseFirestore.instance
+                                  .collection('assignments')
+                                  .add(assignmentData);
+
+                              // Show success message
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'Assignment "${_titleController.text}" created successfully!'),
+                                  backgroundColor:
+                                      AppTheme.getStatusColor('success'),
+                                ),
+                              );
+
+                              // Close bottom sheet
+                              Navigator.pop(context);
+                            } catch (e) {
+                              // Clean up uploaded file if assignment creation fails
+                              if (fileUrl != null) {
+                                try {
+                                  await _storageService.deleteFile(fileUrl);
+                                } catch (deleteError) {
+                                  print(
+                                      'Failed to delete uploaded file: $deleteError');
+                                }
+                              }
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Error: ${e.toString()}'),
+                                  backgroundColor:
+                                      AppTheme.getStatusColor('error'),
+                                ),
+                              );
+                            } finally {
+                              setModalState(() {
+                                _isLoading = false;
+                                _isUploading = false;
+                                _uploadProgress = 0.0;
+                              });
+                            }
+                          },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.getRoleColor('faculty'),
                       foregroundColor: Colors.white,
@@ -1504,8 +1628,11 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                               ),
                               SizedBox(width: 2.w),
                               Text(
-                                _isUploading ? 'Uploading PDF...' : 'Creating Assignment...',
-                                style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                                _isUploading
+                                    ? 'Uploading PDF...'
+                                    : 'Creating Assignment...',
+                                style: AppTheme.lightTheme.textTheme.titleMedium
+                                    ?.copyWith(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -1514,7 +1641,8 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                           )
                         : Text(
                             'Create Assignment',
-                            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                            style: AppTheme.lightTheme.textTheme.titleMedium
+                                ?.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
                             ),
@@ -1529,12 +1657,12 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
     );
   }
 
-  void _showScheduleClassBottomSheet(Map<String, dynamic> facultyData) {
+  void _showScheduleClassBottomSheet(Faculty facultyData) {
     final _titleController = TextEditingController();
     final _descriptionController = TextEditingController();
     final _roomController = TextEditingController();
     final _formKey = GlobalKey<FormState>();
-    
+
     String _selectedType = 'lecture';
     String _selectedSubject = '';
     String _selectedSection = '';
@@ -1546,9 +1674,22 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
     DateTime? _recurringEndDate;
     bool _isLoading = false;
 
-    final List<String> _types = ['lecture', 'lab', 'tutorial', 'exam', 'seminar'];
-    final List<String> _subjects = ['Data Structures', 'Algorithms', 'Database', 'Software Engineering', 'Computer Networks', 'Operating Systems'];
-    final List<String> _sections = ['A', 'B', 'C', 'D'];
+    final List<String> _types = [
+      'lecture',
+      'lab',
+      'tutorial',
+      'exam',
+      'seminar'
+    ];
+    final List<String> _subjects = [
+      'Data Structures',
+      'Algorithms',
+      'Database',
+      'Software Engineering',
+      'Computer Networks',
+      'Operating Systems'
+    ];
+    final List<String> _sections = ['A', 'B'];
     final List<String> _recurringPatterns = ['daily', 'weekly', 'monthly'];
 
     showModalBottomSheet(
@@ -1574,7 +1715,7 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              
+
               // Header
               Padding(
                 padding: EdgeInsets.all(4.w),
@@ -1600,7 +1741,7 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                   ],
                 ),
               ),
-              
+
               // Form
               Expanded(
                 child: Form(
@@ -1616,24 +1757,28 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                           decoration: InputDecoration(
                             labelText: 'Class Title',
                             hintText: 'Enter class title',
-                            prefixIcon: Icon(Icons.title, color: AppTheme.getRoleColor('faculty')),
+                            prefixIcon: Icon(Icons.title,
+                                color: AppTheme.getRoleColor('faculty')),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                              borderSide: BorderSide(
+                                  color: AppTheme.getRoleColor('faculty')),
                             ),
                           ),
                           validator: (value) {
-                            if (value?.isEmpty ?? true) return 'Title is required';
-                            if (value!.length < 3) return 'Title must be at least 3 characters';
+                            if (value?.isEmpty ?? true)
+                              return 'Title is required';
+                            if (value!.length < 3)
+                              return 'Title must be at least 3 characters';
                             return null;
                           },
                           maxLength: 100,
                         ),
                         SizedBox(height: 2.h),
-                        
+
                         // Type and Subject Row
                         Row(
                           children: [
@@ -1642,13 +1787,16 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                                 value: _selectedType,
                                 decoration: InputDecoration(
                                   labelText: 'Type',
-                                  prefixIcon: Icon(Icons.category, color: AppTheme.getRoleColor('faculty')),
+                                  prefixIcon: Icon(Icons.category,
+                                      color: AppTheme.getRoleColor('faculty')),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                                    borderSide: BorderSide(
+                                        color:
+                                            AppTheme.getRoleColor('faculty')),
                                   ),
                                 ),
                                 items: _types.map((type) {
@@ -1657,22 +1805,28 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                                     child: Text(type.toUpperCase()),
                                   );
                                 }).toList(),
-                                onChanged: (value) => setModalState(() => _selectedType = value!),
+                                onChanged: (value) =>
+                                    setModalState(() => _selectedType = value!),
                               ),
                             ),
                             SizedBox(width: 3.w),
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: _selectedSubject.isEmpty ? null : _selectedSubject,
+                                value: _selectedSubject.isEmpty
+                                    ? null
+                                    : _selectedSubject,
                                 decoration: InputDecoration(
                                   labelText: 'Subject',
-                                  prefixIcon: Icon(Icons.book, color: AppTheme.getRoleColor('faculty')),
+                                  prefixIcon: Icon(Icons.book,
+                                      color: AppTheme.getRoleColor('faculty')),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                                    borderSide: BorderSide(
+                                        color:
+                                            AppTheme.getRoleColor('faculty')),
                                   ),
                                 ),
                                 items: _subjects.map((subject) {
@@ -1681,29 +1835,37 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                                     child: Text(subject),
                                   );
                                 }).toList(),
-                                onChanged: (value) => setModalState(() => _selectedSubject = value!),
-                                validator: (value) => value == null ? 'Subject is required' : null,
+                                onChanged: (value) => setModalState(
+                                    () => _selectedSubject = value!),
+                                validator: (value) => value == null
+                                    ? 'Subject is required'
+                                    : null,
                               ),
                             ),
                           ],
                         ),
                         SizedBox(height: 2.h),
-                        
+
                         // Section and Semester Row
                         Row(
                           children: [
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: _selectedSection.isEmpty ? null : _selectedSection,
+                                value: _selectedSection.isEmpty
+                                    ? null
+                                    : _selectedSection,
                                 decoration: InputDecoration(
                                   labelText: 'Section',
-                                  prefixIcon: Icon(Icons.group, color: AppTheme.getRoleColor('faculty')),
+                                  prefixIcon: Icon(Icons.group,
+                                      color: AppTheme.getRoleColor('faculty')),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                                    borderSide: BorderSide(
+                                        color:
+                                            AppTheme.getRoleColor('faculty')),
                                   ),
                                 ),
                                 items: _sections.map((section) {
@@ -1712,8 +1874,11 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                                     child: Text('Section $section'),
                                   );
                                 }).toList(),
-                                onChanged: (value) => setModalState(() => _selectedSection = value!),
-                                validator: (value) => value == null ? 'Section is required' : null,
+                                onChanged: (value) => setModalState(
+                                    () => _selectedSection = value!),
+                                validator: (value) => value == null
+                                    ? 'Section is required'
+                                    : null,
                               ),
                             ),
                             SizedBox(width: 3.w),
@@ -1722,50 +1887,58 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                                 value: _selectedSemester,
                                 decoration: InputDecoration(
                                   labelText: 'Semester',
-                                  prefixIcon: Icon(Icons.school, color: AppTheme.getRoleColor('faculty')),
+                                  prefixIcon: Icon(Icons.school,
+                                      color: AppTheme.getRoleColor('faculty')),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                                    borderSide: BorderSide(
+                                        color:
+                                            AppTheme.getRoleColor('faculty')),
                                   ),
                                 ),
-                                items: List.generate(8, (index) => index + 1).map((sem) {
+                                items: List.generate(8, (index) => index + 1)
+                                    .map((sem) {
                                   return DropdownMenuItem<int>(
                                     value: sem,
                                     child: Text('Semester $sem'),
                                   );
                                 }).toList(),
-                                onChanged: (value) => setModalState(() => _selectedSemester = value!),
+                                onChanged: (value) => setModalState(
+                                    () => _selectedSemester = value!),
                               ),
                             ),
                           ],
                         ),
                         SizedBox(height: 2.h),
-                        
+
                         // Room field
                         TextFormField(
                           controller: _roomController,
                           decoration: InputDecoration(
                             labelText: 'Room/Location',
                             hintText: 'Enter room number or location',
-                            prefixIcon: Icon(Icons.location_on, color: AppTheme.getRoleColor('faculty')),
+                            prefixIcon: Icon(Icons.location_on,
+                                color: AppTheme.getRoleColor('faculty')),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                              borderSide: BorderSide(
+                                  color: AppTheme.getRoleColor('faculty')),
                             ),
                           ),
                           validator: (value) {
-                            if (value?.isEmpty ?? true) return 'Room is required';
+                            if (value?.isEmpty ?? true)
+                              return 'Room is required';
                             return null;
                           },
                         ),
                         SizedBox(height: 2.h),
-                        
+
                         // Start Time
                         InkWell(
                           onTap: () async {
@@ -1790,7 +1963,8 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                                     time.minute,
                                   );
                                   // Auto-adjust end time to 1.5 hours later
-                                  _endTime = _startTime.add(Duration(hours: 1, minutes: 30));
+                                  _endTime = _startTime
+                                      .add(Duration(hours: 1, minutes: 30));
                                 });
                               }
                             }
@@ -1803,18 +1977,20 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.access_time, color: AppTheme.getRoleColor('faculty')),
+                                Icon(Icons.access_time,
+                                    color: AppTheme.getRoleColor('faculty')),
                                 SizedBox(width: 3.w),
                                 Text(
                                   'Start: ${_startTime.day}/${_startTime.month}/${_startTime.year} at ${_startTime.hour}:${_startTime.minute.toString().padLeft(2, '0')}',
-                                  style: AppTheme.lightTheme.textTheme.bodyMedium,
+                                  style:
+                                      AppTheme.lightTheme.textTheme.bodyMedium,
                                 ),
                               ],
                             ),
                           ),
                         ),
                         SizedBox(height: 2.h),
-                        
+
                         // End Time
                         InkWell(
                           onTap: () async {
@@ -1842,40 +2018,45 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.access_time_filled, color: AppTheme.getRoleColor('faculty')),
+                                Icon(Icons.access_time_filled,
+                                    color: AppTheme.getRoleColor('faculty')),
                                 SizedBox(width: 3.w),
                                 Text(
                                   'End: ${_endTime.hour}:${_endTime.minute.toString().padLeft(2, '0')}',
-                                  style: AppTheme.lightTheme.textTheme.bodyMedium,
+                                  style:
+                                      AppTheme.lightTheme.textTheme.bodyMedium,
                                 ),
                               ],
                             ),
                           ),
                         ),
                         SizedBox(height: 2.h),
-                        
+
                         // Recurring checkbox
                         CheckboxListTile(
                           title: Text('Recurring Class'),
                           subtitle: Text('Schedule this class to repeat'),
                           value: _isRecurring,
                           activeColor: AppTheme.getRoleColor('faculty'),
-                          onChanged: (value) => setModalState(() => _isRecurring = value!),
+                          onChanged: (value) =>
+                              setModalState(() => _isRecurring = value!),
                         ),
-                        
+
                         if (_isRecurring) ...[
                           SizedBox(height: 1.h),
                           DropdownButtonFormField<String>(
                             value: _recurringPattern,
                             decoration: InputDecoration(
                               labelText: 'Repeat Pattern',
-                              prefixIcon: Icon(Icons.repeat, color: AppTheme.getRoleColor('faculty')),
+                              prefixIcon: Icon(Icons.repeat,
+                                  color: AppTheme.getRoleColor('faculty')),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                                borderSide: BorderSide(
+                                    color: AppTheme.getRoleColor('faculty')),
                               ),
                             ),
                             items: _recurringPatterns.map((pattern) {
@@ -1884,16 +2065,19 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                                 child: Text(pattern.toUpperCase()),
                               );
                             }).toList(),
-                            onChanged: (value) => setModalState(() => _recurringPattern = value!),
+                            onChanged: (value) =>
+                                setModalState(() => _recurringPattern = value!),
                           ),
                           SizedBox(height: 2.h),
                           InkWell(
                             onTap: () async {
                               final picked = await showDatePicker(
                                 context: context,
-                                initialDate: _recurringEndDate ?? DateTime.now().add(Duration(days: 30)),
+                                initialDate: _recurringEndDate ??
+                                    DateTime.now().add(Duration(days: 30)),
                                 firstDate: _startTime,
-                                lastDate: DateTime.now().add(Duration(days: 365)),
+                                lastDate:
+                                    DateTime.now().add(Duration(days: 365)),
                               );
                               if (picked != null) {
                                 setModalState(() => _recurringEndDate = picked);
@@ -1907,13 +2091,15 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                               ),
                               child: Row(
                                 children: [
-                                  Icon(Icons.event_repeat, color: AppTheme.getRoleColor('faculty')),
+                                  Icon(Icons.event_repeat,
+                                      color: AppTheme.getRoleColor('faculty')),
                                   SizedBox(width: 3.w),
                                   Text(
-                                    _recurringEndDate == null 
-                                        ? 'Select recurring end date' 
+                                    _recurringEndDate == null
+                                        ? 'Select recurring end date'
                                         : 'Repeat until: ${_recurringEndDate!.day}/${_recurringEndDate!.month}/${_recurringEndDate!.year}',
-                                    style: AppTheme.lightTheme.textTheme.bodyMedium,
+                                    style: AppTheme
+                                        .lightTheme.textTheme.bodyMedium,
                                   ),
                                 ],
                               ),
@@ -1921,20 +2107,22 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                           ),
                         ],
                         SizedBox(height: 2.h),
-                        
+
                         // Description field
                         TextFormField(
                           controller: _descriptionController,
                           decoration: InputDecoration(
                             labelText: 'Description (Optional)',
                             hintText: 'Enter class description or notes',
-                            prefixIcon: Icon(Icons.description, color: AppTheme.getRoleColor('faculty')),
+                            prefixIcon: Icon(Icons.description,
+                                color: AppTheme.getRoleColor('faculty')),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: AppTheme.getRoleColor('faculty')),
+                              borderSide: BorderSide(
+                                  color: AppTheme.getRoleColor('faculty')),
                             ),
                           ),
                           maxLines: 3,
@@ -1946,7 +2134,7 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                   ),
                 ),
               ),
-              
+
               // Submit button
               Container(
                 padding: EdgeInsets.all(4.w),
@@ -1964,88 +2152,99 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                   width: double.infinity,
                   height: 6.h,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : () async {
-                      if (!_formKey.currentState!.validate()) {
-                        return;
-                      }
+                    onPressed: _isLoading
+                        ? null
+                        : () async {
+                            if (!_formKey.currentState!.validate()) {
+                              return;
+                            }
 
-                      if (_endTime.isBefore(_startTime)) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text('End time must be after start time'),
-                            backgroundColor: AppTheme.getStatusColor('error'),
-                          ),
-                        );
-                        return;
-                      }
+                            if (_endTime.isBefore(_startTime)) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text(
+                                      'End time must be after start time'),
+                                  backgroundColor:
+                                      AppTheme.getStatusColor('error'),
+                                ),
+                              );
+                              return;
+                            }
 
-                      if (_isRecurring && _recurringEndDate == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text('Please select recurring end date'),
-                            backgroundColor: AppTheme.getStatusColor('error'),
-                          ),
-                        );
-                        return;
-                      }
+                            if (_isRecurring && _recurringEndDate == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text(
+                                      'Please select recurring end date'),
+                                  backgroundColor:
+                                      AppTheme.getStatusColor('error'),
+                                ),
+                              );
+                              return;
+                            }
 
-                      setModalState(() => _isLoading = true);
+                            setModalState(() => _isLoading = true);
 
-                      try {
-                        // Create class session document
-                        final sessionData = {
-                          'title': _titleController.text.trim(),
-                          'subject': _selectedSubject,
-                          'department': facultyData['department'],
-                          'section': _selectedSection,
-                          'semester': _selectedSemester,
-                          'facultyId': facultyData['employeeId'],
-                          'facultyName': facultyData['name'],
-                          'room': _roomController.text.trim(),
-                          'startTime': Timestamp.fromDate(_startTime),
-                          'endTime': Timestamp.fromDate(_endTime),
-                          'type': _selectedType,
-                          'description': _descriptionController.text.trim().isEmpty 
-                              ? null 
-                              : _descriptionController.text.trim(),
-                          'isActive': true,
-                          'isRecurring': _isRecurring,
-                          'recurringPattern': _isRecurring ? _recurringPattern : null,
-                          'recurringEndDate': _isRecurring && _recurringEndDate != null 
-                              ? Timestamp.fromDate(_recurringEndDate!) 
-                              : null,
-                          'attendees': <String>[],
-                          'status': 'scheduled',
-                          'createdAt': FieldValue.serverTimestamp(),
-                          'updatedAt': FieldValue.serverTimestamp(),
-                        };
+                            try {
+                              // Create class session document
+                              final sessionData = {
+                                'title': _titleController.text.trim(),
+                                'subject': _selectedSubject,
+                                'department': facultyData.department,
+                                'section': _selectedSection,
+                                'semester': _selectedSemester,
+                                'facultyId': facultyData.employeeId,
+                                'facultyName': facultyData.name,
+                                'room': _roomController.text.trim(),
+                                'startTime': Timestamp.fromDate(_startTime),
+                                'endTime': Timestamp.fromDate(_endTime),
+                                'type': _selectedType,
+                                'description':
+                                    _descriptionController.text.trim().isEmpty
+                                        ? null
+                                        : _descriptionController.text.trim(),
+                                'isActive': true,
+                                'isRecurring': _isRecurring,
+                                'recurringPattern':
+                                    _isRecurring ? _recurringPattern : null,
+                                'recurringEndDate':
+                                    _isRecurring && _recurringEndDate != null
+                                        ? Timestamp.fromDate(_recurringEndDate!)
+                                        : null,
+                                'attendees': <String>[],
+                                'status': 'scheduled',
+                                'createdAt': FieldValue.serverTimestamp(),
+                                'updatedAt': FieldValue.serverTimestamp(),
+                              };
 
-                        await FirebaseFirestore.instance
-                            .collection('class_sessions')
-                            .add(sessionData);
+                              await FirebaseFirestore.instance
+                                  .collection('class_sessions')
+                                  .add(sessionData);
 
-                        // Show success message
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Class "${_titleController.text}" scheduled successfully!'),
-                            backgroundColor: AppTheme.getStatusColor('success'),
-                          ),
-                        );
+                              // Show success message
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'Class "${_titleController.text}" scheduled successfully!'),
+                                  backgroundColor:
+                                      AppTheme.getStatusColor('success'),
+                                ),
+                              );
 
-                        // Close bottom sheet
-                        Navigator.pop(context);
-
-                      } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error: ${e.toString()}'),
-                            backgroundColor: AppTheme.getStatusColor('error'),
-                          ),
-                        );
-                      } finally {
-                        setModalState(() => _isLoading = false);
-                      }
-                    },
+                              // Close bottom sheet
+                              Navigator.pop(context);
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Error: ${e.toString()}'),
+                                  backgroundColor:
+                                      AppTheme.getStatusColor('error'),
+                                ),
+                              );
+                            } finally {
+                              setModalState(() => _isLoading = false);
+                            }
+                          },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.getRoleColor('faculty'),
                       foregroundColor: Colors.white,
@@ -2064,7 +2263,8 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
                           )
                         : Text(
                             'Schedule Class',
-                            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                            style: AppTheme.lightTheme.textTheme.titleMedium
+                                ?.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
                             ),

@@ -1,20 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:radiant_app/models/announcement_model.dart';
+import 'package:radiant_app/models/assignment_model.dart';
+import 'package:radiant_app/models/class_session_model.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/student_dashboard_controller.dart';
+import '../../models/student_model.dart';
 import './widgets/greeting_header_widget.dart';
 import './widgets/pending_assignments_card_widget.dart';
 import './widgets/quick_stats_card_widget.dart';
 import './widgets/recent_announcements_card_widget.dart';
 import './widgets/today_schedule_card_widget.dart';
+import '../assignments_screen/widgets/assignment_detail_widget.dart';
 
 class StudentDashboard extends ConsumerStatefulWidget {
   final Function(int)? onNavigateToTab;
-  
+
   const StudentDashboard({super.key, this.onNavigateToTab});
 
   @override
@@ -25,129 +30,6 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
     with TickerProviderStateMixin {
   late TabController _tabController;
   final String userRole = 'student';
-
-  // Mock student data
-  final Map<String, dynamic> studentData = {
-    "name": "Arjun Sharma",
-    "usn": "1BK21CS045",
-    "department": "CSE",
-    "section": "A",
-    "semester": 5,
-    "year": 3,
-    "email": "arjun.sharma@bkit.edu.in",
-    "phone": "+91 9876543210",
-    "address": "123 MG Road, Bangalore, Karnataka 560001",
-    "profileImage":
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
-  };
-
-  // Mock today's schedule data
-  final List<Map<String, dynamic>> todaySchedule = [
-    {
-      "id": 1,
-      "subject": "Data Structures and Algorithms",
-      "faculty": "Dr. Priya Nair",
-      "room": "CS-301",
-      "startTime": "2025-07-29T09:00:00.000Z",
-      "endTime": "2025-07-29T10:30:00.000Z",
-      "type": "Theory",
-    },
-    {
-      "id": 2,
-      "subject": "Database Management Systems",
-      "faculty": "Prof. Rajesh Kumar",
-      "room": "CS-302",
-      "startTime": "2025-07-29T11:00:00.000Z",
-      "endTime": "2025-07-29T12:30:00.000Z",
-      "type": "Theory",
-    },
-    {
-      "id": 3,
-      "subject": "Computer Networks Lab",
-      "faculty": "Dr. Meera Patel",
-      "room": "CS-Lab-1",
-      "startTime": "2025-07-29T14:00:00.000Z",
-      "endTime": "2025-07-29T17:00:00.000Z",
-      "type": "Lab",
-    },
-  ];
-
-  // Mock announcements data
-  final List<Map<String, dynamic>> announcements = [
-    {
-      "id": 1,
-      "title": "Mid-Semester Examination Schedule Released",
-      "content":
-          "The mid-semester examination schedule for all departments has been released. Please check your respective department notice boards and download the schedule from the student portal.",
-      "priority": "important",
-      "author": "Academic Office",
-      "department": "All",
-      "timestamp": "2025-07-29T08:30:00.000Z",
-      "isRead": false,
-    },
-    {
-      "id": 2,
-      "title": "Library Timing Changes",
-      "content":
-          "Due to maintenance work, the library will be closed on Saturday, August 2nd. Normal timings will resume from Monday, August 4th.",
-      "priority": "normal",
-      "author": "Library Department",
-      "department": "All",
-      "timestamp": "2025-07-29T07:15:00.000Z",
-      "isRead": true,
-    },
-    {
-      "id": 3,
-      "title": "Urgent: Fee Payment Deadline Extended",
-      "content":
-          "The fee payment deadline has been extended to August 15th due to technical issues with the payment gateway. Students are advised to complete their payments before the new deadline.",
-      "priority": "urgent",
-      "author": "Finance Office",
-      "department": "All",
-      "timestamp": "2025-07-29T06:45:00.000Z",
-      "isRead": false,
-    },
-    {
-      "id": 4,
-      "title": "CSE Department Workshop on AI/ML",
-      "content":
-          "A two-day workshop on Artificial Intelligence and Machine Learning will be conducted on August 10-11. Registration is mandatory for all CSE final year students.",
-      "priority": "important",
-      "author": "Dr. Suresh Babu",
-      "department": "CSE",
-      "timestamp": "2025-07-28T16:20:00.000Z",
-      "isRead": false,
-    },
-  ];
-
-
-  // Mock recent marks data
-  final List<Map<String, dynamic>> recentMarks = [
-    {
-      "id": 1,
-      "subject": "Data Structures",
-      "examType": "Internal Assessment 1",
-      "marks": 85.0,
-      "totalMarks": 100.0,
-      "date": "2025-07-20T00:00:00.000Z",
-    },
-    {
-      "id": 2,
-      "subject": "Database Systems",
-      "examType": "Quiz 2",
-      "marks": 78.0,
-      "totalMarks": 100.0,
-      "date": "2025-07-18T00:00:00.000Z",
-    },
-    {
-      "id": 3,
-      "subject": "Computer Networks",
-      "examType": "Lab Assessment",
-      "marks": 92.0,
-      "totalMarks": 100.0,
-      "date": "2025-07-15T00:00:00.000Z",
-    },
-  ];
 
   @override
   void initState() {
@@ -170,15 +52,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
   }
 
   void _onAnnouncementTap(Map<String, dynamic> announcement) {
-    // Mark announcement as read
-    setState(() {
-      final index =
-          announcements.indexWhere((a) => a['id'] == announcement['id']);
-      if (index != -1) {
-        announcements[index]['isRead'] = true;
-      }
-    });
-
+    // TODO: Implement mark as read functionality with Firebase
     // Show announcement details
     _showAnnouncementDetails(announcement);
   }
@@ -332,14 +206,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
                 style: AppTheme.lightTheme.textTheme.bodyMedium,
               ),
               onTap: () {
-                setState(() {
-                  final index = announcements
-                      .indexWhere((a) => a['id'] == announcement['id']);
-                  if (index != -1) {
-                    announcements[index]['isRead'] =
-                        !(announcements[index]['isRead'] as bool? ?? false);
-                  }
-                });
+                // TODO: Implement mark as read/unread functionality with Firebase
                 Navigator.pop(context);
               },
             ),
@@ -425,7 +292,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
 
   void _showProfileMenu() {
     final studentDataAsync = ref.read(studentDataProvider);
-    
+
     studentDataAsync.when(
       data: (data) {
         if (data != null) {
@@ -439,7 +306,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
     );
   }
 
-  void _showProfileMenuBottomSheet(Map<String, dynamic> studentData) {
+  void _showProfileMenuBottomSheet(Student studentData) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -463,28 +330,26 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
             SizedBox(height: 2.h),
             ListTile(
               leading: CircleAvatar(
-                backgroundImage: studentData['imageUrl'] != null 
-                    ? NetworkImage(studentData['imageUrl'] as String)
+                backgroundImage: studentData.profileImage != null
+                    ? NetworkImage(studentData.profileImage!)
                     : null,
-                onBackgroundImageError: studentData['imageUrl'] != null 
+                onBackgroundImageError: studentData.profileImage != null
                     ? (exception, stackTrace) {
                         // Fallback to initials
                       }
                     : null,
-                child: studentData['imageUrl'] == null
-                    ? Text((studentData['name'] as String)
-                        .substring(0, 1)
-                        .toUpperCase())
+                child: studentData.profileImage == null
+                    ? Text(studentData.name.substring(0, 1).toUpperCase())
                     : null,
               ),
               title: Text(
-                studentData['name'] as String,
+                studentData.name,
                 style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
               ),
               subtitle: Text(
-                studentData['usn'] as String,
+                studentData.usn,
                 style: AppTheme.lightTheme.textTheme.bodySmall,
               ),
             ),
@@ -594,6 +459,38 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
     );
   }
 
+  void _showAssignmentDetail(Assignment assignment) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AssignmentDetailWidget(
+        assignment: assignment,
+        onDownloadAttachment: () => _downloadAttachment(assignment),
+        onSubmit: () => _submitAssignment(assignment),
+        onClose: () => Navigator.pop(context),
+      ),
+    );
+  }
+
+  void _downloadAttachment(Assignment assignment) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Downloading attachment for ${assignment.title}'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _submitAssignment(Assignment assignment) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Opening submission interface for ${assignment.title}'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final studentData = ref.watch(studentDataProvider);
@@ -626,19 +523,19 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
                 onPressed: _showProfileMenu,
                 icon: CircleAvatar(
                   radius: 16,
-                  backgroundImage: data?['imageUrl'] != null 
-                      ? NetworkImage(data!['imageUrl'] as String)
+                  backgroundImage: data?.profileImage != null
+                      ? NetworkImage(data!.profileImage!)
                       : null,
-                  onBackgroundImageError: data?['imageUrl'] != null 
+                  onBackgroundImageError: data?.profileImage != null
                       ? (exception, stackTrace) {
                           // Fallback to initials
                         }
                       : null,
-                  child: data?['imageUrl'] == null
+                  child: data?.profileImage == null
                       ? Text(
-                          data?['name']?.substring(0, 1)?.toUpperCase() ?? 'S',
-                          style:
-                              AppTheme.lightTheme.textTheme.labelMedium?.copyWith(
+                          data?.name.substring(0, 1).toUpperCase() ?? 'S',
+                          style: AppTheme.lightTheme.textTheme.labelMedium
+                              ?.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
                           ),
@@ -656,9 +553,11 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
           child: studentData.when(
             data: (data) {
               if (data == null) {
-                return const Center(child: Text('Please complete your profile setup'));
+                return const Center(
+                    child: Text('Please complete your profile setup'));
               }
-              return _buildDashboardTab(data, todayClasses, announcements, assignments);
+              return _buildDashboardTab(
+                  data, todayClasses, announcements, assignments);
             },
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, stack) => Center(
@@ -681,12 +580,11 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
     );
   }
 
-
   Widget _buildDashboardTab(
-    Map<String, dynamic> studentData,
-    AsyncValue<List<dynamic>> todayClassesAsync,
-    AsyncValue<List<dynamic>> announcementsAsync,
-    AsyncValue<List<dynamic>> assignmentsAsync,
+    Student studentData,
+    AsyncValue<List<ClassSession>> todayClassesAsync,
+    AsyncValue<List<Announcement>> announcementsAsync,
+    AsyncValue<List<Assignment>> assignmentsAsync,
   ) {
     return RefreshIndicator(
       onRefresh: () async {
@@ -705,25 +603,27 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 4.w),
               child: GreetingHeaderWidget(
-                studentName: studentData['name'] as String,
-                usn: studentData['usn'] as String,
-                department: studentData['branch'] as String,
-                section: studentData['section'] as String,
+                studentName: studentData.name,
+                usn: studentData.usn,
+                department: studentData.department,
+                section: studentData.section,
               ),
             ),
             SizedBox(height: 2.h),
             // Today's Schedule Card
             todayClassesAsync.when(
               data: (todayClasses) => TodayScheduleCardWidget(
-                todayClasses: todayClasses.map((session) => {
-                  'id': session.id,
-                  'subject': session.subject,
-                  'faculty': session.facultyName,
-                  'room': session.room,
-                  'startTime': session.startTime.toIso8601String(),
-                  'endTime': session.endTime.toIso8601String(),
-                  'type': session.type,
-                }).toList(),
+                todayClasses: todayClasses
+                    .map((session) => {
+                          'id': session.id,
+                          'subject': session.subject,
+                          'faculty': session.facultyName,
+                          'room': session.room,
+                          'startTime': session.startTime.toIso8601String(),
+                          'endTime': session.endTime.toIso8601String(),
+                          'type': session.type,
+                        })
+                    .toList(),
                 onTap: () {
                   widget.onNavigateToTab?.call(1); // Navigate to Schedule tab
                 },
@@ -734,47 +634,59 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
             // Recent Announcements Card
             announcementsAsync.when(
               data: (announcements) => RecentAnnouncementsCardWidget(
-                announcements: announcements.map((ann) => {
-                  'id': ann.id,
-                  'title': ann.title,
-                  'content': ann.message,
-                  'priority': ann.priority,
-                  'timestamp': ann.createdAt.toIso8601String(),
-                  'author': ann.createdBy,
-                  'department': ann.departments.join(', '),
-                  'isRead': false, // TODO: Implement read tracking
-                }).toList(),
+                announcements: announcements
+                    .map((ann) => {
+                          'id': ann.id,
+                          'title': ann.title,
+                          'content': ann.message,
+                          'priority': ann.priority,
+                          'timestamp': ann.createdAt.toIso8601String(),
+                          'author': ann.createdBy,
+                          'department': ann.departments.join(', '),
+                          'isRead': false, // TODO: Implement read tracking
+                        })
+                    .toList(),
                 onAnnouncementTap: _onAnnouncementTap,
                 onAnnouncementLongPress: _onAnnouncementLongPress,
               ),
               loading: () => _buildLoadingCard('Loading announcements...'),
-              error: (error, stack) => _buildErrorCard('Error loading announcements'),
+              error: (error, stack) =>
+                  _buildErrorCard('Error loading announcements'),
             ),
             // Pending Assignments Card
             assignmentsAsync.when(
               data: (assignments) => PendingAssignmentsCardWidget(
-                assignments: assignments.map((assignment) => {
-                  'id': assignment.id,
-                  'title': assignment.title,
-                  'description': assignment.description,
-                  'subject': assignment.subject,
-                  'faculty': assignment.facultyName,
-                  'dueDate': assignment.dueDate.toIso8601String(),
-                  'marks': assignment.maxMarks,
-                  'status': 'pending',
-                  'submissionType': assignment.type,
-                }).toList(),
+                assignments: assignments
+                    .map((assignment) => {
+                          'id': assignment.id,
+                          'title': assignment.title,
+                          'description': assignment.description,
+                          'subject': assignment.subject,
+                          'faculty': assignment.facultyName,
+                          'dueDate': assignment.dueDate.toIso8601String(),
+                          'marks': assignment.maxMarks,
+                          'status': 'pending',
+                          'submissionType': assignment.type,
+                        })
+                    .toList(),
                 onViewAll: () {
-                  widget.onNavigateToTab?.call(3); // Navigate to Assignments tab
+                  widget.onNavigateToTab
+                      ?.call(3); // Navigate to Assignments tab
+                },
+                onAssignmentTap: (assignmentMap) {
+                  final assignment = assignments.firstWhere((a) => a.id == assignmentMap['id']);
+                  _showAssignmentDetail(assignment);
                 },
               ),
               loading: () => _buildLoadingCard('Loading assignments...'),
-              error: (error, stack) => _buildErrorCard('Error loading assignments'),
+              error: (error, stack) =>
+                  _buildErrorCard('Error loading assignments'),
             ),
             // Quick Stats Card
             QuickStatsCardWidget(
-              attendancePercentage: 87.5, // TODO: Calculate from attendance data
-              recentMarks: recentMarks, // TODO: Replace with real data
+              attendancePercentage:
+                  87.5, // TODO: Calculate from attendance data
+              recentMarks: const [], // TODO: Implement marks data fetching from Firebase
               onAttendanceTap: () {
                 widget.onNavigateToTab?.call(2); // Navigate to Attendance tab
               },
@@ -801,7 +713,8 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(color: AppTheme.lightTheme.primaryColor),
+              CircularProgressIndicator(
+                  color: AppTheme.lightTheme.primaryColor),
               SizedBox(height: 2.h),
               Text(message, style: AppTheme.lightTheme.textTheme.bodyMedium),
             ],

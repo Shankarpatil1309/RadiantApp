@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:radiant_app/models/faculty_model.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
 
 class FacultyHeaderWidget extends StatelessWidget {
-  final Map<String, dynamic> facultyData;
+  final Faculty facultyData;
   final Function() onProfileTap;
   final Function() onNotificationTap;
   final Function() onLogoutTap;
@@ -50,9 +51,9 @@ class FacultyHeaderWidget extends StatelessWidget {
                       ),
                     ),
                     child: ClipOval(
-                      child: facultyData["profileImage"] != null
+                      child: facultyData.profileImage != null
                           ? CustomImageWidget(
-                              imageUrl: facultyData["profileImage"] as String,
+                              imageUrl: facultyData.profileImage!,
                               width: 12.w,
                               height: 12.w,
                               fit: BoxFit.cover,
@@ -84,7 +85,7 @@ class FacultyHeaderWidget extends StatelessWidget {
                             ),
                       ),
                       Text(
-                        facultyData["name"] as String,
+                        facultyData.name,
                         style:
                             Theme.of(context).textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w600,
@@ -94,7 +95,7 @@ class FacultyHeaderWidget extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        "ID: ${facultyData["employeeId"]} • ${facultyData["department"]}",
+                        "ID: ${facultyData.employeeId} • ${facultyData.department}",
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Theme.of(context)
                                   .colorScheme
@@ -128,8 +129,7 @@ class FacultyHeaderWidget extends StatelessWidget {
                               .withValues(alpha: 0.7),
                           size: 24,
                         ),
-                        if (facultyData["unreadNotifications"] != null &&
-                            (facultyData["unreadNotifications"] as int) > 0)
+                        if (false) // TODO: Add unread notifications to Faculty model
                           Positioned(
                             right: 0,
                             top: 0,
@@ -144,7 +144,7 @@ class FacultyHeaderWidget extends StatelessWidget {
                                 minHeight: 4.w,
                               ),
                               child: Text(
-                                (facultyData["unreadNotifications"] as int)
+                                0 // TODO: Add unread notifications count
                                     .toString(),
                                 style: Theme.of(context)
                                     .textTheme
@@ -193,7 +193,7 @@ class FacultyHeaderWidget extends StatelessWidget {
 
   Widget _buildTodaySchedulePreview(BuildContext context) {
     final List<Map<String, dynamic>> todaySchedule =
-        (facultyData["todaySchedule"] as List? ?? [])
+        [] // TODO: Add today's schedule to Faculty model or get from provider
             .cast<Map<String, dynamic>>();
 
     if (todaySchedule.isEmpty) {

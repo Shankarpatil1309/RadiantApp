@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:radiant_app/config/app_config.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
@@ -11,7 +12,7 @@ import './widgets/student_attendance_list_widget.dart';
 class FacultyAttendanceScreen extends ConsumerStatefulWidget {
   final bool isEmbedded;
   final VoidCallback? onBackPressed;
-  
+
   const FacultyAttendanceScreen({
     Key? key,
     this.isEmbedded = false,
@@ -19,10 +20,12 @@ class FacultyAttendanceScreen extends ConsumerStatefulWidget {
   }) : super(key: key);
 
   @override
-  ConsumerState<FacultyAttendanceScreen> createState() => _FacultyAttendanceScreenState();
+  ConsumerState<FacultyAttendanceScreen> createState() =>
+      _FacultyAttendanceScreenState();
 }
 
-class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScreen>
+class _FacultyAttendanceScreenState
+    extends ConsumerState<FacultyAttendanceScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
   String? selectedDepartment;
@@ -34,15 +37,6 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
     'attendanceThreshold': 0.0,
     'status': 'All',
     'dateRange': null,
-  };
-
-  // Available departments and sections - should come from backend
-  final List<String> departments = ['CSE', 'ECE', 'MECH', 'CIVIL'];
-  final Map<String, List<String>> sectionsByDepartment = {
-    'CSE': ['A', 'B', 'C'],
-    'ECE': ['A', 'B'],
-    'MECH': ['A', 'B'],
-    'CIVIL': ['A'],
   };
 
   @override
@@ -93,21 +87,23 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
       ),
       backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
       elevation: 0,
-      leading: widget.isEmbedded ? IconButton(
-        onPressed: widget.onBackPressed ?? () {},
-        icon: CustomIconWidget(
-          iconName: 'arrow_back',
-          color: AppTheme.lightTheme.colorScheme.onSurface,
-          size: 24,
-        ),
-      ) : IconButton(
-        onPressed: () => Navigator.pop(context),
-        icon: CustomIconWidget(
-          iconName: 'arrow_back',
-          color: AppTheme.lightTheme.colorScheme.onSurface,
-          size: 24,
-        ),
-      ),
+      leading: widget.isEmbedded
+          ? IconButton(
+              onPressed: widget.onBackPressed ?? () {},
+              icon: CustomIconWidget(
+                iconName: 'arrow_back',
+                color: AppTheme.lightTheme.colorScheme.onSurface,
+                size: 24,
+              ),
+            )
+          : IconButton(
+              onPressed: () => Navigator.pop(context),
+              icon: CustomIconWidget(
+                iconName: 'arrow_back',
+                color: AppTheme.lightTheme.colorScheme.onSurface,
+                size: 24,
+              ),
+            ),
       actions: [
         Consumer(
           builder: (context, ref, _) {
@@ -211,7 +207,7 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
 
   Widget _buildStudentListTab() {
     final attendanceState = ref.watch(attendanceControllerProvider);
-    
+
     return SingleChildScrollView(
       child: Column(
         children: [
@@ -232,7 +228,7 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
 
   Widget _buildOverviewTab() {
     final todayClassesAsync = ref.watch(todayClassesProvider);
-    
+
     return SingleChildScrollView(
       child: Column(
         children: [
@@ -291,10 +287,11 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
                   ),
                   value: selectedDepartment,
-                  items: departments.map((String dept) {
+                  items: AppConfig.departmentCodes.map((String dept) {
                     return DropdownMenuItem<String>(
                       value: dept,
                       child: Text(dept),
@@ -316,11 +313,13 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
                   ),
                   value: selectedSection,
                   items: selectedDepartment != null
-                      ? sectionsByDepartment[selectedDepartment]?.map((String section) {
+                      ? AppConfig.sectionsByDepartment[selectedDepartment]
+                          ?.map((String section) {
                           return DropdownMenuItem<String>(
                             value: section,
                             child: Text(section),
@@ -400,17 +399,17 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
   Widget _buildClassItem(ClassSession classSession) {
     final isCompleted = classSession.status == 'completed';
     final attendeesCount = classSession.attendees.length;
-    
+
     return Container(
       margin: EdgeInsets.only(bottom: 2.h),
       padding: EdgeInsets.all(3.w),
       decoration: BoxDecoration(
-        color: isCompleted 
+        color: isCompleted
             ? AppTheme.getStatusColor('success').withValues(alpha: 0.1)
             : AppTheme.getStatusColor('warning').withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: isCompleted 
+          color: isCompleted
               ? AppTheme.getStatusColor('success')
               : AppTheme.getStatusColor('warning'),
           width: 1,
@@ -432,7 +431,7 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
                 decoration: BoxDecoration(
-                  color: isCompleted 
+                  color: isCompleted
                       ? AppTheme.getStatusColor('success')
                       : AppTheme.getStatusColor('warning'),
                   borderRadius: BorderRadius.circular(12),
@@ -452,7 +451,8 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
             children: [
               CustomIconWidget(
                 iconName: 'schedule',
-                color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.6),
+                color: AppTheme.lightTheme.colorScheme.onSurface
+                    .withValues(alpha: 0.6),
                 size: 16,
               ),
               SizedBox(width: 1.w),
@@ -463,7 +463,8 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
               const Spacer(),
               CustomIconWidget(
                 iconName: 'people',
-                color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.6),
+                color: AppTheme.lightTheme.colorScheme.onSurface
+                    .withValues(alpha: 0.6),
                 size: 16,
               ),
               SizedBox(width: 1.w),
@@ -477,7 +478,8 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
                   onPressed: () => _startAttendanceForSession(classSession),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.getRoleColor('faculty'),
-                    padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
                   ),
                   child: Text(
                     'Mark',
@@ -497,7 +499,7 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
 
   Widget _buildFloatingActionButton() {
     final attendanceState = ref.watch(attendanceControllerProvider);
-    
+
     return FloatingActionButton.extended(
       heroTag: "faculty_attendance_save_fab",
       onPressed: attendanceState.isMarkingMode ? _saveAttendance : null,
@@ -508,7 +510,9 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
         size: 24,
       ),
       label: Text(
-        attendanceState.isMarkingMode ? 'Save Attendance' : 'Select Class to Mark',
+        attendanceState.isMarkingMode
+            ? 'Save Attendance'
+            : 'Select Class to Mark',
         style: const TextStyle(color: Colors.white),
       ),
     );
@@ -607,13 +611,15 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
 
   void _loadStudentsForSection() {
     if (selectedDepartment != null && selectedSection != null) {
-      ref.read(attendanceControllerProvider.notifier)
+      ref
+          .read(attendanceControllerProvider.notifier)
           .loadStudentsBySection(selectedDepartment!, selectedSection!);
     }
   }
 
   void _onAttendanceToggle(String studentId, bool isPresent) {
-    ref.read(attendanceControllerProvider.notifier)
+    ref
+        .read(attendanceControllerProvider.notifier)
         .toggleAttendance(studentId, isPresent);
   }
 
@@ -624,19 +630,21 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
       selectedDepartment = session.department;
       selectedSection = session.section;
     });
-    
-    ref.read(attendanceControllerProvider.notifier)
+
+    ref
+        .read(attendanceControllerProvider.notifier)
         .startMarkingMode(session.id);
-    
+
     _loadStudentsForSection();
     _tabController.animateTo(0); // Switch to students tab
   }
 
   Future<void> _saveAttendance() async {
     const facultyId = 'current_faculty_id'; // Replace with actual faculty ID
-    final success = await ref.read(attendanceControllerProvider.notifier)
+    final success = await ref
+        .read(attendanceControllerProvider.notifier)
         .saveAttendance(facultyId, selectedSubject ?? 'Unknown Subject');
-    
+
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -649,7 +657,8 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
       final error = ref.read(attendanceControllerProvider).error;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to save attendance: ${error ?? 'Unknown error'}'),
+          content:
+              Text('Failed to save attendance: ${error ?? 'Unknown error'}'),
           backgroundColor: AppTheme.getStatusColor('error'),
         ),
       );

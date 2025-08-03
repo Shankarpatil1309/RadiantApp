@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:radiant_app/config/app_config.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../../core/app_export.dart';
@@ -23,16 +24,8 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
   late String _selectedDepartment;
   late String _selectedSection;
 
-  final List<String> _departments = [
-    'CSE',
-    'ECE',
-    'EEE',
-    'MECH',
-    'CIVIL',
-    'IT'
-  ];
-
-  final List<String> _sections = ['A', 'B', 'C'];
+  List<String> get _sections =>
+      AppConfig.sectionsByDepartment[_selectedDepartment] ?? ["A", "B"];
 
   @override
   void initState() {
@@ -98,7 +91,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           Wrap(
             spacing: 2.w,
             runSpacing: 1.h,
-            children: _departments.map((department) {
+            children: AppConfig.departmentCodes.map((department) {
               final isSelected = _selectedDepartment == department;
               return GestureDetector(
                 onTap: () {
@@ -112,7 +105,8 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                   decoration: BoxDecoration(
                     color: isSelected
                         ? AppTheme.lightTheme.colorScheme.primary
-                        : AppTheme.lightTheme.colorScheme.surfaceContainerHighest,
+                        : AppTheme
+                            .lightTheme.colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: isSelected
@@ -163,7 +157,8 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                     decoration: BoxDecoration(
                       color: isSelected
                           ? AppTheme.lightTheme.colorScheme.secondary
-                          : AppTheme.lightTheme.colorScheme.surfaceContainerHighest,
+                          : AppTheme
+                              .lightTheme.colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: isSelected

@@ -16,45 +16,18 @@ final announcementServiceProvider =
 final userServiceProvider = Provider<UserService>((ref) => UserService());
 
 final facultyDataProvider =
-    FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
+    FutureProvider.autoDispose<Faculty?>((ref) async {
   final authState = ref.watch(authControllerProvider);
 
   return authState.when(
     data: (user) async {
       if (user == null) return null;
 
-      final userService = ref.read(userServiceProvider);
       final facultyService = ref.read(facultyServiceProvider);
 
       try {
-        final appUser = await userService.getUser(user.uid);
         final faculty = await facultyService.getFaculty("EMP2024011");
-
-        if (faculty != null) {
-          return {
-            'user': appUser,
-            'faculty': faculty,
-            'name': faculty.name,
-            'email': faculty.email,
-            'mobile': faculty.mobile,
-            'imageUrl': user.photoURL, // Use Firebase Auth photo URL
-            'employeeId': faculty.employeeId,
-            'department': faculty.department,
-            'designation': faculty.designation,
-            'joiningDate': faculty.joiningDate,
-            'gender': faculty.gender,
-            'dateOfBirth': faculty.dateOfBirth,
-            'salary': faculty.salary,
-            'address': faculty.address,
-            'qualification': faculty.qualification,
-            'experience': faculty.experience,
-            'specializedSubjects': faculty.specializedSubjects,
-            'emergencyContact': faculty.emergencyContact,
-            'isActive': faculty.isActive,
-            'userRole': appUser?.role.name ?? 'FACULTY',
-            'lastLoginAt': appUser?.lastLoginAt,
-          };
-        }
+        return faculty;
       } catch (e) {
         print('Error fetching faculty data: $e');
       }
@@ -67,11 +40,10 @@ final facultyDataProvider =
 
 final facultyTodayClassesProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final facultyData = await ref.watch(facultyDataProvider.future);
-  if (facultyData == null) return [];
+  final faculty = await ref.watch(facultyDataProvider.future);
+  if (faculty == null) return [];
 
   final scheduleService = ref.read(scheduleServiceProvider);
-  final faculty = facultyData['faculty'] as Faculty;
 
   try {
     final now = DateTime.now();
@@ -120,11 +92,10 @@ final facultyTodayClassesProvider =
 
 final facultyAnnouncementsProvider =
     FutureProvider.autoDispose<List<Announcement>>((ref) async {
-  final facultyData = await ref.watch(facultyDataProvider.future);
-  if (facultyData == null) return [];
+  final faculty = await ref.watch(facultyDataProvider.future);
+  if (faculty == null) return [];
 
   final announcementService = ref.read(announcementServiceProvider);
-  final faculty = facultyData['faculty'] as Faculty;
 
   try {
     final announcements = await announcementService.listenAnnouncements().first;
@@ -165,11 +136,10 @@ final facultyNextClassProvider =
 final facultyWeeklyScheduleProvider =
     FutureProvider.autoDispose<Map<String, List<Map<String, dynamic>>>>(
         (ref) async {
-  final facultyData = await ref.watch(facultyDataProvider.future);
-  if (facultyData == null) return {};
+  final faculty = await ref.watch(facultyDataProvider.future);
+  if (faculty == null) return {};
 
   final scheduleService = ref.read(scheduleServiceProvider);
-  final faculty = facultyData['faculty'] as Faculty;
 
   try {
     final schedules = await scheduleService.listenSchedules().first;

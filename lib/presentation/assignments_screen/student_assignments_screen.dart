@@ -25,7 +25,8 @@ class StudentAssignmentsScreen extends ConsumerStatefulWidget {
       _StudentAssignmentsScreenState();
 }
 
-class _StudentAssignmentsScreenState extends ConsumerState<StudentAssignmentsScreen> {
+class _StudentAssignmentsScreenState
+    extends ConsumerState<StudentAssignmentsScreen> {
   final TextEditingController _searchController = TextEditingController();
   bool _isLoading = false;
   Map<String, dynamic> _filters = {
@@ -34,7 +35,6 @@ class _StudentAssignmentsScreenState extends ConsumerState<StudentAssignmentsScr
     'priority': 'All',
     'sortBy': 'dueDate',
   };
-
 
   List<Assignment> _filteredAssignments = [];
   String _searchQuery = '';
@@ -226,13 +226,11 @@ class _StudentAssignmentsScreenState extends ConsumerState<StudentAssignmentsScr
     // Implement assignment submission
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content:
-            Text('Opening submission interface for ${assignment.title}'),
+        content: Text('Opening submission interface for ${assignment.title}'),
         behavior: SnackBarBehavior.floating,
       ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -308,7 +306,7 @@ class _StudentAssignmentsScreenState extends ConsumerState<StudentAssignmentsScr
           // Apply filters to the assignments
           _applyFilters(assignments);
           final groupedAssignments = _groupAssignmentsBySubject();
-          
+
           if (_filteredAssignments.isEmpty) {
             return EmptyStateWidget(
               title: _searchQuery.isNotEmpty
@@ -317,15 +315,14 @@ class _StudentAssignmentsScreenState extends ConsumerState<StudentAssignmentsScr
               subtitle: _searchQuery.isNotEmpty
                   ? 'Try adjusting your search or filters'
                   : 'Your assignments will appear here when available',
-              iconName:
-                  _searchQuery.isNotEmpty ? 'search_off' : 'assignment',
+              iconName: _searchQuery.isNotEmpty ? 'search_off' : 'assignment',
               onAction: _searchQuery.isNotEmpty
                   ? () => _searchController.clear()
                   : null,
               actionText: _searchQuery.isNotEmpty ? 'Clear Search' : null,
             );
           }
-          
+
           return RefreshIndicator(
             onRefresh: () async {
               ref.refresh(studentAssignmentsProvider);
@@ -340,8 +337,8 @@ class _StudentAssignmentsScreenState extends ConsumerState<StudentAssignmentsScr
                   margin: EdgeInsets.all(4.w),
                   padding: EdgeInsets.all(4.w),
                   decoration: BoxDecoration(
-                    color: AppTheme.lightTheme.primaryColor
-                        .withValues(alpha: 0.1),
+                    color:
+                        AppTheme.lightTheme.primaryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -351,8 +348,7 @@ class _StudentAssignmentsScreenState extends ConsumerState<StudentAssignmentsScr
                           children: [
                             Text(
                               '${_filteredAssignments.where((a) => a.isActive && a.dueDate.isAfter(DateTime.now())).length}',
-                              style: AppTheme
-                                  .lightTheme.textTheme.headlineSmall
+                              style: AppTheme.lightTheme.textTheme.headlineSmall
                                   ?.copyWith(
                                 color: AppTheme.lightTheme.primaryColor,
                                 fontWeight: FontWeight.w600,
@@ -360,8 +356,7 @@ class _StudentAssignmentsScreenState extends ConsumerState<StudentAssignmentsScr
                             ),
                             Text(
                               'Pending',
-                              style:
-                                  AppTheme.lightTheme.textTheme.bodySmall,
+                              style: AppTheme.lightTheme.textTheme.bodySmall,
                             ),
                           ],
                         ),
@@ -376,8 +371,7 @@ class _StudentAssignmentsScreenState extends ConsumerState<StudentAssignmentsScr
                           children: [
                             Text(
                               '${_filteredAssignments.where((a) => !a.isActive).length}',
-                              style: AppTheme
-                                  .lightTheme.textTheme.headlineSmall
+                              style: AppTheme.lightTheme.textTheme.headlineSmall
                                   ?.copyWith(
                                 color: AppTheme.getStatusColor('success'),
                                 fontWeight: FontWeight.w600,
@@ -385,8 +379,7 @@ class _StudentAssignmentsScreenState extends ConsumerState<StudentAssignmentsScr
                             ),
                             Text(
                               'Submitted',
-                              style:
-                                  AppTheme.lightTheme.textTheme.bodySmall,
+                              style: AppTheme.lightTheme.textTheme.bodySmall,
                             ),
                           ],
                         ),
@@ -401,8 +394,7 @@ class _StudentAssignmentsScreenState extends ConsumerState<StudentAssignmentsScr
                           children: [
                             Text(
                               '${_filteredAssignments.where((a) => a.dueDate.isBefore(DateTime.now()) && a.isActive).length}',
-                              style: AppTheme
-                                  .lightTheme.textTheme.headlineSmall
+                              style: AppTheme.lightTheme.textTheme.headlineSmall
                                   ?.copyWith(
                                 color: AppTheme.getStatusColor('error'),
                                 fontWeight: FontWeight.w600,
@@ -410,8 +402,7 @@ class _StudentAssignmentsScreenState extends ConsumerState<StudentAssignmentsScr
                             ),
                             Text(
                               'Overdue',
-                              style:
-                                  AppTheme.lightTheme.textTheme.bodySmall,
+                              style: AppTheme.lightTheme.textTheme.bodySmall,
                             ),
                           ],
                         ),
@@ -424,34 +415,45 @@ class _StudentAssignmentsScreenState extends ConsumerState<StudentAssignmentsScr
                 ...groupedAssignments.entries.map((entry) {
                   return SubjectSectionWidget(
                     subject: entry.key,
-                    assignments: entry.value.map((assignment) => {
-                      'id': assignment.id,
-                      'title': assignment.title,
-                      'subject': assignment.subject,
-                      'description': assignment.description,
-                      'dueDate': assignment.dueDate,
-                      'hasAttachments': assignment.fileUrl != null && assignment.fileUrl!.isNotEmpty,
-                      'attachmentCount': assignment.fileUrl != null && assignment.fileUrl!.isNotEmpty ? 1 : 0,
-                      'submissionStatus': assignment.isActive ? 'pending' : 'submitted',
-                      'priority': 'Medium',
-                      'facultyName': assignment.facultyName,
-                      'maxMarks': assignment.maxMarks,
-                      'type': assignment.type,
-                    }).toList(),
+                    assignments: entry.value
+                        .map((assignment) => {
+                              'id': assignment.id,
+                              'title': assignment.title,
+                              'subject': assignment.subject,
+                              'description': assignment.description,
+                              'dueDate': assignment.dueDate,
+                              'hasAttachments': assignment.fileUrl != null &&
+                                  assignment.fileUrl!.isNotEmpty,
+                              'attachmentCount': assignment.fileUrl != null &&
+                                      assignment.fileUrl!.isNotEmpty
+                                  ? 1
+                                  : 0,
+                              'submissionStatus':
+                                  assignment.isActive ? 'pending' : 'submitted',
+                              'priority': 'Medium',
+                              'facultyName': assignment.facultyName,
+                              'maxMarks': assignment.maxMarks,
+                              'type': assignment.type,
+                            })
+                        .toList(),
                     onAssignmentTap: (assignmentMap) {
-                      final assignment = entry.value.firstWhere((a) => a.id == assignmentMap['id']);
+                      final assignment = entry.value
+                          .firstWhere((a) => a.id == assignmentMap['id']);
                       _showAssignmentDetail(assignment);
                     },
                     onDownload: (assignmentMap) {
-                      final assignment = entry.value.firstWhere((a) => a.id == assignmentMap['id']);
+                      final assignment = entry.value
+                          .firstWhere((a) => a.id == assignmentMap['id']);
                       _downloadAttachment(assignment);
                     },
                     onReminder: (assignmentMap) {
-                      final assignment = entry.value.firstWhere((a) => a.id == assignmentMap['id']);
+                      final assignment = entry.value
+                          .firstWhere((a) => a.id == assignmentMap['id']);
                       _setReminder(assignment);
                     },
                     onPriority: (assignmentMap) {
-                      final assignment = entry.value.firstWhere((a) => a.id == assignmentMap['id']);
+                      final assignment = entry.value
+                          .firstWhere((a) => a.id == assignmentMap['id']);
                       _togglePriority(assignment);
                     },
                   );

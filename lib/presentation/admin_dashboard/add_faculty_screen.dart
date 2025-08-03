@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:radiant_app/config/app_config.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../models/faculty_model.dart';
 
 class AddFacultyScreen extends ConsumerStatefulWidget {
   const AddFacultyScreen({Key? key}) : super(key: key);
@@ -26,6 +28,7 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
   final _experienceController = TextEditingController();
   final _specializedSubjectsController = TextEditingController();
   final _emergencyContactController = TextEditingController();
+  final _salaryController = TextEditingController();
 
   // Form state
   bool _isLoading = false;
@@ -35,23 +38,6 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
   DateTime? _selectedDateOfBirth;
   DateTime? _selectedJoiningDate;
 
-  // Options
-  final List<String> _departments = [
-    'CSE',
-    'ECE',
-    'EEE',
-    'MECH',
-    'CIVIL',
-    'IT'
-  ];
-  final List<String> _designations = [
-    'Assistant Professor',
-    'Associate Professor',
-    'Professor',
-    'Head of Department',
-    'Principal',
-    'Lecturer',
-  ];
   final List<String> _genders = ['Male', 'Female', 'Other'];
 
   @override
@@ -71,6 +57,7 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
     _experienceController.dispose();
     _specializedSubjectsController.dispose();
     _emergencyContactController.dispose();
+    _salaryController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -248,7 +235,7 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
             _buildDropdownField(
               label: 'Designation',
               value: _selectedDesignation,
-              items: _designations,
+              items: AppConfig.facultyDesignations,
               onChanged: (value) =>
                   setState(() => _selectedDesignation = value!),
               icon: Icons.work_outline,
@@ -260,7 +247,7 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
                   child: _buildDropdownField(
                     label: 'Department',
                     value: _selectedDepartment,
-                    items: _departments,
+                    items: AppConfig.departmentCodes,
                     onChanged: (value) =>
                         setState(() => _selectedDepartment = value!),
                     icon: Icons.business,
@@ -277,6 +264,22 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
                   ),
                 ),
               ],
+            ),
+            SizedBox(height: 2.h),
+            _buildTextFormField(
+              controller: _salaryController,
+              label: 'Salary',
+              hint: 'Enter monthly salary (e.g., 50000)',
+              icon: Icons.currency_rupee,
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                if (value?.isEmpty ?? true) return 'Salary is required';
+                final salary = double.tryParse(value!);
+                if (salary == null || salary <= 0) {
+                  return 'Enter a valid salary amount';
+                }
+                return null;
+              },
             ),
           ],
         ),
@@ -569,6 +572,7 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
     _experienceController.clear();
     _specializedSubjectsController.clear();
     _emergencyContactController.clear();
+    _salaryController.clear();
 
     setState(() {
       _selectedDepartment = 'CSE';
@@ -628,38 +632,40 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
         throw Exception('A faculty with this email already exists');
       }
 
-      // Create faculty document
-      final facultyData = {
-        'name': _nameController.text.trim(),
-        'email': _emailController.text.trim().toLowerCase(),
-        'phone': _phoneController.text.trim(),
-        'employeeId': _employeeIdController.text.trim().toUpperCase(),
-        'department': _selectedDepartment,
-        'designation': _selectedDesignation,
-        'gender': _selectedGender,
-        'dateOfBirth': Timestamp.fromDate(_selectedDateOfBirth!),
-        'joiningDate': Timestamp.fromDate(_selectedJoiningDate!),
-        'address': _addressController.text.trim(),
-        'qualification': _qualificationController.text.trim(),
-        'experience': _experienceController.text.trim(),
-        'specializedSubjects': _specializedSubjectsController.text
+      // Create faculty object
+      final faculty = Faculty(
+        id: _employeeIdController.text.trim().toUpperCase(),
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim().toLowerCase(),
+        phone: _phoneController.text.trim(),
+        employeeId: _employeeIdController.text.trim().toUpperCase(),
+        department: _selectedDepartment,
+        designation: _selectedDesignation,
+        gender: _selectedGender,
+        dateOfBirth: _selectedDateOfBirth!,
+        joiningDate: _selectedJoiningDate!,
+        salary: double.parse(_salaryController.text.trim()),
+        address: _addressController.text.trim(),
+        qualification: _qualificationController.text.trim(),
+        experience: _experienceController.text.trim(),
+        specializedSubjects: _specializedSubjectsController.text
             .trim()
             .split(',')
             .map((s) => s.trim())
             .toList(),
-        'emergencyContact': _emergencyContactController.text.trim(),
-        'role': 'FACULTY',
-        'isActive': true,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-        'createdBy': 'admin', // TODO: Get current admin user ID
-      };
+        emergencyContact: _emergencyContactController.text.trim(),
+        role: 'FACULTY',
+        isActive: true,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        createdBy: 'admin', // TODO: Get current admin user ID
+      );
 
       // Use employeeId as document ID for direct access
       await FirebaseFirestore.instance
           .collection('faculty')
           .doc(_employeeIdController.text.trim().toUpperCase())
-          .set(facultyData);
+          .set(faculty.toMap());
 
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(

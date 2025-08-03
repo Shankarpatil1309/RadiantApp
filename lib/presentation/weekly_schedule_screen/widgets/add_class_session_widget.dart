@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:radiant_app/config/app_config.dart';
 import 'package:sizer/sizer.dart';
 import '../../../core/app_export.dart';
 import '../../../models/class_session_model.dart';
@@ -17,7 +18,8 @@ class AddClassSessionWidget extends ConsumerStatefulWidget {
   }) : super(key: key);
 
   @override
-  ConsumerState<AddClassSessionWidget> createState() => _AddClassSessionWidgetState();
+  ConsumerState<AddClassSessionWidget> createState() =>
+      _AddClassSessionWidgetState();
 }
 
 class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
@@ -37,8 +39,8 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
   String? _recurringPattern;
   DateTime? _recurringEndDate;
 
-  final List<String> _departments = ['CSE', 'ECE', 'MECH', 'CIVIL'];
-  final List<String> _sections = ['A', 'B', 'C', 'D'];
+  final List<String> _departments = AppConfig.departmentCodes;
+
   final List<String> _sessionTypes = ['lecture', 'lab', 'tutorial', 'exam'];
   final List<String> _recurringPatterns = ['weekly', 'daily', 'monthly'];
 
@@ -118,7 +120,8 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
                 Text(
                   'For ${_formatDate(widget.selectedDate)}',
                   style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7),
+                    color: AppTheme.lightTheme.colorScheme.onSurface
+                        .withValues(alpha: 0.7),
                   ),
                 ),
               ],
@@ -157,12 +160,14 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
               padding: EdgeInsets.all(3.w),
               child: CustomIconWidget(
                 iconName: 'title',
-                color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.6),
+                color: AppTheme.lightTheme.colorScheme.onSurface
+                    .withValues(alpha: 0.6),
                 size: 20,
               ),
             ),
           ),
-          validator: (value) => value?.isEmpty ?? true ? 'Title is required' : null,
+          validator: (value) =>
+              value?.isEmpty ?? true ? 'Title is required' : null,
         ),
         SizedBox(height: 2.h),
         TextFormField(
@@ -174,12 +179,14 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
               padding: EdgeInsets.all(3.w),
               child: CustomIconWidget(
                 iconName: 'book',
-                color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.6),
+                color: AppTheme.lightTheme.colorScheme.onSurface
+                    .withValues(alpha: 0.6),
                 size: 20,
               ),
             ),
           ),
-          validator: (value) => value?.isEmpty ?? true ? 'Subject is required' : null,
+          validator: (value) =>
+              value?.isEmpty ?? true ? 'Subject is required' : null,
         ),
         SizedBox(height: 2.h),
         TextFormField(
@@ -191,12 +198,14 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
               padding: EdgeInsets.all(3.w),
               child: CustomIconWidget(
                 iconName: 'room',
-                color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.6),
+                color: AppTheme.lightTheme.colorScheme.onSurface
+                    .withValues(alpha: 0.6),
                 size: 20,
               ),
             ),
           ),
-          validator: (value) => value?.isEmpty ?? true ? 'Room is required' : null,
+          validator: (value) =>
+              value?.isEmpty ?? true ? 'Room is required' : null,
         ),
       ],
     );
@@ -221,14 +230,16 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
                 child: Container(
                   padding: EdgeInsets.all(4.w),
                   decoration: BoxDecoration(
-                    border: Border.all(color: AppTheme.lightTheme.colorScheme.outline),
+                    border: Border.all(
+                        color: AppTheme.lightTheme.colorScheme.outline),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
                       CustomIconWidget(
                         iconName: 'schedule',
-                        color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: AppTheme.lightTheme.colorScheme.onSurface
+                            .withValues(alpha: 0.6),
                         size: 20,
                       ),
                       SizedBox(width: 2.w),
@@ -257,14 +268,16 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
                 child: Container(
                   padding: EdgeInsets.all(4.w),
                   decoration: BoxDecoration(
-                    border: Border.all(color: AppTheme.lightTheme.colorScheme.outline),
+                    border: Border.all(
+                        color: AppTheme.lightTheme.colorScheme.outline),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
                       CustomIconWidget(
                         iconName: 'schedule',
-                        color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: AppTheme.lightTheme.colorScheme.onSurface
+                            .withValues(alpha: 0.6),
                         size: 20,
                       ),
                       SizedBox(width: 2.w),
@@ -293,6 +306,8 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
   }
 
   Widget _buildClassDetails() {
+    final List<String> _sections =
+        AppConfig.sectionsByDepartment[_selectedDepartment] ?? ['A', 'B'];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -310,13 +325,17 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
                 value: _selectedDepartment,
                 decoration: InputDecoration(
                   labelText: 'Department',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
-                items: _departments.map((dept) => DropdownMenuItem(
-                  value: dept,
-                  child: Text(dept),
-                )).toList(),
-                onChanged: (value) => setState(() => _selectedDepartment = value!),
+                items: _departments
+                    .map((dept) => DropdownMenuItem(
+                          value: dept,
+                          child: Text(dept),
+                        ))
+                    .toList(),
+                onChanged: (value) =>
+                    setState(() => _selectedDepartment = value!),
               ),
             ),
             SizedBox(width: 4.w),
@@ -325,12 +344,15 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
                 value: _selectedSection,
                 decoration: InputDecoration(
                   labelText: 'Section',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
-                items: _sections.map((section) => DropdownMenuItem(
-                  value: section,
-                  child: Text(section),
-                )).toList(),
+                items: _sections
+                    .map((section) => DropdownMenuItem(
+                          value: section,
+                          child: Text(section),
+                        ))
+                    .toList(),
                 onChanged: (value) => setState(() => _selectedSection = value!),
               ),
             ),
@@ -344,13 +366,17 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
                 value: _selectedSemester,
                 decoration: InputDecoration(
                   labelText: 'Semester',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
-                items: List.generate(8, (index) => DropdownMenuItem(
-                  value: index + 1,
-                  child: Text('Semester ${index + 1}'),
-                )),
-                onChanged: (value) => setState(() => _selectedSemester = value!),
+                items: List.generate(
+                    8,
+                    (index) => DropdownMenuItem(
+                          value: index + 1,
+                          child: Text('Semester ${index + 1}'),
+                        )),
+                onChanged: (value) =>
+                    setState(() => _selectedSemester = value!),
               ),
             ),
             SizedBox(width: 4.w),
@@ -359,12 +385,15 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
                 value: _selectedType,
                 decoration: InputDecoration(
                   labelText: 'Type',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
-                items: _sessionTypes.map((type) => DropdownMenuItem(
-                  value: type,
-                  child: Text(type.toUpperCase()),
-                )).toList(),
+                items: _sessionTypes
+                    .map((type) => DropdownMenuItem(
+                          value: type,
+                          child: Text(type.toUpperCase()),
+                        ))
+                    .toList(),
                 onChanged: (value) => setState(() => _selectedType = value!),
               ),
             ),
@@ -408,12 +437,15 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
             value: _recurringPattern,
             decoration: InputDecoration(
               labelText: 'Repeat Pattern',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            items: _recurringPatterns.map((pattern) => DropdownMenuItem(
-              value: pattern,
-              child: Text(pattern.toUpperCase()),
-            )).toList(),
+            items: _recurringPatterns
+                .map((pattern) => DropdownMenuItem(
+                      value: pattern,
+                      child: Text(pattern.toUpperCase()),
+                    ))
+                .toList(),
             onChanged: (value) => setState(() => _recurringPattern = value),
           ),
           SizedBox(height: 2.h),
@@ -422,14 +454,16 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
             child: Container(
               padding: EdgeInsets.all(4.w),
               decoration: BoxDecoration(
-                border: Border.all(color: AppTheme.lightTheme.colorScheme.outline),
+                border:
+                    Border.all(color: AppTheme.lightTheme.colorScheme.outline),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
                   CustomIconWidget(
                     iconName: 'calendar_today',
-                    color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    color: AppTheme.lightTheme.colorScheme.onSurface
+                        .withValues(alpha: 0.6),
                     size: 20,
                   ),
                   SizedBox(width: 2.w),
@@ -441,7 +475,7 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
                         style: AppTheme.lightTheme.textTheme.bodySmall,
                       ),
                       Text(
-                        _recurringEndDate != null 
+                        _recurringEndDate != null
                             ? _formatDate(_recurringEndDate!)
                             : 'Select end date',
                         style: AppTheme.lightTheme.textTheme.titleMedium,
@@ -499,7 +533,8 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
           // Auto-adjust end time to be 1.5 hours later
           final startMinutes = _startTime.hour * 60 + _startTime.minute;
           final endMinutes = startMinutes + 90; // 1.5 hours
-          _endTime = TimeOfDay(hour: (endMinutes ~/ 60) % 24, minute: endMinutes % 60);
+          _endTime =
+              TimeOfDay(hour: (endMinutes ~/ 60) % 24, minute: endMinutes % 60);
         } else {
           _endTime = picked;
         }
@@ -550,8 +585,8 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
         startTime: startDateTime,
         endTime: endDateTime,
         type: _selectedType,
-        description: _descriptionController.text.trim().isNotEmpty 
-            ? _descriptionController.text.trim() 
+        description: _descriptionController.text.trim().isNotEmpty
+            ? _descriptionController.text.trim()
             : null,
         isRecurring: _isRecurring,
         recurringPattern: _isRecurring ? _recurringPattern : null,
@@ -566,8 +601,19 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
 
   String _formatDate(DateTime date) {
     const months = [
-      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
     return '${months[date.month]} ${date.day}, ${date.year}';
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:radiant_app/config/app_config.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
@@ -340,15 +341,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
     bool _isLoading = false;
 
     final List<String> _priorities = ['normal', 'important', 'urgent'];
-    final List<String> _departments = [
-      'All',
-      'CSE',
-      'ECE',
-      'EEE',
-      'MECH',
-      'CIVIL',
-      'IT'
-    ];
+    final List<String> _departments = ['All', ...AppConfig.departmentCodes];
 
     showModalBottomSheet(
       context: context,
