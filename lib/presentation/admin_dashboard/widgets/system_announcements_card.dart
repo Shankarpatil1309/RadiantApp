@@ -64,28 +64,6 @@ class SystemAnnouncementsCard extends StatelessWidget {
                       ],
                     ],
                   ),
-            SizedBox(height: 2.h),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pushNamed(context, '/create-announcement');
-                },
-                icon: CustomIconWidget(
-                  iconName: 'add',
-                  color: Colors.white,
-                  size: 18,
-                ),
-                label: Text(
-                  'Broadcast Announcement',
-                  style: TextStyle(fontSize: 12.sp),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.getRoleColor('admin'),
-                  padding: EdgeInsets.symmetric(vertical: 1.5.h),
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -95,7 +73,9 @@ class SystemAnnouncementsCard extends StatelessWidget {
   Widget _buildEmptyState() {
     return Container(
       padding: EdgeInsets.symmetric(vertical: 4.h),
+      width: double.infinity,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           CustomIconWidget(
             iconName: 'announcement',

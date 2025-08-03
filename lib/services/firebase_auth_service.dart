@@ -65,6 +65,11 @@ class FirebaseAuthService {
         if (selectedRole.toUpperCase() == 'FACULTY') {
           await _linkFacultyUid(user);
         }
+        
+        // 9. For admin users, link UID with their admin profile
+        if (selectedRole.toUpperCase() == 'ADMIN') {
+          await _linkAdminUid(user);
+        }
 
         print('✅ Google Sign-In successful: ${user.email} as ${selectedRole}');
       }
@@ -154,7 +159,18 @@ class FirebaseAuthService {
   /// Check if user has admin access
   Future<bool> _checkAdminAccess(String email) async {
     try {
-      // First check allowedAdmins collection
+      // First check admin collection
+      final adminQuery = await _firestore
+          .collection('admin')
+          .where('email', isEqualTo: email)
+          .where('isActive', isEqualTo: true)
+          .get();
+
+      if (adminQuery.docs.isNotEmpty) {
+        return true;
+      }
+
+      // Second check allowedAdmins collection (for legacy support)
       final allowedAdminsDoc =
           await _firestore.collection('allowedAdmins').doc('admins').get();
 
@@ -167,14 +183,14 @@ class FirebaseAuthService {
       }
 
       // Fallback: check if admin exists in 'users' collection with ADMIN role
-      final adminQuery = await _firestore
+      final userQuery = await _firestore
           .collection('users')
           .where('email', isEqualTo: email)
           .where('role', isEqualTo: 'ADMIN')
           .where('isActive', isEqualTo: true)
           .get();
 
-      return adminQuery.docs.isNotEmpty;
+      return userQuery.docs.isNotEmpty;
     } catch (e) {
       print('⚠️ Admin access check error: $e');
       return false;
@@ -288,6 +304,46 @@ class FirebaseAuthService {
       }
     } catch (e) {
       print('⚠️ Faculty UID linking error: $e');
+      // Don't throw error to avoid blocking sign-in
+    }
+  }
+
+  /// Link admin UID with their admin profile
+  Future<void> _linkAdminUid(User user) async {
+    try {
+      if (user.email == null) return;
+
+      // Search for existing admin by email
+      final emailQuery = await _firestore
+          .collection('admin')
+          .where('email', isEqualTo: user.email!.toLowerCase())
+          .where('isActive', isEqualTo: true)
+          .limit(1)
+          .get();
+
+      if (emailQuery.docs.isNotEmpty) {
+        final adminDoc = emailQuery.docs.first;
+        final adminData = adminDoc.data();
+        final adminId = adminData['adminId'] ?? adminData['employeeId'] as String?;
+
+        // Update admin document with UID
+        await adminDoc.reference.update({
+          'uid': user.uid,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        // Update user cache with adminId for reference
+        if (adminId != null) {
+          await _firestore.collection('users').doc(user.uid).update({
+            'uniqueId': adminId,
+            'lastLoginAt': FieldValue.serverTimestamp(),
+          });
+        }
+
+        print('✅ Linked UID ${user.uid} to admin $adminId');
+      }
+    } catch (e) {
+      print('⚠️ Admin UID linking error: $e');
       // Don't throw error to avoid blocking sign-in
     }
   }
