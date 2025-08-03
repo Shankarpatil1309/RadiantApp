@@ -9,8 +9,11 @@ import '../../controllers/faculty_dashboard_controller.dart';
 import '../../models/faculty_model.dart';
 import '../attendance_screen/faculty_attendance_screen.dart';
 import '../faculty_assignment_management_screen/faculty_assignment_management_screen.dart';
+import '../faculty_assignment_management_screen/widgets/assignment_upload_bottom_sheet_widget.dart';
 import '../weekly_schedule_screen/weekly_schedule_screen.dart';
 import 'faculty_dashboard.dart';
+import '../../models/assignment_model.dart';
+import '../../services/assignment_service.dart';
 
 class FacultyShell extends ConsumerStatefulWidget {
   const FacultyShell({super.key});
@@ -53,7 +56,6 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
             HapticFeedback.selectionClick();
           },
         ),
-        _buildProfileTab(),
       ];
 
   void _onBottomNavTap(int index) {
@@ -88,23 +90,22 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
             right: 0,
             child: _buildBottomNavigationBar(),
           ),
-          if (_selectedBottomNavIndex == 0)
-            Positioned(
-              bottom: 100, // Above the bottom navigation bar
-              right: 16,
-              child: FloatingActionButton(
-                heroTag: "faculty_quick_actions_fab",
-                onPressed: () {
-                  _showQuickActions();
-                },
-                backgroundColor: AppTheme.getRoleColor(userRole),
-                child: CustomIconWidget(
-                  iconName: 'add',
-                  color: Colors.white,
-                  size: 24,
-                ),
+          Positioned(
+            bottom: 100, // Above the bottom navigation bar
+            right: 16,
+            child: FloatingActionButton(
+              heroTag: "faculty_quick_actions_fab",
+              onPressed: () {
+                _showQuickActions();
+              },
+              backgroundColor: AppTheme.getRoleColor(userRole),
+              child: CustomIconWidget(
+                iconName: 'add',
+                color: Colors.white,
+                size: 24,
               ),
             ),
+          ),
         ],
       ),
     );
@@ -167,55 +168,7 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
           ),
           label: 'Attendance',
         ),
-        NavigationDestination(
-          icon: CustomIconWidget(
-            iconName: 'person',
-            color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-            size: 24,
-          ),
-          selectedIcon: CustomIconWidget(
-            iconName: 'person',
-            color: AppTheme.getRoleColor(userRole),
-            size: 24,
-          ),
-          label: 'Profile',
-        ),
       ],
-    );
-  }
-
-  Widget _buildProfileTab() {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profile'),
-        automaticallyImplyLeading: false,
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        elevation: 0,
-        titleTextStyle: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
-          fontWeight: FontWeight.w600,
-          color: AppTheme.getRoleColor(userRole),
-        ),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.person,
-              size: 100,
-              color: AppTheme.getRoleColor(userRole),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Profile Coming Soon',
-              style: AppTheme.lightTheme.textTheme.headlineSmall?.copyWith(
-                color: AppTheme.getRoleColor(userRole),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -319,7 +272,19 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
   }
 
   void _showAssignmentModal(Faculty facultyData) {
-    _showCreateAssignmentBottomSheet(facultyData);
+    // Use the reusable AssignmentUploadBottomSheetWidget
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AssignmentUploadBottomSheetWidget(
+        onUploadAssignment: (assignmentData) async {
+          // Handle assignment creation here
+          await _handleAssignmentCreation(assignmentData, facultyData);
+        },
+        onClose: () => Navigator.pop(context),
+      ),
+    );
   }
 
   void _showScheduleClassModal(Faculty facultyData) {
@@ -685,25 +650,49 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
     }
   }
 
-  // Assignment Modal - Simplified version
-  void _showCreateAssignmentBottomSheet(Faculty facultyData) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text(
-            'Assignment creation feature is available in the dashboard. Please use the Quick Actions card on the dashboard.'),
-        backgroundColor: AppTheme.getRoleColor(userRole),
-        duration: const Duration(seconds: 3),
-        action: SnackBarAction(
-          label: 'Go to Dashboard',
-          textColor: Colors.white,
-          onPressed: () {
-            setState(() {
-              _selectedBottomNavIndex = 0;
-            });
-          },
-        ),
-      ),
+  // Handle assignment creation using the reusable component
+  Future<void> _handleAssignmentCreation(
+      Map<String, dynamic> assignmentData, Faculty facultyData) async {
+    final assignment = Assignment(
+      id: '', // Will be generated by Firestore
+      title: assignmentData['title'] ?? '',
+      description: assignmentData['description'] ?? '',
+      subject: assignmentData['subject'] ?? '',
+      department: assignmentData['department'] ?? '',
+      section: assignmentData['section'] ?? 'A',
+      semester: assignmentData['semester'] ?? 1,
+      dueDate:
+          assignmentData['deadline'] ?? DateTime.now().add(Duration(days: 7)),
+      facultyId: facultyData.employeeId,
+      facultyName: facultyData.name,
+      type: assignmentData['type'] ?? 'assignment',
+      fileUrl: assignmentData['fileUrl'],
+      instructions: assignmentData['instructions'],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     );
+
+    try {
+      final assignmentService = AssignmentService();
+      await assignmentService.addAssignment(assignment);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Assignment "${assignmentData['title']}" created successfully'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppTheme.getStatusColor('success'),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to create assignment: $e'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppTheme.getStatusColor('error'),
+        ),
+      );
+    }
   }
 
   // Schedule Class Modal - Simplified version

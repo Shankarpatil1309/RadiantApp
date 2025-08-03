@@ -12,6 +12,7 @@ import './widgets/quick_management_card.dart';
 import './widgets/recent_activity_card.dart';
 import './widgets/system_announcements_card.dart';
 import './widgets/user_statistics_card.dart';
+import '../common/widgets/announcement_detail_bottom_sheet.dart';
 
 class AdminDashboard extends ConsumerStatefulWidget {
   const AdminDashboard({Key? key}) : super(key: key);
@@ -123,6 +124,8 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                           announcements: announcementsData,
                           onViewAll: () =>
                               _handleNavigation('/announcement-management'),
+                          onAnnouncementTap: (announcement) =>
+                              _showAnnouncementDetail(announcement),
                         ),
                         SizedBox(height: 2.h),
                         RecentActivityCard(
@@ -301,6 +304,30 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
           ),
         );
     }
+  }
+
+  void _showAnnouncementDetail(Map<String, dynamic> announcement) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AnnouncementDetailBottomSheet(
+        announcement: announcement,
+        showActions: true,
+        onEdit: () {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Edit functionality coming soon!")),
+          );
+        },
+        onDelete: () {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Delete functionality coming soon!")),
+          );
+        },
+      ),
+    );
   }
 
   void _handleQuickAction(String action) {

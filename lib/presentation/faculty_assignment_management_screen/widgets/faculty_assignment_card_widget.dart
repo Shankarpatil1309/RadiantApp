@@ -13,31 +13,31 @@ class FacultyAssignmentCardWidget extends StatelessWidget {
     required this.onTap,
   }) : super(key: key);
 
-  Color _getSubmissionStatusColor() {
-    final submissionRate = (assignment['submissionCount'] as int) /
-        (assignment['totalStudents'] as int);
+  // Color _getSubmissionStatusColor() {
+  //   final submissionRate = (assignment['submissionCount'] as int) /
+  //       (assignment['totalStudents'] as int);
 
-    if (submissionRate >= 0.8) {
-      return AppTheme.getStatusColor('success');
-    } else if (submissionRate >= 0.5) {
-      return AppTheme.getStatusColor('warning');
-    } else {
-      return AppTheme.getStatusColor('error');
-    }
-  }
+  //   if (submissionRate >= 0.8) {
+  //     return AppTheme.getStatusColor('success');
+  //   } else if (submissionRate >= 0.5) {
+  //     return AppTheme.getStatusColor('warning');
+  //   } else {
+  //     return AppTheme.getStatusColor('error');
+  //   }
+  // }
 
-  String _getSubmissionStatusText() {
-    final submissionRate = (assignment['submissionCount'] as int) /
-        (assignment['totalStudents'] as int);
+  // String _getSubmissionStatusText() {
+  //   final submissionRate = (assignment['submissionCount'] as int) /
+  //       (assignment['totalStudents'] as int);
 
-    if (submissionRate >= 0.8) {
-      return 'High';
-    } else if (submissionRate >= 0.5) {
-      return 'Moderate';
-    } else {
-      return 'Low';
-    }
-  }
+  //   if (submissionRate >= 0.8) {
+  //     return 'High';
+  //   } else if (submissionRate >= 0.5) {
+  //     return 'Moderate';
+  //   } else {
+  //     return 'Low';
+  //   }
+  // }
 
   bool _isOverdue() {
     final deadline = assignment['deadline'] as DateTime;
@@ -64,11 +64,11 @@ class FacultyAssignmentCardWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isOverdue = _isOverdue();
-    final submissionStatusColor = _getSubmissionStatusColor();
-    final submissionStatusText = _getSubmissionStatusText();
+    // final submissionStatusColor = _getSubmissionStatusColor();
+    // final submissionStatusText = _getSubmissionStatusText();
 
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+      margin: EdgeInsets.symmetric(horizontal: 0.w, vertical: 0),
       child: Card(
         child: InkWell(
           onTap: onTap,
@@ -173,57 +173,57 @@ class FacultyAssignmentCardWidget extends StatelessWidget {
                 Row(
                   children: [
                     // Submission Count
-                    Expanded(
-                      flex: 2,
-                      child: Container(
-                        padding: EdgeInsets.all(3.w),
-                        decoration: BoxDecoration(
-                          color: submissionStatusColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                CustomIconWidget(
-                                  iconName: 'people',
-                                  size: 16,
-                                  color: submissionStatusColor,
-                                ),
-                                SizedBox(width: 1.w),
-                                Text(
-                                  'Submissions',
-                                  style: AppTheme.lightTheme.textTheme.bodySmall
-                                      ?.copyWith(
-                                    color: submissionStatusColor,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: 1.h),
-                            Text(
-                              '${assignment['submissionCount']}/${assignment['totalStudents']}',
-                              style: AppTheme.lightTheme.textTheme.titleMedium
-                                  ?.copyWith(
-                                color: submissionStatusColor,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Text(
-                              '$submissionStatusText Rate',
-                              style: AppTheme.lightTheme.textTheme.bodySmall
-                                  ?.copyWith(
-                                color: submissionStatusColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    // Expanded(
+                    //   flex: 2,
+                    //   child: Container(
+                    //     padding: EdgeInsets.all(3.w),
+                    //     decoration: BoxDecoration(
+                    //       color: submissionStatusColor.withValues(alpha: 0.1),
+                    //       borderRadius: BorderRadius.circular(8),
+                    //     ),
+                    //     child: Column(
+                    //       crossAxisAlignment: CrossAxisAlignment.start,
+                    //       children: [
+                    //         Row(
+                    //           children: [
+                    //             CustomIconWidget(
+                    //               iconName: 'people',
+                    //               size: 16,
+                    //               color: submissionStatusColor,
+                    //             ),
+                    //             SizedBox(width: 1.w),
+                    //             Text(
+                    //               'Submissions',
+                    //               style: AppTheme.lightTheme.textTheme.bodySmall
+                    //                   ?.copyWith(
+                    //                 color: submissionStatusColor,
+                    //                 fontWeight: FontWeight.w500,
+                    //               ),
+                    //             ),
+                    //           ],
+                    //         ),
+                    //         SizedBox(height: 1.h),
+                    //         Text(
+                    //           '${assignment['submissionCount']}/${assignment['totalStudents']}',
+                    //           style: AppTheme.lightTheme.textTheme.titleMedium
+                    //               ?.copyWith(
+                    //             color: submissionStatusColor,
+                    //             fontWeight: FontWeight.w600,
+                    //           ),
+                    //         ),
+                    //         Text(
+                    //           '$submissionStatusText Rate',
+                    //           style: AppTheme.lightTheme.textTheme.bodySmall
+                    //               ?.copyWith(
+                    //             color: submissionStatusColor,
+                    //           ),
+                    //         ),
+                    //       ],
+                    //     ),
+                    //   ),
+                    // ),
 
-                    SizedBox(width: 3.w),
+                    // SizedBox(width: 3.w),
 
                     // Deadline Info
                     Expanded(

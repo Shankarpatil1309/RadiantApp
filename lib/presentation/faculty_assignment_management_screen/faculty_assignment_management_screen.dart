@@ -118,17 +118,14 @@ class _FacultyAssignmentManagementScreenState
       description: assignmentData['description'] ?? '',
       subject: assignmentData['subject'] ?? '',
       department: assignmentData['department'] ?? '',
-      section: assignmentData['section'] ?? '',
+      section: assignmentData['section'] ?? 'A',
       semester: assignmentData['semester'] ?? 1,
       dueDate:
           assignmentData['deadline'] ?? DateTime.now().add(Duration(days: 7)),
       facultyId: facultyId,
       facultyName: 'Current Faculty', // Replace with actual faculty name
-      maxMarks: assignmentData['maxMarks'] ?? 100,
       type: assignmentData['type'] ?? 'assignment',
       fileUrl: assignmentData['fileUrl'],
-      allowedFormats: List<String>.from(
-          assignmentData['allowedFormats'] ?? ['pdf', 'docx']),
       instructions: assignmentData['instructions'],
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
@@ -158,12 +155,76 @@ class _FacultyAssignmentManagementScreenState
   }
 
   void _editAssignment(Assignment assignment) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Opening edit interface for ${assignment.title}'),
-        behavior: SnackBarBehavior.floating,
+    final assignmentMap = _convertAssignmentToMap(assignment);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AssignmentUploadBottomSheetWidget(
+        existingAssignment: assignmentMap,
+        isEditMode: true,
+        onUploadAssignment: (assignmentData) async {
+          await _updateAssignment(assignmentData, assignment);
+        },
+        onClose: () => Navigator.pop(context),
       ),
     );
+  }
+
+  Future<void> _updateAssignment(Map<String, dynamic> assignmentData, Assignment originalAssignment) async {
+    final updatedAssignment = Assignment(
+      id: originalAssignment.id, // Keep the original ID
+      title: assignmentData['title'] ?? '',
+      description: assignmentData['description'] ?? '',
+      subject: assignmentData['subject'] ?? '',
+      department: assignmentData['department'] ?? '',
+      section: assignmentData['section'] ?? 'A',
+      semester: assignmentData['semester'] ?? 1,
+      dueDate: assignmentData['deadline'] ?? DateTime.now().add(Duration(days: 7)),
+      facultyId: originalAssignment.facultyId, // Keep original faculty ID
+      facultyName: originalAssignment.facultyName, // Keep original faculty name
+      type: assignmentData['type'] ?? 'assignment',
+      fileUrl: assignmentData['fileUrl'],
+      instructions: assignmentData['instructions'],
+      createdAt: originalAssignment.createdAt, // Keep original creation date
+      updatedAt: DateTime.now(), // Update the modification date
+    );
+
+    try {
+      final updateData = {
+        'title': updatedAssignment.title,
+        'description': updatedAssignment.description,
+        'subject': updatedAssignment.subject,
+        'department': updatedAssignment.department,
+        'section': updatedAssignment.section,
+        'semester': updatedAssignment.semester,
+        'dueDate': updatedAssignment.dueDate,
+        'type': updatedAssignment.type,
+        'fileUrl': updatedAssignment.fileUrl,
+        'instructions': updatedAssignment.instructions,
+        'updatedAt': updatedAssignment.updatedAt,
+      };
+      
+      await ref
+          .read(assignmentControllerProvider.notifier)
+          .updateAssignment(originalAssignment.id, updateData, originalAssignment.facultyId);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Assignment "${assignmentData['title']}" updated successfully'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppTheme.getStatusColor('success'),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update assignment: $e'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppTheme.getStatusColor('error'),
+        ),
+      );
+    }
   }
 
   Future<void> _extendDeadline(Assignment assignment) async {
@@ -207,6 +268,18 @@ class _FacultyAssignmentManagementScreenState
         backgroundColor: AppTheme.getStatusColor('success'),
       ),
     );
+  }
+
+  // Local method to group assignments by subject without modifying provider
+  Map<String, List<Assignment>> _groupAssignmentsBySubject(List<Assignment> assignments) {
+    final Map<String, List<Assignment>> grouped = {};
+    for (final assignment in assignments) {
+      if (!grouped.containsKey(assignment.subject)) {
+        grouped[assignment.subject] = [];
+      }
+      grouped[assignment.subject]!.add(assignment);
+    }
+    return grouped;
   }
 
   // Helper method to convert Assignment to Map for backward compatibility
@@ -293,15 +366,15 @@ class _FacultyAssignmentManagementScreenState
   @override
   Widget build(BuildContext context) {
     final assignmentState = ref.watch(assignmentControllerProvider);
-    final groupedAssignments = ref
-        .read(assignmentControllerProvider.notifier)
-        .groupAssignmentsBySubject();
+    
+    // Get grouped assignments safely without modifying provider during build
+    final groupedAssignments = _groupAssignmentsBySubject(assignmentState.filteredAssignments);
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Faculty Assignment Management',
-          style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+          'Assignment Management',
+          style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
             color: AppTheme.getRoleColor('faculty'),
             fontWeight: FontWeight.w600,
           ),
@@ -329,27 +402,6 @@ class _FacultyAssignmentManagementScreenState
             icon: CustomIconWidget(
               iconName: 'filter_list',
               color: AppTheme.getRoleColor('faculty'),
-              size: 24,
-            ),
-          ),
-          // Debug button - remove in production
-          IconButton(
-            onPressed: () async {
-              print('🔧 DEBUG: Manually refreshing assignments');
-              await _refreshAssignments();
-              final state = ref.read(assignmentControllerProvider);
-              print(
-                  '🔧 DEBUG: Current state - ${state.assignments.length} total, ${state.filteredAssignments.length} filtered');
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                      'Debug: ${state.assignments.length} total, ${state.filteredAssignments.length} filtered'),
-                ),
-              );
-            },
-            icon: CustomIconWidget(
-              iconName: 'bug_report',
-              color: Colors.orange,
               size: 24,
             ),
           ),
@@ -389,252 +441,243 @@ class _FacultyAssignmentManagementScreenState
           ),
         ),
       ),
-      body: assignmentState.isLoading
-          ? Center(
-              child: CircularProgressIndicator(
-                color: AppTheme.getRoleColor('faculty'),
-              ),
-            )
-          : assignmentState.error != null
-              ? _buildErrorWidget(assignmentState.error!)
-              : assignmentState.filteredAssignments.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CustomIconWidget(
-                            iconName: 'assignment',
-                            size: 64,
-                            color: AppTheme.lightTheme.colorScheme.onSurface
-                                .withValues(alpha: 0.3),
-                          ),
-                          SizedBox(height: 2.h),
-                          Text(
-                            assignmentState.searchQuery.isNotEmpty
-                                ? 'No Results Found'
-                                : 'No Assignments Created',
-                            style: AppTheme.lightTheme.textTheme.headlineSmall
-                                ?.copyWith(
-                              color: AppTheme.lightTheme.colorScheme.onSurface
-                                  .withValues(alpha: 0.6),
-                            ),
-                          ),
-                          SizedBox(height: 1.h),
-                          Text(
-                            assignmentState.searchQuery.isNotEmpty
-                                ? 'Try adjusting your search or filters'
-                                : 'Start by creating your first assignment',
-                            style: AppTheme.lightTheme.textTheme.bodyMedium
-                                ?.copyWith(
-                              color: AppTheme.lightTheme.colorScheme.onSurface
-                                  .withValues(alpha: 0.6),
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          if (assignmentState.searchQuery.isNotEmpty) ...[
-                            SizedBox(height: 2.h),
-                            ElevatedButton(
-                              onPressed: () => _searchController.clear(),
-                              child: Text('Clear Search'),
-                            ),
-                          ],
-                        ],
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _refreshAssignments,
-                      color: AppTheme.getRoleColor('faculty'),
-                      child: ListView(
-                        padding: EdgeInsets.only(bottom: 10.h),
-                        children: [
-                          // Statistics Summary
-                          Container(
-                            margin: EdgeInsets.all(4.w),
-                            padding: EdgeInsets.all(4.w),
-                            decoration: BoxDecoration(
-                              color: AppTheme.getRoleColor('faculty')
-                                  .withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Assignment Overview',
-                                  style: AppTheme
-                                      .lightTheme.textTheme.titleMedium
-                                      ?.copyWith(
-                                    color: AppTheme.getRoleColor('faculty'),
-                                    fontWeight: FontWeight.w600,
-                                  ),
+      body: Stack(
+        children: [
+          assignmentState.isLoading
+              ? Center(
+                  child: CircularProgressIndicator(
+                    color: AppTheme.getRoleColor('faculty'),
+                  ),
+                )
+              : assignmentState.error != null
+                  ? _buildErrorWidget(assignmentState.error!)
+                  : assignmentState.filteredAssignments.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CustomIconWidget(
+                                iconName: 'assignment',
+                                size: 64,
+                                color: AppTheme.lightTheme.colorScheme.onSurface
+                                    .withValues(alpha: 0.3),
+                              ),
+                              SizedBox(height: 2.h),
+                              Text(
+                                assignmentState.searchQuery.isNotEmpty
+                                    ? 'No Results Found'
+                                    : 'No Assignments Created',
+                                style: AppTheme
+                                    .lightTheme.textTheme.headlineSmall
+                                    ?.copyWith(
+                                  color: AppTheme
+                                      .lightTheme.colorScheme.onSurface
+                                      .withValues(alpha: 0.6),
                                 ),
+                              ),
+                              SizedBox(height: 1.h),
+                              Text(
+                                assignmentState.searchQuery.isNotEmpty
+                                    ? 'Try adjusting your search or filters'
+                                    : 'Start by creating your first assignment',
+                                style: AppTheme.lightTheme.textTheme.bodyMedium
+                                    ?.copyWith(
+                                  color: AppTheme
+                                      .lightTheme.colorScheme.onSurface
+                                      .withValues(alpha: 0.6),
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              if (assignmentState.searchQuery.isNotEmpty) ...[
                                 SizedBox(height: 2.h),
-                                Row(
+                                ElevatedButton(
+                                  onPressed: () => _searchController.clear(),
+                                  child: Text('Clear Search'),
+                                ),
+                              ],
+                            ],
+                          ),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _refreshAssignments,
+                          color: AppTheme.getRoleColor('faculty'),
+                          child: ListView(
+                            padding: EdgeInsets.only(bottom: 20.h),
+                            children: [
+                              // Statistics Summary
+                              // Container(
+                              //   margin: EdgeInsets.all(4.w),
+                              //   padding: EdgeInsets.all(4.w),
+                              //   decoration: BoxDecoration(
+                              //     color: AppTheme.getRoleColor('faculty')
+                              //         .withValues(alpha: 0.1),
+                              //     borderRadius: BorderRadius.circular(12),
+                              //   ),
+                              //   child: Column(
+                              //     crossAxisAlignment: CrossAxisAlignment.start,
+                              //     children: [
+                              //       Text(
+                              //         'Assignment Overview',
+                              //         style: AppTheme
+                              //             .lightTheme.textTheme.titleMedium
+                              //             ?.copyWith(
+                              //           color: AppTheme.getRoleColor('faculty'),
+                              //           fontWeight: FontWeight.w600,
+                              //         ),
+                              //       ),
+                              //       SizedBox(height: 2.h),
+                              //       Row(
+                              //         children: [
+                              //           Expanded(
+                              //             child: Column(
+                              //               children: [
+                              //                 Text(
+                              //                   '${assignmentState.stats['active'] ?? 0}',
+                              //                   style: AppTheme.lightTheme.textTheme
+                              //                       .headlineSmall
+                              //                       ?.copyWith(
+                              //                     color: AppTheme.getRoleColor(
+                              //                         'faculty'),
+                              //                     fontWeight: FontWeight.w600,
+                              //                   ),
+                              //                 ),
+                              //                 Text(
+                              //                   'Active',
+                              //                   style: AppTheme
+                              //                       .lightTheme.textTheme.bodySmall,
+                              //                 ),
+                              //               ],
+                              //             ),
+                              //           ),
+                              //           Container(
+                              //             width: 1,
+                              //             height: 6.h,
+                              //             color: AppTheme
+                              //                 .lightTheme.colorScheme.outline,
+                              //           ),
+                              //           Expanded(
+                              //             child: Column(
+                              //               children: [
+                              //                 Text(
+                              //                   '${assignmentState.stats['closed'] ?? 0}',
+                              //                   style: AppTheme.lightTheme.textTheme
+                              //                       .headlineSmall
+                              //                       ?.copyWith(
+                              //                     color: AppTheme.getStatusColor(
+                              //                         'success'),
+                              //                     fontWeight: FontWeight.w600,
+                              //                   ),
+                              //                 ),
+                              //                 Text(
+                              //                   'Completed',
+                              //                   style: AppTheme
+                              //                       .lightTheme.textTheme.bodySmall,
+                              //                 ),
+                              //               ],
+                              //             ),
+                              //           ),
+                              //           Container(
+                              //             width: 1,
+                              //             height: 6.h,
+                              //             color: AppTheme
+                              //                 .lightTheme.colorScheme.outline,
+                              //           ),
+                              //           Expanded(
+                              //             child: Column(
+                              //               children: [
+                              //                 Text(
+                              //                   '${assignmentState.stats['total'] ?? 0}',
+                              //                   style: AppTheme.lightTheme.textTheme
+                              //                       .headlineSmall
+                              //                       ?.copyWith(
+                              //                     color: AppTheme
+                              //                         .lightTheme.primaryColor,
+                              //                     fontWeight: FontWeight.w600,
+                              //                   ),
+                              //                 ),
+                              //                 Text(
+                              //                   'Total Submissions',
+                              //                   style: AppTheme
+                              //                       .lightTheme.textTheme.bodySmall,
+                              //                 ),
+                              //               ],
+                              //             ),
+                              //           ),
+                              //         ],
+                              //       ),
+                              //     ],
+                              //   ),
+                              // ),
+
+                              // // Subject Sections
+                              ...groupedAssignments.entries.map((entry) {
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Expanded(
-                                      child: Column(
+                                    Padding(
+                                      padding: EdgeInsets.symmetric(
+                                          horizontal: 4.w, vertical: 1.h),
+                                      child: Row(
                                         children: [
+                                          CustomIconWidget(
+                                            iconName: 'book',
+                                            color: AppTheme.getRoleColor(
+                                                'faculty'),
+                                            size: 20,
+                                          ),
+                                          SizedBox(width: 2.w),
                                           Text(
-                                            '${assignmentState.stats['active'] ?? 0}',
+                                            entry.key,
                                             style: AppTheme.lightTheme.textTheme
-                                                .headlineSmall
+                                                .titleMedium
                                                 ?.copyWith(
                                               color: AppTheme.getRoleColor(
                                                   'faculty'),
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
-                                          Text(
-                                            'Active',
-                                            style: AppTheme
-                                                .lightTheme.textTheme.bodySmall,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Container(
-                                      width: 1,
-                                      height: 6.h,
-                                      color: AppTheme
-                                          .lightTheme.colorScheme.outline,
-                                    ),
-                                    Expanded(
-                                      child: Column(
-                                        children: [
-                                          Text(
-                                            '${assignmentState.stats['closed'] ?? 0}',
-                                            style: AppTheme.lightTheme.textTheme
-                                                .headlineSmall
-                                                ?.copyWith(
-                                              color: AppTheme.getStatusColor(
-                                                  'success'),
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                          Text(
-                                            'Completed',
-                                            style: AppTheme
-                                                .lightTheme.textTheme.bodySmall,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Container(
-                                      width: 1,
-                                      height: 6.h,
-                                      color: AppTheme
-                                          .lightTheme.colorScheme.outline,
-                                    ),
-                                    Expanded(
-                                      child: Column(
-                                        children: [
-                                          Text(
-                                            '${assignmentState.stats['total'] ?? 0}',
-                                            style: AppTheme.lightTheme.textTheme
-                                                .headlineSmall
-                                                ?.copyWith(
-                                              color: AppTheme
-                                                  .lightTheme.primaryColor,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                          Text(
-                                            'Total Submissions',
-                                            style: AppTheme
-                                                .lightTheme.textTheme.bodySmall,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // Subject Sections
-                          ...groupedAssignments.entries.map((entry) {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding: EdgeInsets.symmetric(
-                                      horizontal: 4.w, vertical: 1.h),
-                                  child: Row(
-                                    children: [
-                                      CustomIconWidget(
-                                        iconName: 'book',
-                                        color: AppTheme.getRoleColor('faculty'),
-                                        size: 20,
-                                      ),
-                                      SizedBox(width: 2.w),
-                                      Text(
-                                        entry.key,
-                                        style: AppTheme
-                                            .lightTheme.textTheme.titleMedium
-                                            ?.copyWith(
-                                          color:
-                                              AppTheme.getRoleColor('faculty'),
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      SizedBox(width: 2.w),
-                                      Container(
-                                        padding: EdgeInsets.symmetric(
-                                            horizontal: 2.w, vertical: 0.5.h),
-                                        decoration: BoxDecoration(
-                                          color:
-                                              AppTheme.getRoleColor('faculty')
+                                          SizedBox(width: 2.w),
+                                          Container(
+                                            padding: EdgeInsets.symmetric(
+                                                horizontal: 2.w,
+                                                vertical: 0.5.h),
+                                            decoration: BoxDecoration(
+                                              color: AppTheme.getRoleColor(
+                                                      'faculty')
                                                   .withValues(alpha: 0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                        child: Text(
-                                          '${entry.value.length}',
-                                          style: AppTheme
-                                              .lightTheme.textTheme.bodySmall
-                                              ?.copyWith(
-                                            color: AppTheme.getRoleColor(
-                                                'faculty'),
-                                            fontWeight: FontWeight.w500,
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: Text(
+                                              '${entry.value.length}',
+                                              style: AppTheme.lightTheme
+                                                  .textTheme.bodySmall
+                                                  ?.copyWith(
+                                                color: AppTheme.getRoleColor(
+                                                    'faculty'),
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
                                           ),
-                                        ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                ),
-                                ...entry.value.map((assignment) {
-                                  return FacultyAssignmentCardWidget(
-                                    assignment:
-                                        _convertAssignmentToMap(assignment),
-                                    onTap: () =>
-                                        _showAssignmentDetail(assignment),
-                                  );
-                                }).toList(),
-                                SizedBox(height: 2.h),
-                              ],
-                            );
-                          }).toList(),
-                        ],
-                      ),
-                    ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: "faculty_assignment_upload_fab",
-        onPressed: _showUploadAssignmentSheet,
-        backgroundColor: AppTheme.getRoleColor('faculty'),
-        foregroundColor: Colors.white,
-        icon: CustomIconWidget(
-          iconName: 'add',
-          color: Colors.white,
-          size: 24,
-        ),
-        label: Text(
-          'New Assignment',
-          style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+                                    ),
+                                    ...entry.value.map((assignment) {
+                                      return FacultyAssignmentCardWidget(
+                                        assignment:
+                                            _convertAssignmentToMap(assignment),
+                                        onTap: () =>
+                                            _showAssignmentDetail(assignment),
+                                      );
+                                    }).toList(),
+                                    SizedBox(height: 2.h),
+                                  ],
+                                );
+                              }).toList(),
+                            ],
+                          ),
+                        ),
+        ],
       ),
     );
   }

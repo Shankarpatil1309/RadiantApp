@@ -6,11 +6,13 @@ import '../../../core/app_export.dart';
 class SystemAnnouncementsCard extends StatelessWidget {
   final List<Map<String, dynamic>> announcements;
   final VoidCallback? onViewAll;
+  final Function(Map<String, dynamic>)? onAnnouncementTap;
 
   const SystemAnnouncementsCard({
     Key? key,
     required this.announcements,
     this.onViewAll,
+    this.onAnnouncementTap,
   }) : super(key: key);
 
   @override
@@ -98,20 +100,23 @@ class SystemAnnouncementsCard extends StatelessWidget {
     final priority = announcement['priority'] as String;
     final Color priorityColor = _getPriorityColor(priority);
 
-    return Container(
-      margin: EdgeInsets.only(bottom: 2.h),
-      padding: EdgeInsets.all(3.w),
-      decoration: BoxDecoration(
-        color: priorityColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border(
-          left: BorderSide(
-            color: priorityColor,
-            width: 4,
+    return InkWell(
+      onTap: onAnnouncementTap != null ? () => onAnnouncementTap!(announcement) : null,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        margin: EdgeInsets.only(bottom: 2.h),
+        padding: EdgeInsets.all(3.w),
+        decoration: BoxDecoration(
+          color: priorityColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border(
+            left: BorderSide(
+              color: priorityColor,
+              width: 4,
+            ),
           ),
         ),
-      ),
-      child: Column(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -155,6 +160,7 @@ class SystemAnnouncementsCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ],
+        ),
       ),
     );
   }

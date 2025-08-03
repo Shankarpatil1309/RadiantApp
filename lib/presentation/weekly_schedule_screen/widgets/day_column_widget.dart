@@ -94,7 +94,6 @@ class DayColumnWidget extends StatelessWidget {
 
   List<String> _generateTimeSlots() {
     return [
-      '08:00',
       '09:00',
       '10:00',
       '11:00',

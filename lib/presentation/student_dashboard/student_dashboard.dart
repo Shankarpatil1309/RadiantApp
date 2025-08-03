@@ -16,6 +16,7 @@ import './widgets/quick_stats_card_widget.dart';
 import './widgets/recent_announcements_card_widget.dart';
 import './widgets/today_schedule_card_widget.dart';
 import '../assignments_screen/widgets/assignment_detail_widget.dart';
+import '../common/widgets/announcement_detail_bottom_sheet.dart';
 
 class StudentDashboard extends ConsumerStatefulWidget {
   final Function(int)? onNavigateToTab;
@@ -67,104 +68,9 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: 70.h,
-        decoration: BoxDecoration(
-          color: AppTheme.lightTheme.colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: EdgeInsets.only(top: 2.h),
-              decoration: BoxDecoration(
-                color: AppTheme.lightTheme.colorScheme.outline,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: EdgeInsets.all(4.w),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 2.w, vertical: 0.5.h),
-                          decoration: BoxDecoration(
-                            color: _getPriorityColor(
-                                announcement['priority'] as String),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            (announcement['priority'] as String).toUpperCase(),
-                            style: AppTheme.lightTheme.textTheme.labelSmall
-                                ?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        const Spacer(),
-                        IconButton(
-                          onPressed: () => Navigator.pop(context),
-                          icon: CustomIconWidget(
-                            iconName: 'close',
-                            color: AppTheme.lightTheme.colorScheme.onSurface,
-                            size: 24,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 2.h),
-                    Text(
-                      announcement['title'] as String,
-                      style:
-                          AppTheme.lightTheme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(height: 1.h),
-                    Text(
-                      announcement['content'] as String,
-                      style: AppTheme.lightTheme.textTheme.bodyMedium,
-                    ),
-                    SizedBox(height: 2.h),
-                    Row(
-                      children: [
-                        CustomIconWidget(
-                          iconName: 'person',
-                          color: AppTheme.lightTheme.colorScheme.onSurface
-                              .withValues(alpha: 0.6),
-                          size: 16,
-                        ),
-                        SizedBox(width: 1.w),
-                        Text(
-                          announcement['author'] as String,
-                          style: AppTheme.lightTheme.textTheme.bodySmall,
-                        ),
-                        const Spacer(),
-                        Text(
-                          _formatTimestamp(DateTime.parse(
-                              announcement['timestamp'] as String)),
-                          style:
-                              AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                            color: AppTheme.lightTheme.colorScheme.onSurface
-                                .withValues(alpha: 0.6),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+      builder: (context) => AnnouncementDetailBottomSheet(
+        announcement: announcement,
+        showActions: false,
       ),
     );
   }
@@ -232,34 +138,6 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
     );
   }
 
-  Color _getPriorityColor(String priority) {
-    switch (priority.toLowerCase()) {
-      case 'urgent':
-        return AppTheme.lightTheme.colorScheme.error;
-      case 'important':
-        return const Color(0xFFFF9800);
-      case 'normal':
-      default:
-        return AppTheme.lightTheme.primaryColor;
-    }
-  }
-
-  String _formatTimestamp(DateTime timestamp) {
-    final now = DateTime.now();
-    final difference = now.difference(timestamp);
-
-    if (difference.inMinutes < 1) {
-      return 'Just now';
-    } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes}m ago';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays}d ago';
-    } else {
-      return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
-    }
-  }
 
   Future<bool> _showExitConfirmation() async {
     return await showDialog<bool>(

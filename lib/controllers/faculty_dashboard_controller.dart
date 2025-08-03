@@ -15,8 +15,7 @@ final announcementServiceProvider =
     Provider<AnnouncementService>((ref) => AnnouncementService());
 final userServiceProvider = Provider<UserService>((ref) => UserService());
 
-final facultyDataProvider =
-    FutureProvider.autoDispose<Faculty?>((ref) async {
+final facultyDataProvider = FutureProvider.autoDispose<Faculty?>((ref) async {
   final authState = ref.watch(authControllerProvider);
 
   return authState.when(

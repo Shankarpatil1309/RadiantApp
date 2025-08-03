@@ -41,8 +41,14 @@ class RecentAnnouncementsCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 TextButton(
-                  onPressed: () =>
-                      Navigator.pushNamed(context, '/announcements-screen'),
+                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Feature coming soon'),
+                      backgroundColor: AppTheme.getStatusColor('warning'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  ),
+                  // Navigator.pushNamed(context, '/announcements-screen'),
                   child: Text(
                     "View All",
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(

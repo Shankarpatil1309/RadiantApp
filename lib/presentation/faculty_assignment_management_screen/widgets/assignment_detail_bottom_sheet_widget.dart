@@ -28,8 +28,12 @@ class AssignmentDetailBottomSheetWidget extends StatelessWidget {
   }
 
   Color _getSubmissionStatusColor() {
-    final submissionRate = (assignment['submissionCount'] as int) /
-        (assignment['totalStudents'] as int);
+    final submissionCount = assignment['submissionCount'] as int;
+    final totalStudents = assignment['totalStudents'] as int;
+
+    // Safe division to avoid NaN/Infinity
+    final submissionRate =
+        totalStudents > 0 ? submissionCount / totalStudents : 0.0;
 
     if (submissionRate >= 0.8) {
       return AppTheme.getStatusColor('success');
@@ -62,9 +66,6 @@ class AssignmentDetailBottomSheetWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isOverdue = _isOverdue();
-    final submissionStatusColor = _getSubmissionStatusColor();
-    final submissionRate = (assignment['submissionCount'] as int) /
-        (assignment['totalStudents'] as int);
 
     return Container(
       height: 90.h,
@@ -200,109 +201,112 @@ class AssignmentDetailBottomSheetWidget extends StatelessWidget {
                   SizedBox(height: 3.h),
 
                   // Statistics Cards
-                  Row(
-                    children: [
-                      // Submissions Card
-                      Expanded(
-                        child: Container(
-                          padding: EdgeInsets.all(4.w),
-                          decoration: BoxDecoration(
-                            color: submissionStatusColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            children: [
-                              CustomIconWidget(
-                                iconName: 'people',
-                                color: submissionStatusColor,
-                                size: 32,
-                              ),
-                              SizedBox(height: 1.h),
-                              Text(
-                                '${assignment['submissionCount']}/${assignment['totalStudents']}',
-                                style: AppTheme
-                                    .lightTheme.textTheme.headlineSmall
-                                    ?.copyWith(
-                                  color: submissionStatusColor,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              Text(
-                                'Submissions',
-                                style: AppTheme.lightTheme.textTheme.bodySmall
-                                    ?.copyWith(
-                                  color: submissionStatusColor,
-                                ),
-                              ),
-                              SizedBox(height: 1.h),
-                              LinearProgressIndicator(
-                                value: submissionRate,
-                                backgroundColor: submissionStatusColor
-                                    .withValues(alpha: 0.2),
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                    submissionStatusColor),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                  // Row(
+                  //   children: [
+                  //     // Submissions Card
+                  //     Expanded(
+                  //       child: Container(
+                  //         padding: EdgeInsets.all(4.w),
+                  //         decoration: BoxDecoration(
+                  //           color: submissionStatusColor.withValues(alpha: 0.1),
+                  //           borderRadius: BorderRadius.circular(12),
+                  //         ),
+                  //         child: Column(
+                  //           children: [
+                  //             CustomIconWidget(
+                  //               iconName: 'people',
+                  //               color: submissionStatusColor,
+                  //               size: 32,
+                  //             ),
+                  //             SizedBox(height: 1.h),
+                  //             Text(
+                  //               '${assignment['submissionCount']}/${assignment['totalStudents']}',
+                  //               style: AppTheme
+                  //                   .lightTheme.textTheme.headlineSmall
+                  //                   ?.copyWith(
+                  //                 color: submissionStatusColor,
+                  //                 fontWeight: FontWeight.w600,
+                  //               ),
+                  //             ),
+                  //             Text(
+                  //               'Submissions',
+                  //               style: AppTheme.lightTheme.textTheme.bodySmall
+                  //                   ?.copyWith(
+                  //                 color: submissionStatusColor,
+                  //               ),
+                  //             ),
+                  //             SizedBox(height: 1.h),
+                  //             LinearProgressIndicator(
+                  //               value: submissionRate.isNaN ||
+                  //                       submissionRate.isInfinite
+                  //                   ? 0.0
+                  //                   : submissionRate.clamp(0.0, 1.0),
+                  //               backgroundColor: submissionStatusColor
+                  //                   .withValues(alpha: 0.2),
+                  //               valueColor: AlwaysStoppedAnimation<Color>(
+                  //                   submissionStatusColor),
+                  //             ),
+                  //           ],
+                  //         ),
+                  //       ),
+                  //     ),
 
-                      SizedBox(width: 4.w),
+                  //     SizedBox(width: 4.w),
 
-                      // Deadline Card
-                      Expanded(
-                        child: Container(
-                          padding: EdgeInsets.all(4.w),
-                          decoration: BoxDecoration(
-                            color: isOverdue
-                                ? AppTheme.getStatusColor('error')
-                                    .withValues(alpha: 0.1)
-                                : AppTheme.lightTheme.colorScheme
-                                    .surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            children: [
-                              CustomIconWidget(
-                                iconName: 'schedule',
-                                color: isOverdue
-                                    ? AppTheme.getStatusColor('error')
-                                    : AppTheme.lightTheme.colorScheme.onSurface
-                                        .withValues(alpha: 0.6),
-                                size: 32,
-                              ),
-                              SizedBox(height: 1.h),
-                              Text(
-                                '${assignment['deadline'].day}/${assignment['deadline'].month}',
-                                style: AppTheme
-                                    .lightTheme.textTheme.headlineSmall
-                                    ?.copyWith(
-                                  color: isOverdue
-                                      ? AppTheme.getStatusColor('error')
-                                      : AppTheme
-                                          .lightTheme.colorScheme.onSurface,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              Text(
-                                isOverdue ? 'Overdue' : 'Deadline',
-                                style: AppTheme.lightTheme.textTheme.bodySmall
-                                    ?.copyWith(
-                                  color: isOverdue
-                                      ? AppTheme.getStatusColor('error')
-                                      : AppTheme
-                                          .lightTheme.colorScheme.onSurface
-                                          .withValues(alpha: 0.6),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  //     // Deadline Card
+                  //     Expanded(
+                  //       child: Container(
+                  //         padding: EdgeInsets.all(4.w),
+                  //         decoration: BoxDecoration(
+                  //           color: isOverdue
+                  //               ? AppTheme.getStatusColor('error')
+                  //                   .withValues(alpha: 0.1)
+                  //               : AppTheme.lightTheme.colorScheme
+                  //                   .surfaceContainerHighest,
+                  //           borderRadius: BorderRadius.circular(12),
+                  //         ),
+                  //         child: Column(
+                  //           children: [
+                  //             CustomIconWidget(
+                  //               iconName: 'schedule',
+                  //               color: isOverdue
+                  //                   ? AppTheme.getStatusColor('error')
+                  //                   : AppTheme.lightTheme.colorScheme.onSurface
+                  //                       .withValues(alpha: 0.6),
+                  //               size: 32,
+                  //             ),
+                  //             SizedBox(height: 1.h),
+                  //             Text(
+                  //               '${assignment['deadline'].day}/${assignment['deadline'].month}',
+                  //               style: AppTheme
+                  //                   .lightTheme.textTheme.headlineSmall
+                  //                   ?.copyWith(
+                  //                 color: isOverdue
+                  //                     ? AppTheme.getStatusColor('error')
+                  //                     : AppTheme
+                  //                         .lightTheme.colorScheme.onSurface,
+                  //                 fontWeight: FontWeight.w600,
+                  //               ),
+                  //             ),
+                  //             Text(
+                  //               isOverdue ? 'Overdue' : 'Deadline',
+                  //               style: AppTheme.lightTheme.textTheme.bodySmall
+                  //                   ?.copyWith(
+                  //                 color: isOverdue
+                  //                     ? AppTheme.getStatusColor('error')
+                  //                     : AppTheme
+                  //                         .lightTheme.colorScheme.onSurface
+                  //                         .withValues(alpha: 0.6),
+                  //               ),
+                  //             ),
+                  //           ],
+                  //         ),
+                  //       ),
+                  //     ),
+                  //   ],
+                  // ),
 
-                  SizedBox(height: 3.h),
+                  // SizedBox(height: 3.h),
 
                   // Description Section
                   Text(
@@ -511,44 +515,44 @@ class AssignmentDetailBottomSheetWidget extends StatelessWidget {
                     ),
                   ],
                 ),
-                SizedBox(height: 2.h),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: onDownloadSubmissions,
-                        icon: CustomIconWidget(
-                          iconName: 'download',
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                        label: Text('Download Submissions'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.getRoleColor('faculty'),
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(vertical: 2.h),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 3.w),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: onSendReminders,
-                        icon: CustomIconWidget(
-                          iconName: 'notifications',
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                        label: Text('Send Reminders'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.getStatusColor('warning'),
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(vertical: 2.h),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                // SizedBox(height: 2.h),
+                // Row(
+                //   children: [
+                //     Expanded(
+                //       child: ElevatedButton.icon(
+                //         onPressed: onDownloadSubmissions,
+                //         icon: CustomIconWidget(
+                //           iconName: 'download',
+                //           color: Colors.white,
+                //           size: 20,
+                //         ),
+                //         label: Text('Download Submissions'),
+                //         style: ElevatedButton.styleFrom(
+                //           backgroundColor: AppTheme.getRoleColor('faculty'),
+                //           foregroundColor: Colors.white,
+                //           padding: EdgeInsets.symmetric(vertical: 2.h),
+                //         ),
+                //       ),
+                //     ),
+                //     SizedBox(width: 3.w),
+                //     Expanded(
+                //       child: ElevatedButton.icon(
+                //         onPressed: onSendReminders,
+                //         icon: CustomIconWidget(
+                //           iconName: 'notifications',
+                //           color: Colors.white,
+                //           size: 20,
+                //         ),
+                //         label: Text('Send Reminders'),
+                //         style: ElevatedButton.styleFrom(
+                //           backgroundColor: AppTheme.getStatusColor('warning'),
+                //           foregroundColor: Colors.white,
+                //           padding: EdgeInsets.symmetric(vertical: 2.h),
+                //         ),
+                //       ),
+                //     ),
+                //   ],
+                // ),
               ],
             ),
           ),

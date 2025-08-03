@@ -89,29 +89,29 @@ class _StudentShellState extends ConsumerState<StudentShell>
             right: 0,
             child: _buildBottomNavigationBar(),
           ),
-          if (_selectedBottomNavIndex == 0)
-            Positioned(
-              bottom: 100, // Above the bottom navigation bar
-              right: 16,
-              child: FloatingActionButton.extended(
-                heroTag: "student_marksheet_fab",
-                onPressed: () {
-                  // Navigate to marksheet
-                  _showComingSoon('Marksheet');
-                },
-                icon: CustomIconWidget(
-                  iconName: 'assessment',
-                  color: Colors.white,
-                  size: 24,
-                ),
-                label: Text(
-                  'Marksheet',
-                  style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
+          // if (_selectedBottomNavIndex == 0)
+          //   Positioned(
+          //     bottom: 100, // Above the bottom navigation bar
+          //     right: 16,
+          //     child: FloatingActionButton.extended(
+          //       heroTag: "student_marksheet_fab",
+          //       onPressed: () {
+          //         // Navigate to marksheet
+          //         _showComingSoon('Marksheet');
+          //       },
+          //       icon: CustomIconWidget(
+          //         iconName: 'assessment',
+          //         color: Colors.white,
+          //         size: 24,
+          //       ),
+          //       label: Text(
+          //         'Marksheet',
+          //         style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
+          //           color: Colors.white,
+          //         ),
+          //       ),
+          //     ),
+          //   ),
         ],
       ),
     );

@@ -1,18 +1,22 @@
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../config/app_config.dart';
 
 class AssignmentUploadBottomSheetWidget extends StatefulWidget {
   final Function(Map<String, dynamic>) onUploadAssignment;
   final VoidCallback onClose;
+  final Map<String, dynamic>? existingAssignment; // For edit mode
+  final bool isEditMode;
 
   const AssignmentUploadBottomSheetWidget({
     Key? key,
     required this.onUploadAssignment,
     required this.onClose,
+    this.existingAssignment,
+    this.isEditMode = false,
   }) : super(key: key);
 
   @override
@@ -25,88 +29,91 @@ class _AssignmentUploadBottomSheetWidgetState
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _instructionsController = TextEditingController();
 
-  String _selectedDepartment = 'Engineering';
-  String _selectedSemester = '1st Semester';
-  String _selectedSubject = 'Computer Science';
+  String _selectedDepartment = AppConfig.departmentCodes.first;
+  String _selectedSemester = AppConfig.semesters.first;
+  String _selectedSection = AppConfig.sections2.first;
+  String _selectedSubject = '';
+  String _selectedType = 'assignment';
   DateTime _selectedDeadline = DateTime.now().add(Duration(days: 7));
-  int _totalStudents = 30;
 
   List<PlatformFile> _attachedFiles = [];
   bool _isUploading = false;
-  
+
   // File attachment method: 'upload' or 'url'
   String _attachmentMethod = 'upload';
   final _fileUrlController = TextEditingController();
 
-  final List<String> _departments = [
-    'Engineering',
-    'Science',
-    'Management',
-    'Arts',
-    'Commerce',
+  final List<String> _assignmentTypes = [
+    'assignment',
+    'project',
+    'lab',
+    'quiz',
+    'presentation',
+    'case_study',
+    'report',
+    'practical',
   ];
-
-  final List<String> _semesters = [
-    '1st Semester',
-    '2nd Semester',
-    '3rd Semester',
-    '4th Semester',
-    '5th Semester',
-    '6th Semester',
-    '7th Semester',
-    '8th Semester',
-  ];
-
-  final Map<String, List<String>> _departmentSubjects = {
-    'Engineering': [
-      'Computer Science',
-      'Electronics',
-      'Mechanical',
-      'Civil',
-      'Electrical',
-    ],
-    'Science': [
-      'Physics',
-      'Chemistry',
-      'Mathematics',
-      'Biology',
-      'Environmental Science',
-    ],
-    'Management': [
-      'Marketing',
-      'Finance',
-      'Human Resources',
-      'Operations',
-      'Business Strategy',
-    ],
-    'Arts': [
-      'English',
-      'History',
-      'Philosophy',
-      'Psychology',
-      'Sociology',
-    ],
-    'Commerce': [
-      'Accounting',
-      'Economics',
-      'Business Studies',
-      'Statistics',
-      'Banking',
-    ],
-  };
 
   @override
   void initState() {
     super.initState();
-    _selectedSubject =
-        _departmentSubjects[_selectedDepartment]?.first ?? 'Computer Science';
+    
+    if (widget.isEditMode && widget.existingAssignment != null) {
+      // Populate form fields with existing assignment data
+      _populateFormWithExistingData(widget.existingAssignment!);
+    } else {
+      // Default initialization for create mode
+      _selectedSubject = AppConfig.getSubjectsForDepartment(_selectedDepartment, _selectedSemester).isNotEmpty
+          ? AppConfig.getSubjectsForDepartment(_selectedDepartment, _selectedSemester).first
+          : '';
+    }
+  }
+  
+  void _populateFormWithExistingData(Map<String, dynamic> assignment) {
+    _titleController.text = assignment['title'] ?? '';
+    _descriptionController.text = assignment['description'] ?? '';
+    _instructionsController.text = assignment['instructions'] ?? '';
+    
+    _selectedDepartment = assignment['department'] ?? AppConfig.departmentCodes.first;
+    
+    // Extract semester number from formatted string like "1st Semester" -> "1"
+    String semesterValue = assignment['semester']?.toString() ?? '1';
+    if (semesterValue.contains(' ')) {
+      // Extract just the number part from "1st Semester" format
+      semesterValue = semesterValue.split(' ').first.replaceAll(RegExp(r'[^\d]'), '');
+    }
+    _selectedSemester = semesterValue.isNotEmpty ? semesterValue : '1';
+    
+    _selectedSection = assignment['section'] ?? 'A';
+    _selectedType = assignment['type'] ?? 'assignment';
+    
+    // Set deadline if available
+    if (assignment['deadline'] != null) {
+      _selectedDeadline = assignment['deadline'] as DateTime;
+    }
+    
+    // Set file URL if available
+    if (assignment['fileUrl'] != null && (assignment['fileUrl'] as String).isNotEmpty) {
+      _fileUrlController.text = assignment['fileUrl'];
+      _attachmentMethod = 'url';
+    }
+    
+    // Update subject based on selected department and semester
+    final subjects = AppConfig.getSubjectsForDepartment(_selectedDepartment, _selectedSemester);
+    if (subjects.contains(assignment['subject'])) {
+      _selectedSubject = assignment['subject'];
+    } else if (subjects.isNotEmpty) {
+      _selectedSubject = subjects.first;
+    }
   }
 
   @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
+    _instructionsController.dispose();
     _fileUrlController.dispose();
     super.dispose();
   }
@@ -199,24 +206,33 @@ class _AssignmentUploadBottomSheetWidgetState
 
       // Determine file URL based on attachment method
       String? fileUrl;
-      if (_attachmentMethod == 'url' && _fileUrlController.text.trim().isNotEmpty) {
+      if (_attachmentMethod == 'url' &&
+          _fileUrlController.text.trim().isNotEmpty) {
         fileUrl = _fileUrlController.text.trim();
       } else if (_attachmentMethod == 'upload' && _attachedFiles.isNotEmpty) {
         // TODO: Handle actual file upload and get the uploaded file URL
         // For now, we'll use a placeholder
         fileUrl = null; // Will be set after actual file upload
       }
-      
+
       final assignmentData = {
         'title': _titleController.text.trim(),
         'description': _descriptionController.text.trim(),
+        'instructions': _instructionsController.text.trim(),
         'subject': _selectedSubject,
         'department': _selectedDepartment,
-        'semester': _selectedSemester,
+        'section': _selectedSection,
+        'semester': int.parse(_selectedSemester),
+        'type': _selectedType,
         'deadline': _selectedDeadline,
-        'totalStudents': _totalStudents,
-        'hasAttachments': _attachedFiles.isNotEmpty || (_attachmentMethod == 'url' && _fileUrlController.text.trim().isNotEmpty),
-        'attachmentCount': _attachmentMethod == 'upload' ? _attachedFiles.length : (_fileUrlController.text.trim().isNotEmpty ? 1 : 0),
+        if (widget.isEditMode && widget.existingAssignment != null)
+          'id': widget.existingAssignment!['id'],
+        'hasAttachments': _attachedFiles.isNotEmpty ||
+            (_attachmentMethod == 'url' &&
+                _fileUrlController.text.trim().isNotEmpty),
+        'attachmentCount': _attachmentMethod == 'upload'
+            ? _attachedFiles.length
+            : (_fileUrlController.text.trim().isNotEmpty ? 1 : 0),
         'fileUrl': fileUrl,
       };
 
@@ -232,6 +248,20 @@ class _AssignmentUploadBottomSheetWidgetState
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  String _getOrdinalSuffix(int number) {
+    if (number >= 11 && number <= 13) return 'st';
+    switch (number % 10) {
+      case 1:
+        return 'st';
+      case 2:
+        return 'nd';
+      case 3:
+        return 'rd';
+      default:
+        return 'th';
+    }
   }
 
   @override
@@ -270,7 +300,7 @@ class _AssignmentUploadBottomSheetWidgetState
                 ),
                 Expanded(
                   child: Text(
-                    'Upload New Assignment',
+                    widget.isEditMode ? 'Edit Assignment' : 'Upload New Assignment',
                     style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
                       color: AppTheme.getRoleColor('faculty'),
                       fontWeight: FontWeight.w600,
@@ -292,7 +322,7 @@ class _AssignmentUploadBottomSheetWidgetState
                             strokeWidth: 2,
                           ),
                         )
-                      : Text('Upload'),
+                      : Text(widget.isEditMode ? 'Update' : 'Upload'),
                 ),
               ],
             ),
@@ -367,18 +397,17 @@ class _AssignmentUploadBottomSheetWidgetState
                                     ),
                                   ),
                                 ),
-                                items: _departments.map((dept) {
+                                items: AppConfig.departmentCodes.map((deptCode) {
                                   return DropdownMenuItem(
-                                    value: dept,
-                                    child: Text(dept),
+                                    value: deptCode,
+                                    child: Text(deptCode),
                                   );
                                 }).toList(),
                                 onChanged: (value) {
                                   setState(() {
                                     _selectedDepartment = value!;
-                                    _selectedSubject =
-                                        _departmentSubjects[value]?.first ??
-                                            'Computer Science';
+                                    final subjects = AppConfig.getSubjectsForDepartment(value, _selectedSemester);
+                                    _selectedSubject = subjects.isNotEmpty ? subjects.first : '';
                                   });
                                 },
                               ),
@@ -410,15 +439,17 @@ class _AssignmentUploadBottomSheetWidgetState
                                     ),
                                   ),
                                 ),
-                                items: _semesters.map((sem) {
+                                items: AppConfig.semesters.map((sem) {
                                   return DropdownMenuItem(
                                     value: sem,
-                                    child: Text(sem),
+                                    child: Text('${sem}${_getOrdinalSuffix(int.parse(sem))} Semester'),
                                   );
                                 }).toList(),
                                 onChanged: (value) {
                                   setState(() {
                                     _selectedSemester = value!;
+                                    final subjects = AppConfig.getSubjectsForDepartment(_selectedDepartment, value);
+                                    _selectedSubject = subjects.isNotEmpty ? subjects.first : '';
                                   });
                                 },
                               ),
@@ -457,14 +488,13 @@ class _AssignmentUploadBottomSheetWidgetState
                                     ),
                                   ),
                                 ),
-                                items: _departmentSubjects[_selectedDepartment]
-                                        ?.map((subject) {
-                                      return DropdownMenuItem(
-                                        value: subject,
-                                        child: Text(subject),
-                                      );
-                                    }).toList() ??
-                                    [],
+                                items: AppConfig.getSubjectsForDepartment(_selectedDepartment, _selectedSemester)
+                                    .map((subject) {
+                                  return DropdownMenuItem(
+                                    value: subject,
+                                    child: Text(subject),
+                                  );
+                                }).toList(),
                                 onChanged: (value) {
                                   setState(() {
                                     _selectedSubject = value!;
@@ -480,39 +510,35 @@ class _AssignmentUploadBottomSheetWidgetState
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Total Students *',
+                                'Section *',
                                 style: AppTheme.lightTheme.textTheme.titleSmall
                                     ?.copyWith(
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
                               SizedBox(height: 1.h),
-                              TextFormField(
-                                initialValue: _totalStudents.toString(),
-                                keyboardType: TextInputType.number,
+                              DropdownButtonFormField<String>(
+                                value: _selectedSection,
                                 decoration: InputDecoration(
-                                  hintText: 'Enter total students',
                                   prefixIcon: Padding(
                                     padding: EdgeInsets.all(3.w),
                                     child: CustomIconWidget(
-                                      iconName: 'people',
+                                      iconName: 'class',
                                       color: AppTheme.getRoleColor('faculty'),
                                       size: 20,
                                     ),
                                   ),
                                 ),
-                                validator: (value) {
-                                  if (value == null || value.trim().isEmpty) {
-                                    return 'Required';
-                                  }
-                                  final num = int.tryParse(value);
-                                  if (num == null || num <= 0) {
-                                    return 'Invalid number';
-                                  }
-                                  return null;
-                                },
+                                items: AppConfig.sections2.map((section) {
+                                  return DropdownMenuItem(
+                                    value: section,
+                                    child: Text(section),
+                                  );
+                                }).toList(),
                                 onChanged: (value) {
-                                  _totalStudents = int.tryParse(value) ?? 30;
+                                  setState(() {
+                                    _selectedSection = value!;
+                                  });
                                 },
                               ),
                             ],
@@ -569,6 +595,42 @@ class _AssignmentUploadBottomSheetWidgetState
 
                     SizedBox(height: 3.h),
 
+                    // Assignment Type
+                    Text(
+                      'Assignment Type *',
+                      style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: 1.h),
+                    DropdownButtonFormField<String>(
+                      value: _selectedType,
+                      decoration: InputDecoration(
+                        prefixIcon: Padding(
+                          padding: EdgeInsets.all(3.w),
+                          child: CustomIconWidget(
+                            iconName: 'category',
+                            color: AppTheme.getRoleColor('faculty'),
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                      items: _assignmentTypes.map((type) {
+                        return DropdownMenuItem(
+                          value: type,
+                          child: Text(type.replaceAll('_', ' ').split(' ').map((word) => 
+                            word[0].toUpperCase() + word.substring(1)).join(' ')),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedType = value!;
+                        });
+                      },
+                    ),
+
+                    SizedBox(height: 3.h),
+
                     // Description
                     Text(
                       'Description *',
@@ -595,6 +657,33 @@ class _AssignmentUploadBottomSheetWidgetState
 
                     SizedBox(height: 3.h),
 
+                    // Instructions
+                    Text(
+                      'Instructions (Optional)',
+                      style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: 1.h),
+                    TextFormField(
+                      controller: _instructionsController,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText: 'Enter specific instructions for students (e.g., submission format, requirements, etc.)',
+                        alignLabelWithHint: true,
+                        prefixIcon: Padding(
+                          padding: EdgeInsets.all(3.w),
+                          child: CustomIconWidget(
+                            iconName: 'info',
+                            color: AppTheme.getRoleColor('faculty'),
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    SizedBox(height: 3.h),
+
                     // File Attachments
                     Text(
                       'Attachments (Optional)',
@@ -603,15 +692,17 @@ class _AssignmentUploadBottomSheetWidgetState
                       ),
                     ),
                     SizedBox(height: 1.h),
-                    
+
                     // Attachment Method Selection
                     Container(
                       padding: EdgeInsets.all(3.w),
                       decoration: BoxDecoration(
-                        color: AppTheme.getRoleColor('faculty').withValues(alpha: 0.05),
+                        color: AppTheme.getRoleColor('faculty')
+                            .withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: AppTheme.getRoleColor('faculty').withValues(alpha: 0.2),
+                          color: AppTheme.getRoleColor('faculty')
+                              .withValues(alpha: 0.2),
                         ),
                       ),
                       child: Column(
@@ -622,11 +713,13 @@ class _AssignmentUploadBottomSheetWidgetState
                                 child: RadioListTile<String>(
                                   title: Text(
                                     'Upload Files',
-                                    style: AppTheme.lightTheme.textTheme.bodyMedium,
+                                    style: AppTheme
+                                        .lightTheme.textTheme.bodyMedium,
                                   ),
                                   subtitle: Text(
                                     'Upload files from device',
-                                    style: AppTheme.lightTheme.textTheme.bodySmall,
+                                    style:
+                                        AppTheme.lightTheme.textTheme.bodySmall,
                                   ),
                                   value: 'upload',
                                   groupValue: _attachmentMethod,
@@ -652,11 +745,13 @@ class _AssignmentUploadBottomSheetWidgetState
                                 child: RadioListTile<String>(
                                   title: Text(
                                     'Use File URL',
-                                    style: AppTheme.lightTheme.textTheme.bodyMedium,
+                                    style: AppTheme
+                                        .lightTheme.textTheme.bodyMedium,
                                   ),
                                   subtitle: Text(
                                     'Google Drive, Dropbox, etc.',
-                                    style: AppTheme.lightTheme.textTheme.bodySmall,
+                                    style:
+                                        AppTheme.lightTheme.textTheme.bodySmall,
                                   ),
                                   value: 'url',
                                   groupValue: _attachmentMethod,
@@ -679,9 +774,9 @@ class _AssignmentUploadBottomSheetWidgetState
                         ],
                       ),
                     ),
-                    
+
                     SizedBox(height: 2.h),
-                    
+
                     // File Upload Section
                     if (_attachmentMethod == 'upload') ...[
                       OutlinedButton.icon(
@@ -693,14 +788,17 @@ class _AssignmentUploadBottomSheetWidgetState
                         ),
                         label: Text(
                           'Attach Files',
-                          style: TextStyle(color: AppTheme.getRoleColor('faculty')),
+                          style: TextStyle(
+                              color: AppTheme.getRoleColor('faculty')),
                         ),
                         style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: AppTheme.getRoleColor('faculty')),
-                          padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 3.h),
+                          side: BorderSide(
+                              color: AppTheme.getRoleColor('faculty')),
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 4.w, vertical: 3.h),
                         ),
                       ),
-                      
+
                       // Attached Files List for Upload
                       if (_attachedFiles.isNotEmpty) ...[
                         SizedBox(height: 2.h),
@@ -710,10 +808,12 @@ class _AssignmentUploadBottomSheetWidgetState
                             margin: EdgeInsets.only(bottom: 1.h),
                             padding: EdgeInsets.all(3.w),
                             decoration: BoxDecoration(
-                              color: AppTheme.getRoleColor('faculty').withValues(alpha: 0.05),
+                              color: AppTheme.getRoleColor('faculty')
+                                  .withValues(alpha: 0.05),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: AppTheme.getRoleColor('faculty').withValues(alpha: 0.2),
+                                color: AppTheme.getRoleColor('faculty')
+                                    .withValues(alpha: 0.2),
                               ),
                             ),
                             child: Row(
@@ -726,11 +826,14 @@ class _AssignmentUploadBottomSheetWidgetState
                                 SizedBox(width: 3.w),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         file.name,
-                                        style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                                        style: AppTheme
+                                            .lightTheme.textTheme.bodyMedium
+                                            ?.copyWith(
                                           fontWeight: FontWeight.w500,
                                         ),
                                         maxLines: 1,
@@ -738,8 +841,12 @@ class _AssignmentUploadBottomSheetWidgetState
                                       ),
                                       Text(
                                         _formatFileSize(file.size),
-                                        style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                                          color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                        style: AppTheme
+                                            .lightTheme.textTheme.bodySmall
+                                            ?.copyWith(
+                                          color: AppTheme
+                                              .lightTheme.colorScheme.onSurface
+                                              .withValues(alpha: 0.6),
                                         ),
                                       ),
                                     ],
@@ -761,13 +868,14 @@ class _AssignmentUploadBottomSheetWidgetState
                         }),
                       ],
                     ],
-                    
+
                     // File URL Section
                     if (_attachmentMethod == 'url') ...[
                       TextFormField(
                         controller: _fileUrlController,
                         decoration: InputDecoration(
-                          hintText: 'Enter file URL (Google Drive, Dropbox, etc.)',
+                          hintText:
+                              'Enter file URL (Google Drive, Dropbox, etc.)',
                           prefixIcon: Padding(
                             padding: EdgeInsets.all(3.w),
                             child: CustomIconWidget(
@@ -785,18 +893,24 @@ class _AssignmentUploadBottomSheetWidgetState
                                   },
                                   icon: CustomIconWidget(
                                     iconName: 'clear',
-                                    color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                    color: AppTheme
+                                        .lightTheme.colorScheme.onSurface
+                                        .withValues(alpha: 0.6),
                                     size: 20,
                                   ),
                                 )
                               : null,
                         ),
                         validator: (value) {
-                          if (_attachmentMethod == 'url' && value != null && value.trim().isNotEmpty) {
+                          if (_attachmentMethod == 'url' &&
+                              value != null &&
+                              value.trim().isNotEmpty) {
                             // Basic URL validation
                             try {
                               final uri = Uri.parse(value.trim());
-                              if (!uri.hasScheme || (!uri.scheme.startsWith('http') && !uri.scheme.startsWith('https'))) {
+                              if (!uri.hasScheme ||
+                                  (!uri.scheme.startsWith('http') &&
+                                      !uri.scheme.startsWith('https'))) {
                                 return 'Please enter a valid URL starting with http:// or https://';
                               }
                             } catch (e) {
@@ -806,21 +920,24 @@ class _AssignmentUploadBottomSheetWidgetState
                           return null;
                         },
                         onChanged: (value) {
-                          setState(() {}); // Trigger rebuild to show/hide clear button
+                          setState(
+                              () {}); // Trigger rebuild to show/hide clear button
                         },
                       ),
-                      
+
                       SizedBox(height: 1.h),
-                      
+
                       // URL Preview/Info
                       if (_fileUrlController.text.trim().isNotEmpty) ...[
                         Container(
                           padding: EdgeInsets.all(3.w),
                           decoration: BoxDecoration(
-                            color: AppTheme.getRoleColor('faculty').withValues(alpha: 0.05),
+                            color: AppTheme.getRoleColor('faculty')
+                                .withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: AppTheme.getRoleColor('faculty').withValues(alpha: 0.2),
+                              color: AppTheme.getRoleColor('faculty')
+                                  .withValues(alpha: 0.2),
                             ),
                           ),
                           child: Row(
@@ -837,17 +954,23 @@ class _AssignmentUploadBottomSheetWidgetState
                                   children: [
                                     Text(
                                       'File URL Added',
-                                      style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                                      style: AppTheme
+                                          .lightTheme.textTheme.bodyMedium
+                                          ?.copyWith(
                                         fontWeight: FontWeight.w500,
                                         color: AppTheme.getRoleColor('faculty'),
                                       ),
                                     ),
                                     Text(
-                                      _fileUrlController.text.length > 50 
+                                      _fileUrlController.text.length > 50
                                           ? '${_fileUrlController.text.substring(0, 50)}...'
                                           : _fileUrlController.text,
-                                      style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                                        color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                      style: AppTheme
+                                          .lightTheme.textTheme.bodySmall
+                                          ?.copyWith(
+                                        color: AppTheme
+                                            .lightTheme.colorScheme.onSurface
+                                            .withValues(alpha: 0.6),
                                       ),
                                     ),
                                   ],
@@ -857,14 +980,15 @@ class _AssignmentUploadBottomSheetWidgetState
                           ),
                         ),
                       ],
-                      
+
                       SizedBox(height: 1.h),
-                      
+
                       // Helper text for URL sharing
                       Container(
                         padding: EdgeInsets.all(3.w),
                         decoration: BoxDecoration(
-                          color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest,
+                          color: AppTheme
+                              .lightTheme.colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
@@ -878,8 +1002,11 @@ class _AssignmentUploadBottomSheetWidgetState
                             Expanded(
                               child: Text(
                                 'Make sure the file URL is publicly accessible or shared with proper permissions for students to download.',
-                                style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                                  color: AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7),
+                                style: AppTheme.lightTheme.textTheme.bodySmall
+                                    ?.copyWith(
+                                  color: AppTheme
+                                      .lightTheme.colorScheme.onSurface
+                                      .withValues(alpha: 0.7),
                                 ),
                               ),
                             ),
