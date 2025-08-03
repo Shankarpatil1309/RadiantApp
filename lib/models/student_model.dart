@@ -4,29 +4,49 @@ class Student {
   final String id;
   final String name;
   final String usn;
-  final String mobile;
+  final String phone;
   final String email;
-  final String branch;
+  final String department;
   final String section;
-  final int currentSemester;
+  final int semester;
   final int year;
+  final String gender;
+  final DateTime dateOfBirth;
+  final DateTime admissionDate;
   final String address;
+  final String guardianName;
+  final String guardianPhone;
+  final String emergencyContact;
+  final String role;
+  final bool isActive;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final String? createdBy;
   final String? profileImage;
-  final DateTime dateOfAdmission;
 
   Student({
     required this.id,
     required this.name,
     required this.usn,
-    required this.mobile,
+    required this.phone,
     required this.email,
-    required this.branch,
+    required this.department,
     required this.section,
-    required this.currentSemester,
+    required this.semester,
     required this.year,
+    required this.gender,
+    required this.dateOfBirth,
+    required this.admissionDate,
     required this.address,
+    required this.guardianName,
+    required this.guardianPhone,
+    required this.emergencyContact,
+    required this.role,
+    required this.isActive,
+    this.createdAt,
+    this.updatedAt,
+    this.createdBy,
     this.profileImage,
-    required this.dateOfAdmission,
   });
 
   factory Student.fromDoc(DocumentSnapshot doc) {
@@ -35,17 +55,33 @@ class Student {
       id: doc.id,
       name: data['name'] ?? '',
       usn: data['usn'] ?? '',
-      mobile: data['mobile'] ?? '',
+      phone: data['phone'] ?? '',
       email: data['email'] ?? '',
-      branch: data['branch'] ?? '',
+      department: data['department'] ?? '',
       section: data['section'] ?? '',
-      currentSemester: data['currentSemester'] ?? 1,
+      semester: data['semester'] ?? 1,
       year: data['year'] ?? 1,
-      address: data['address'] ?? '',
-      profileImage: data['profileImage'],
-      dateOfAdmission: data['dateOfAdmission'] != null 
-          ? (data['dateOfAdmission'] as Timestamp).toDate()
+      gender: data['gender'] ?? '',
+      dateOfBirth: data['dateOfBirth'] != null 
+          ? (data['dateOfBirth'] as Timestamp).toDate()
           : DateTime.now(),
+      admissionDate: data['admissionDate'] != null 
+          ? (data['admissionDate'] as Timestamp).toDate()
+          : DateTime.now(),
+      address: data['address'] ?? '',
+      guardianName: data['guardianName'] ?? '',
+      guardianPhone: data['guardianPhone'] ?? '',
+      emergencyContact: data['emergencyContact'] ?? '',
+      role: data['role'] ?? 'STUDENT',
+      isActive: data['isActive'] ?? true,
+      createdAt: data['createdAt'] != null 
+          ? (data['createdAt'] as Timestamp).toDate()
+          : null,
+      updatedAt: data['updatedAt'] != null 
+          ? (data['updatedAt'] as Timestamp).toDate()
+          : null,
+      createdBy: data['createdBy'],
+      profileImage: data['profileImage'],
     );
   }
 
@@ -53,15 +89,25 @@ class Student {
     return {
       'name': name,
       'usn': usn,
-      'mobile': mobile,
+      'phone': phone,
       'email': email,
-      'branch': branch,
+      'department': department,
       'section': section,
-      'currentSemester': currentSemester,
+      'semester': semester,
       'year': year,
+      'gender': gender,
+      'dateOfBirth': Timestamp.fromDate(dateOfBirth),
+      'admissionDate': Timestamp.fromDate(admissionDate),
       'address': address,
+      'guardianName': guardianName,
+      'guardianPhone': guardianPhone,
+      'emergencyContact': emergencyContact,
+      'role': role,
+      'isActive': isActive,
+      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
+      'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : FieldValue.serverTimestamp(),
+      'createdBy': createdBy,
       'profileImage': profileImage,
-      'dateOfAdmission': Timestamp.fromDate(dateOfAdmission),
     };
   }
 }

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../models/student_model.dart';
 
 class AddStudentScreen extends ConsumerStatefulWidget {
   const AddStudentScreen({Key? key}) : super(key: key);
@@ -614,31 +615,30 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
         throw Exception('A student with this email already exists');
       }
 
-      // Create student document
-      final studentData = {
-        'name': _nameController.text.trim(),
-        'email': _emailController.text.trim().toLowerCase(),
-        'phone': _phoneController.text.trim(),
-        'usn': _usnController.text.trim().toUpperCase(),
-        'department': _selectedDepartment,
-        'section': _selectedSection,
-        'year': _selectedYear,
-        'semester': _selectedSemester,
-        'gender': _selectedGender,
-        'dateOfBirth': Timestamp.fromDate(_selectedDateOfBirth!),
-        'admissionDate': Timestamp.fromDate(_selectedAdmissionDate!),
-        'address': _addressController.text.trim(),
-        'guardianName': _guardianNameController.text.trim(),
-        'guardianPhone': _guardianPhoneController.text.trim(),
-        'emergencyContact': _emergencyContactController.text.trim(),
-        'role': 'STUDENT',
-        'isActive': true,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-        'createdBy': 'admin', // TODO: Get current admin user ID
-      };
+      // Create student object
+      final student = Student(
+        id: '', // Will be set by Firestore
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim().toLowerCase(),
+        phone: _phoneController.text.trim(),
+        usn: _usnController.text.trim().toUpperCase(),
+        department: _selectedDepartment,
+        section: _selectedSection,
+        year: _selectedYear,
+        semester: _selectedSemester,
+        gender: _selectedGender,
+        dateOfBirth: _selectedDateOfBirth!,
+        admissionDate: _selectedAdmissionDate!,
+        address: _addressController.text.trim(),
+        guardianName: _guardianNameController.text.trim(),
+        guardianPhone: _guardianPhoneController.text.trim(),
+        emergencyContact: _emergencyContactController.text.trim(),
+        role: 'STUDENT',
+        isActive: true,
+        createdBy: 'admin', // TODO: Get current admin user ID
+      );
 
-      await FirebaseFirestore.instance.collection('students').add(studentData);
+      await FirebaseFirestore.instance.collection('students').add(student.toMap());
 
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(

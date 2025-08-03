@@ -36,7 +36,7 @@ class StudentService {
   Future<List<Student>> getStudentsBySection(String department, String section) async {
     final QuerySnapshot snapshot = await FirebaseFirestore.instance
         .collection(_collection)
-        .where('branch', isEqualTo: department)
+        .where('department', isEqualTo: department)
         .where('section', isEqualTo: section)
         .get();
     
@@ -46,9 +46,9 @@ class StudentService {
   Future<List<Student>> getStudentsBySemester(String department, String section, int semester) async {
     final QuerySnapshot snapshot = await FirebaseFirestore.instance
         .collection(_collection)
-        .where('branch', isEqualTo: department)
+        .where('department', isEqualTo: department)
         .where('section', isEqualTo: section)
-        .where('currentSemester', isEqualTo: semester)
+        .where('semester', isEqualTo: semester)
         .get();
     
     return snapshot.docs.map((doc) => Student.fromDoc(doc)).toList();
@@ -57,7 +57,7 @@ class StudentService {
   Stream<List<Student>> listenStudentsBySection(String department, String section) {
     return FirebaseFirestore.instance
         .collection(_collection)
-        .where('branch', isEqualTo: department)
+        .where('department', isEqualTo: department)
         .where('section', isEqualTo: section)
         .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) => Student.fromDoc(doc)).toList());

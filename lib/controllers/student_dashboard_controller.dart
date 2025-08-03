@@ -39,14 +39,14 @@ final studentDataProvider = FutureProvider.autoDispose<Map<String, dynamic>?>((r
             'name': student.name,
             'usn': student.usn,
             'email': student.email,
-            'mobile': student.mobile,
+            'phone': student.phone,
             'imageUrl': user.photoURL ?? student.profileImage,
-            'branch': student.branch,
+            'department': student.department,
             'section': student.section,
-            'currentSemester': student.currentSemester,
+            'semester': student.semester,
             'year': student.year,
             'address': student.address,
-            'dateOfAdmission': student.dateOfAdmission,
+            'admissionDate': student.admissionDate,
             'userRole': appUser?.role.name ?? 'STUDENT',
             'lastLoginAt': appUser?.lastLoginAt,
           };
@@ -75,9 +75,9 @@ final studentTodayClassesProvider = FutureProvider.autoDispose<List<ClassSession
     
     // Get today's classes for the student's department and section
     final sessions = await classSessionService.getClassSessionsByDateRangeForStudent(
-      student.branch,
+      student.department,
       student.section,
-      student.currentSemester,
+      student.semester,
       startOfDay,
       endOfDay,
     );
@@ -105,7 +105,7 @@ final studentAnnouncementsProvider = FutureProvider.autoDispose<List<Announcemen
     // Filter announcements for this student's department or general announcements
     final filteredAnnouncements = announcements.where((announcement) {
       return announcement.departments.contains('All') ||
-          announcement.departments.contains(student.branch);
+          announcement.departments.contains(student.department);
     }).toList();
     
     // Sort by creation date (newest first) and take only recent ones
@@ -126,9 +126,9 @@ final studentAssignmentsProvider = FutureProvider.autoDispose<List<Assignment>>(
   
   try {
     final assignments = await assignmentService.getActiveAssignmentsForStudent(
-      student.branch,
+      student.department,
       student.section,
-      student.currentSemester,
+      student.semester,
     );
     
     return assignments;
@@ -166,9 +166,9 @@ final studentWeeklyScheduleProvider = FutureProvider.autoDispose<Map<String, Lis
     final endOfWeek = startOfWeek.add(Duration(days: 6));
     
     final sessions = await classSessionService.getClassSessionsByDateRangeForStudent(
-      student.branch,
+      student.department,
       student.section,
-      student.currentSemester,
+      student.semester,
       startOfWeek,
       endOfWeek,
     );
