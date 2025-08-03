@@ -10,9 +10,9 @@ import './widgets/subject_section_widget.dart';
 class AssignmentsScreen extends StatefulWidget {
   final bool isEmbedded;
   final VoidCallback? onBackPressed;
-  
+
   const AssignmentsScreen({
-    Key? key, 
+    Key? key,
     this.isEmbedded = false,
     this.onBackPressed,
   }) : super(key: key);
@@ -24,7 +24,6 @@ class AssignmentsScreen extends StatefulWidget {
 class _AssignmentsScreenState extends State<AssignmentsScreen> {
   final TextEditingController _searchController = TextEditingController();
   bool _isLoading = false;
-  String _userRole = 'student'; // Mock user role
   Map<String, dynamic> _filters = {
     'subject': 'All',
     'status': 'All',
@@ -311,16 +310,6 @@ class _AssignmentsScreenState extends State<AssignmentsScreen> {
     );
   }
 
-  void _createNewAssignment() {
-    // Implement assignment creation for faculty
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Opening assignment creation interface'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final groupedAssignments = _groupAssignmentsBySubject();
@@ -328,21 +317,23 @@ class _AssignmentsScreenState extends State<AssignmentsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Assignments'),
-        leading: widget.isEmbedded ? IconButton(
-          onPressed: widget.onBackPressed ?? () {},
-          icon: CustomIconWidget(
-            iconName: 'arrow_back',
-            color: AppTheme.lightTheme.colorScheme.onSurface,
-            size: 24,
-          ),
-        ) : IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: CustomIconWidget(
-            iconName: 'arrow_back',
-            color: AppTheme.lightTheme.colorScheme.onSurface,
-            size: 24,
-          ),
-        ),
+        leading: widget.isEmbedded
+            ? IconButton(
+                onPressed: widget.onBackPressed ?? () {},
+                icon: CustomIconWidget(
+                  iconName: 'arrow_back',
+                  color: AppTheme.lightTheme.colorScheme.onSurface,
+                  size: 24,
+                ),
+              )
+            : IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: CustomIconWidget(
+                  iconName: 'arrow_back',
+                  color: AppTheme.lightTheme.colorScheme.onSurface,
+                  size: 24,
+                ),
+              ),
         actions: [
           IconButton(
             onPressed: _showFilterBottomSheet,
@@ -514,17 +505,6 @@ class _AssignmentsScreenState extends State<AssignmentsScreen> {
                     ],
                   ),
                 ),
-      floatingActionButton: _userRole == 'faculty'
-          ? FloatingActionButton.extended(
-              onPressed: _createNewAssignment,
-              icon: CustomIconWidget(
-                iconName: 'add',
-                color: Colors.white,
-                size: 24,
-              ),
-              label: Text('New Assignment'),
-            )
-          : null,
     );
   }
 }

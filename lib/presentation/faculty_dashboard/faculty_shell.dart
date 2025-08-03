@@ -91,6 +91,7 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
               bottom: 100, // Above the bottom navigation bar
               right: 16,
               child: FloatingActionButton(
+                heroTag: "faculty_quick_actions_fab",
                 onPressed: () {
                   _showQuickActions();
                 },

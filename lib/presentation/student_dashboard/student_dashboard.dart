@@ -529,6 +529,11 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
                 backgroundImage: studentData['imageUrl'] != null 
                     ? NetworkImage(studentData['imageUrl'] as String)
                     : null,
+                onBackgroundImageError: studentData['imageUrl'] != null 
+                    ? (exception, stackTrace) {
+                        // Fallback to initials
+                      }
+                    : null,
                 child: studentData['imageUrl'] == null
                     ? Text((studentData['name'] as String)
                         .substring(0, 1)
@@ -687,9 +692,11 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
                   backgroundImage: data?['imageUrl'] != null 
                       ? NetworkImage(data!['imageUrl'] as String)
                       : null,
-                  onBackgroundImageError: (exception, stackTrace) {
-                    // Fallback to initials
-                  },
+                  onBackgroundImageError: data?['imageUrl'] != null 
+                      ? (exception, stackTrace) {
+                          // Fallback to initials
+                        }
+                      : null,
                   child: data?['imageUrl'] == null
                       ? Text(
                           data?['name']?.substring(0, 1)?.toUpperCase() ?? 'S',

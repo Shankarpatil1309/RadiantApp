@@ -54,6 +54,7 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: "weekly_schedule_add_fab",
         onPressed: _showAddClassDialog,
         backgroundColor: AppTheme.getRoleColor('faculty'),
         foregroundColor: Colors.white,

@@ -619,6 +619,7 @@ class _FacultyAssignmentManagementScreenState
                       ),
                     ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: "faculty_assignment_upload_fab",
         onPressed: _showUploadAssignmentSheet,
         backgroundColor: AppTheme.getRoleColor('faculty'),
         foregroundColor: Colors.white,

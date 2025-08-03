@@ -499,6 +499,7 @@ class _FacultyAttendanceScreenState extends ConsumerState<FacultyAttendanceScree
     final attendanceState = ref.watch(attendanceControllerProvider);
     
     return FloatingActionButton.extended(
+      heroTag: "faculty_attendance_save_fab",
       onPressed: attendanceState.isMarkingMode ? _saveAttendance : null,
       backgroundColor: AppTheme.getRoleColor('faculty'),
       icon: CustomIconWidget(

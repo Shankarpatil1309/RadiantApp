@@ -94,6 +94,7 @@ class _StudentShellState extends ConsumerState<StudentShell>
               bottom: 100, // Above the bottom navigation bar
               right: 16,
               child: FloatingActionButton.extended(
+                heroTag: "student_marksheet_fab",
                 onPressed: () {
                   // Navigate to marksheet
                   _showComingSoon('Marksheet');

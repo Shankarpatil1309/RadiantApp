@@ -62,12 +62,12 @@ class _AttendanceCalendarWidgetState extends State<AttendanceCalendarWidget> {
             CustomIconWidget(
               iconName: 'calendar_today',
               color: AppTheme.lightTheme.primaryColor,
-              size: 24,
+              size: 20,
             ),
-            SizedBox(width: 3.w),
+            SizedBox(width: 2.w),
             Text(
               'Attendance Calendar',
-              style: AppTheme.lightTheme.textTheme.titleMedium,
+              style: AppTheme.lightTheme.textTheme.titleSmall,
             ),
           ],
         ),
@@ -190,7 +190,8 @@ class _AttendanceCalendarWidgetState extends State<AttendanceCalendarWidget> {
           );
           break;
         case 'holiday':
-          backgroundColor = AppTheme.lightTheme.colorScheme.surfaceContainerHighest;
+          backgroundColor =
+              AppTheme.lightTheme.colorScheme.surfaceContainerHighest;
           textColor = AppTheme.lightTheme.colorScheme.onSurfaceVariant;
           statusIcon = CustomIconWidget(
             iconName: 'event',
@@ -300,18 +301,18 @@ class _AttendanceCalendarWidgetState extends State<AttendanceCalendarWidget> {
 
   String _getMonthYearString(DateTime date) {
     final months = [
-      'January',
-      'February',
-      'March',
-      'April',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
       'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December'
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
     return '${months[date.month - 1]} ${date.year}';
   }

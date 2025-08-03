@@ -144,6 +144,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
               ),
             ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: "admin_quick_actions_fab",
         onPressed: _showQuickActions,
         backgroundColor: AppTheme.getRoleColor('admin'),
         foregroundColor: Colors.white,

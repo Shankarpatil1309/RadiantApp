@@ -578,6 +578,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     if (userRole != 'faculty') return null;
 
     return FloatingActionButton.extended(
+      heroTag: "attendance_start_session_fab",
       onPressed: _startAttendanceSession,
       backgroundColor: AppTheme.getRoleColor('faculty'),
       icon: CustomIconWidget(
