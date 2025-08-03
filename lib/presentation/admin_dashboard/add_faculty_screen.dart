@@ -34,7 +34,6 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
   String _selectedGender = 'Male';
   DateTime? _selectedDateOfBirth;
   DateTime? _selectedJoiningDate;
-  double _selectedSalary = 50000.0;
 
   // Options
   final List<String> _departments = [
@@ -246,6 +245,15 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
               },
             ),
             SizedBox(height: 2.h),
+            _buildDropdownField(
+              label: 'Designation',
+              value: _selectedDesignation,
+              items: _designations,
+              onChanged: (value) =>
+                  setState(() => _selectedDesignation = value!),
+              icon: Icons.work_outline,
+            ),
+            SizedBox(height: 2.h),
             Row(
               children: [
                 Expanded(
@@ -260,21 +268,6 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
                 ),
                 SizedBox(width: 4.w),
                 Expanded(
-                  child: _buildDropdownField(
-                    label: 'Designation',
-                    value: _selectedDesignation,
-                    items: _designations,
-                    onChanged: (value) =>
-                        setState(() => _selectedDesignation = value!),
-                    icon: Icons.work_outline,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 2.h),
-            Row(
-              children: [
-                Expanded(
                   child: _buildDateField(
                     label: 'Joining Date',
                     selectedDate: _selectedJoiningDate,
@@ -282,10 +275,6 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
                         setState(() => _selectedJoiningDate = date),
                     icon: Icons.event,
                   ),
-                ),
-                SizedBox(width: 4.w),
-                Expanded(
-                  child: _buildSalaryField(),
                 ),
               ],
             ),
@@ -416,58 +405,6 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildSalaryField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Monthly Salary (₹)',
-          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-            color: AppTheme.lightTheme.colorScheme.onSurface
-                .withValues(alpha: 0.6),
-          ),
-        ),
-        SizedBox(height: 1.h),
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 2.h),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.currency_rupee, color: AppTheme.getRoleColor('admin')),
-              SizedBox(width: 2.w),
-              Expanded(
-                child: Slider(
-                  value: _selectedSalary,
-                  min: 20000,
-                  max: 200000,
-                  divisions: 18,
-                  activeColor: AppTheme.getRoleColor('admin'),
-                  label: '₹${_selectedSalary.round()}',
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedSalary = value;
-                    });
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(height: 0.5.h),
-        Text(
-          '₹${_selectedSalary.round()}',
-          style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-            color: AppTheme.getRoleColor('admin'),
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
     );
   }
 
@@ -639,7 +576,6 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
       _selectedGender = 'Male';
       _selectedDateOfBirth = null;
       _selectedJoiningDate = DateTime.now();
-      _selectedSalary = 50000.0;
     });
   }
 
@@ -703,7 +639,6 @@ class _AddFacultyScreenState extends ConsumerState<AddFacultyScreen> {
         'gender': _selectedGender,
         'dateOfBirth': Timestamp.fromDate(_selectedDateOfBirth!),
         'joiningDate': Timestamp.fromDate(_selectedJoiningDate!),
-        'salary': _selectedSalary,
         'address': _addressController.text.trim(),
         'qualification': _qualificationController.text.trim(),
         'experience': _experienceController.text.trim(),

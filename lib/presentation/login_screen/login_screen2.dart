@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:sizer/sizer.dart';
 import 'package:radiant_app/controllers/auth_controller.dart';
 import 'widgets/college_logo_widget.dart';
+import '../../config/app_config.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -541,7 +542,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         ),
         SizedBox(height: 2.h),
         Text(
-          '© 2024 B.K.I.T College. All rights reserved.',
+          AppConfig.copyrightNotice,
           style: GoogleFonts.inter(
             fontSize: 11.sp,
             fontWeight: FontWeight.w400,

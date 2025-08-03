@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../config/app_config.dart';
 
 class FirebaseAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -124,8 +125,7 @@ class FirebaseAuthService {
         throw Exception(
             'You don\'t have access to the app as ${selectedRole}.\n'
             'Please contact the college administration if this is an error.\n\n'
-            'Email: admin@bkit.edu.in\n'
-            'Phone: +91 80-12345678');
+            '${AppConfig.contactInfo}');
       }
     } catch (e) {
       print('❌ Role validation error: $e');

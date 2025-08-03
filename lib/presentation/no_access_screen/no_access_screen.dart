@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sizer/sizer.dart';
 import 'package:radiant_app/controllers/auth_controller.dart';
+import '../../config/app_config.dart';
 
 class NoAccessScreen extends ConsumerStatefulWidget {
   const NoAccessScreen({super.key});
@@ -108,7 +109,7 @@ class _NoAccessScreenState extends ConsumerState<NoAccessScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Contact admin@bkit.edu.in or call +91 80-12345678',
+          AppConfig.contactInfo,
           style: GoogleFonts.inter(
             fontSize: 13.sp,
             fontWeight: FontWeight.w500,
@@ -442,7 +443,7 @@ class _NoAccessScreenState extends ConsumerState<NoAccessScreen>
                         ),
                         SizedBox(height: 2.h),
                         Text(
-                          '© 2024 B.K.I.T College. All rights reserved.',
+                          AppConfig.copyrightNotice,
                           style: GoogleFonts.inter(
                             fontSize: 11.sp,
                             fontWeight: FontWeight.w400,
