@@ -15,7 +15,6 @@ import '../presentation/attendance_screen/faculty_attendance_screen.dart';
 import '../presentation/no_access_screen/no_access_screen.dart';
 
 class AppRoutes {
-  // TODO: Add your routes here
   static const String initial = '/';
   static const String splashScreen = '/splash-screen';
   static const String loginScreen = '/login-screen';
@@ -48,7 +47,5 @@ class AppRoutes {
     addStudentScreen: (context) => AddStudentScreen(),
     addFacultyScreen: (context) => AddFacultyScreen(),
     noAccessScreen: (context) => const NoAccessScreen(),
-
-    // TODO: Add your other routes here
   };
 }

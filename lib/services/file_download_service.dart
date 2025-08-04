@@ -108,14 +108,41 @@ class FileDownloadService {
       print('🔄 Download completed. Status code: ${response.statusCode}');
       print('🔄 Downloaded ${response.bodyBytes.length} bytes');
       
-      // Get file extension for file_saver
-      final extension = path.extension(fileName).isEmpty 
-          ? '.bin' 
-          : path.extension(fileName);
+      // Detect file type from multiple sources
+      String extension = path.extension(fileName);
+      String baseFileName = path.basenameWithoutExtension(fileName);
       
-      final baseFileName = path.basenameWithoutExtension(fileName);
+      // If no extension in filename, try to detect from Content-Type header
+      if (extension.isEmpty) {
+        final contentType = response.headers['content-type'] ?? '';
+        extension = _getExtensionFromContentType(contentType);
+        print('🔄 Detected extension from Content-Type: $extension');
+      }
       
-      // Save file using file_saver
+      // If still no extension, try to detect from URL
+      if (extension.isEmpty) {
+        extension = _getExtensionFromUrl(url);
+        print('🔄 Detected extension from URL: $extension');
+      }
+      
+      // Final fallback - analyze first few bytes for common file signatures
+      if (extension.isEmpty) {
+        extension = _detectExtensionFromFileSignature(response.bodyBytes);
+        print('🔄 Detected extension from file signature: $extension');
+      }
+      
+      // Default to .bin only as absolute last resort
+      if (extension.isEmpty) {
+        extension = '.bin';
+        print('🔄 No extension detected, defaulting to .bin');
+      }
+      
+      // Update filename if we detected an extension
+      if (path.extension(fileName).isEmpty && extension.isNotEmpty) {
+        baseFileName = fileName;
+      }
+      
+      // Save file using file_saver to Downloads directory
       final savedFilePath = await FileSaver.instance.saveFile(
         name: baseFileName,
         bytes: response.bodyBytes,
@@ -241,6 +268,88 @@ class FileDownloadService {
     } else {
       return 'Downloads folder';
     }
+  }
+
+  /// Get file extension from Content-Type header
+  String _getExtensionFromContentType(String contentType) {
+    final mimeToExt = {
+      'application/pdf': '.pdf',
+      'application/msword': '.doc',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+      'application/vnd.ms-excel': '.xls',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+      'application/vnd.ms-powerpoint': '.ppt',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+      'text/plain': '.txt',
+      'text/csv': '.csv',
+      'image/jpeg': '.jpg',
+      'image/png': '.png',
+      'image/gif': '.gif',
+      'image/bmp': '.bmp',
+      'image/webp': '.webp',
+      'application/zip': '.zip',
+      'application/x-rar-compressed': '.rar',
+      'application/x-7z-compressed': '.7z',
+      'audio/mpeg': '.mp3',
+      'audio/wav': '.wav',
+      'video/mp4': '.mp4',
+      'video/quicktime': '.mov',
+      'application/json': '.json',
+      'application/xml': '.xml',
+      'text/html': '.html',
+      'text/css': '.css',
+      'application/javascript': '.js',
+    };
+    
+    // Extract the main content type (remove charset, etc.)
+    final mainContentType = contentType.split(';').first.trim().toLowerCase();
+    return mimeToExt[mainContentType] ?? '';
+  }
+
+  /// Try to detect extension from URL path
+  String _getExtensionFromUrl(String url) {
+    try {
+      final uri = Uri.parse(url);
+      final urlPath = uri.path;
+      if (urlPath.isNotEmpty) {
+        final extension = path.extension(urlPath);
+        if (extension.isNotEmpty) {
+          return extension;
+        }
+      }
+    } catch (e) {
+      // Ignore URL parsing errors
+    }
+    return '';
+  }
+
+  /// Detect file type from file signature (magic numbers)
+  String _detectExtensionFromFileSignature(List<int> bytes) {
+    if (bytes.length < 4) return '';
+    
+    // Check first few bytes for common file signatures
+    final signature = bytes.take(8).map((b) => b.toRadixString(16).padLeft(2, '0')).join('');
+    
+    // Common file signatures
+    if (signature.startsWith('504b0304')) return '.zip'; // ZIP files (also DOCX, XLSX, PPTX)
+    if (signature.startsWith('25504446')) return '.pdf'; // PDF
+    if (signature.startsWith('d0cf11e0')) return '.doc'; // DOC, XLS, PPT (OLE files)
+    if (signature.startsWith('ffd8ff')) return '.jpg'; // JPEG
+    if (signature.startsWith('89504e47')) return '.png'; // PNG
+    if (signature.startsWith('47494638')) return '.gif'; // GIF
+    if (signature.startsWith('424d')) return '.bmp'; // BMP
+    if (signature.startsWith('52494646')) return '.wav'; // WAV
+    if (signature.startsWith('49443303') || signature.startsWith('fffb')) return '.mp3'; // MP3
+    if (signature.startsWith('00000020667479706d703432') || signature.startsWith('00000018667479706d703432')) return '.mp4'; // MP4
+    
+    // For Office documents that are ZIP-based, try to detect more specifically
+    if (signature.startsWith('504b0304')) {
+      // This could be DOCX, XLSX, PPTX - we'd need to look inside the ZIP
+      // For now, let's assume it's a Word document if it came from Google Drive
+      return '.docx';
+    }
+    
+    return '';
   }
 
 }
