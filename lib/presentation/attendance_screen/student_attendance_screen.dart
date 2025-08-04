@@ -3,9 +3,135 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../controllers/attendance_controller.dart';
+import '../../controllers/student_dashboard_controller.dart';
 import './widgets/attendance_calendar_widget.dart';
 import './widgets/attendance_filter_widget.dart';
 import './widgets/attendance_stats_widget.dart';
+
+// Provider for student attendance data
+final studentAttendanceProvider = FutureProvider.family<List<Map<String, dynamic>>, Map<String, dynamic>>((ref, params) async {
+  final attendanceService = ref.read(attendanceServiceProvider);
+  final department = params['department'] as String;
+  final section = params['section'] as String;
+  final semester = params['semester'] as int;
+  
+  final attendanceRecords = await attendanceService.getAttendanceBySection(department, section, semester);
+  
+  // Process attendance records for student view
+  return attendanceRecords.map((attendance) => {
+    'date': attendance.date,
+    'subject': attendance.subject,
+    'subjectCode': attendance.subjectCode,
+    'totalStudents': attendance.totalStudents,
+    'presentCount': attendance.presentCount,
+    'absentCount': attendance.absentCount,
+    'markedAt': attendance.markedAt,
+  }).toList();
+});
+
+// Provider for student attendance trends
+final studentAttendanceTrendsProvider = FutureProvider.family<List<Map<String, dynamic>>, Map<String, dynamic>>((ref, params) async {
+  final attendanceService = ref.read(attendanceServiceProvider);
+  final department = params['department'] as String;
+  final section = params['section'] as String;
+  final semester = params['semester'] as int;
+  final studentId = params['studentId'] as String;
+  
+  final attendanceRecords = await attendanceService.getAttendanceBySection(department, section, semester);
+  
+  // Group attendance by week to show trends
+  final Map<String, Map<String, int>> weeklyStats = {};
+  
+  for (final record in attendanceRecords) {
+    // Parse the date string (format: "YYYY-MM-DD")
+    try {
+      final recordDate = DateTime.parse(record.date);
+      // Get week of year
+      final weekStart = recordDate.subtract(Duration(days: recordDate.weekday - 1));
+      final weekKey = '${weekStart.day}/${weekStart.month}';
+      
+      if (!weeklyStats.containsKey(weekKey)) {
+        weeklyStats[weekKey] = {'present': 0, 'total': 0};
+      }
+      
+      weeklyStats[weekKey]!['total'] = weeklyStats[weekKey]!['total']! + 1;
+      
+      if (record.studentsPresent.contains(studentId)) {
+        weeklyStats[weekKey]!['present'] = weeklyStats[weekKey]!['present']! + 1;
+      }
+    } catch (e) {
+      print('Error parsing date ${record.date}: $e');
+      continue;
+    }
+  }
+  
+  // Convert to trend data (last 6 weeks)
+  final trends = weeklyStats.entries.take(6).map((entry) {
+    final present = entry.value['present']!;
+    final total = entry.value['total']!;
+    final percentage = total > 0 ? (present / total) * 100 : 0.0;
+    
+    return {
+      'week': entry.key,
+      'percentage': percentage,
+      'present': present,
+      'total': total,
+    };
+  }).toList();
+  
+  return trends;
+});
+
+// Provider for student attendance stats
+final studentAttendanceStatsProvider = FutureProvider.family<Map<String, dynamic>, Map<String, dynamic>>((ref, params) async {
+  final attendanceService = ref.read(attendanceServiceProvider);
+  final department = params['department'] as String;
+  final section = params['section'] as String;
+  final semester = params['semester'] as int;
+  final studentId = params['studentId'] as String;
+  
+  final attendanceRecords = await attendanceService.getAttendanceBySection(department, section, semester);
+  
+  // Calculate student-specific statistics
+  final subjectStats = <String, Map<String, int>>{};
+  int totalPresent = 0;
+  int totalClasses = 0;
+  
+  for (final record in attendanceRecords) {
+    if (!subjectStats.containsKey(record.subject)) {
+      subjectStats[record.subject] = {'present': 0, 'total': 0};
+    }
+    
+    subjectStats[record.subject]!['total'] = subjectStats[record.subject]!['total']! + 1;
+    totalClasses++;
+    
+    if (record.studentsPresent.contains(studentId)) {
+      subjectStats[record.subject]!['present'] = subjectStats[record.subject]!['present']! + 1;
+      totalPresent++;
+    }
+  }
+  
+  final overallPercentage = totalClasses > 0 ? (totalPresent / totalClasses) * 100 : 0.0;
+  
+  final subjects = subjectStats.entries.map((entry) {
+    final present = entry.value['present']!;
+    final total = entry.value['total']!;
+    final percentage = total > 0 ? (present / total) * 100 : 0.0;
+    
+    return {
+      'name': entry.key,
+      'percentage': percentage,
+      'present': present,
+      'total': total,
+    };
+  }).toList();
+  
+  return {
+    'overallPercentage': overallPercentage,
+    'subjects': subjects,
+  };
+});
 
 class StudentAttendanceScreen extends ConsumerStatefulWidget {
   final bool isEmbedded;
@@ -25,7 +151,10 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
     with TickerProviderStateMixin {
   late TabController _tabController;
   DateTime selectedMonth = DateTime.now();
-  bool isLoading = false;
+  String? _studentId;
+  String? _department;
+  String? _section;
+  int? _semester;
   Map<String, dynamic> currentFilters = {
     'subject': 'All Subjects',
     'attendanceThreshold': 0.0,
@@ -33,84 +162,32 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
     'dateRange': null,
   };
 
-  // Mock data for student attendance
-  final Map<String, dynamic> mockStudentAttendanceData = {
-    "overallPercentage": 87.5,
-    "subjects": [
-      {
-        "name": "Mathematics",
-        "percentage": 92.0,
-        "present": 23,
-        "total": 25,
-      },
-      {
-        "name": "Physics",
-        "percentage": 85.0,
-        "present": 17,
-        "total": 20,
-      },
-      {
-        "name": "Computer Science",
-        "percentage": 90.0,
-        "present": 18,
-        "total": 20,
-      },
-      {
-        "name": "Chemistry",
-        "percentage": 82.0,
-        "present": 14,
-        "total": 17,
-      },
-      {
-        "name": "English",
-        "percentage": 88.0,
-        "present": 22,
-        "total": 25,
-      },
-    ],
-  };
-
-  // Mock calendar data
-  final Map<String, dynamic> mockCalendarData = {
-    "attendanceRecords": [
-      {
-        "date": "2025-01-25",
-        "status": "present",
-        "subjects": ["Mathematics", "Physics"],
-      },
-      {
-        "date": "2025-01-24",
-        "status": "present",
-        "subjects": ["Computer Science", "English"],
-      },
-      {
-        "date": "2025-01-23",
-        "status": "absent",
-        "subjects": ["Chemistry"],
-      },
-      {
-        "date": "2025-01-22",
-        "status": "present",
-        "subjects": ["Mathematics", "Physics", "Chemistry"],
-      },
-      {
-        "date": "2025-01-21",
-        "status": "holiday",
-        "subjects": [],
-      },
-      {
-        "date": "2025-01-20",
-        "status": "present",
-        "subjects": ["Computer Science", "English"],
-      },
-    ],
-  };
-
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _loadAttendanceData();
+    _loadStudentInfo();
+  }
+
+  Future<void> _loadStudentInfo() async {
+    try {
+      // Get student data from the provider
+      final studentData = await ref.read(studentDataProvider.future);
+      final studentId = await ref.read(currentStudentIdProvider.future);
+      
+      if (studentData != null && studentId != null) {
+        setState(() {
+          _studentId = studentId;
+          _department = studentData.department;
+          _section = studentData.section;
+          _semester = studentData.semester;
+        });
+      } else {
+        print('Failed to load student info: studentData or studentId is null');
+      }
+    } catch (e) {
+      print('Error loading student info: $e');
+    }
   }
 
   @override
@@ -121,6 +198,12 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
 
   @override
   Widget build(BuildContext context) {
+    if (_studentId == null || _department == null || _section == null || _semester == null) {
+      return Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
       appBar: _buildAppBar(),
@@ -304,15 +387,51 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
   }
 
   Widget _buildOverviewTab() {
+    final statsParams = {
+      'department': _department!,
+      'section': _section!,
+      'semester': _semester!,
+      'studentId': _studentId!,
+    };
+    
+    final attendanceStatsAsync = ref.watch(studentAttendanceStatsProvider(statsParams));
+    
     return SingleChildScrollView(
       child: Column(
         children: [
-          AttendanceStatsWidget(
-            attendanceData: mockStudentAttendanceData,
-            userRole: 'student',
+          attendanceStatsAsync.when(
+            data: (attendanceData) => AttendanceStatsWidget(
+              attendanceData: attendanceData,
+              userRole: 'student',
+            ),
+            loading: () => Container(
+              height: 20.h,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (error, stack) => Container(
+              height: 20.h,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error, color: AppTheme.getStatusColor('error')),
+                    SizedBox(height: 1.h),
+                    Text('Failed to load attendance data'),
+                    TextButton(
+                      onPressed: () => ref.refresh(studentAttendanceStatsProvider(statsParams)),
+                      child: Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
           _buildAttendanceTrends(),
-          _buildAttendanceInsights(),
+          attendanceStatsAsync.when(
+            data: (data) => _buildAttendanceInsights(data),
+            loading: () => SizedBox(),
+            error: (_, __) => SizedBox(),
+          ),
           SizedBox(height: 10.h),
         ],
       ),
@@ -320,12 +439,76 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
   }
 
   Widget _buildCalendarTab() {
+    final attendanceParams = {
+      'department': _department!,
+      'section': _section!,
+      'semester': _semester!,
+    };
+    
+    final attendanceDataAsync = ref.watch(studentAttendanceProvider(attendanceParams));
+    
     return SingleChildScrollView(
       child: Column(
         children: [
-          AttendanceCalendarWidget(
-            calendarData: mockCalendarData,
-            onDateTap: _onDateTap,
+          attendanceDataAsync.when(
+            data: (attendanceRecords) {
+              return FutureBuilder(
+                future: ref.read(attendanceServiceProvider).getAttendanceBySection(_department!, _section!, _semester!),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Container(
+                      height: 40.h,
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  
+                  if (snapshot.hasError) {
+                    return Container(
+                      height: 40.h,
+                      child: Center(child: Text('Error loading calendar data')),
+                    );
+                  }
+                  
+                  final actualRecords = snapshot.data ?? [];
+                  final calendarData = {
+                    'attendanceRecords': actualRecords.map((record) {
+                      final isPresent = record.studentsPresent.contains(_studentId);
+                      return {
+                        'date': record.date,
+                        'status': isPresent ? 'present' : 'absent',
+                        'subjects': [record.subject],
+                      };
+                    }).toList(),
+                  };
+                  
+                  return AttendanceCalendarWidget(
+                    calendarData: calendarData,
+                    onDateTap: _onDateTap,
+                  );
+                },
+              );
+            },
+            loading: () => Container(
+              height: 40.h,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (error, stack) => Container(
+              height: 40.h,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error, color: AppTheme.getStatusColor('error')),
+                    SizedBox(height: 1.h),
+                    Text('Failed to load calendar data'),
+                    TextButton(
+                      onPressed: () => ref.refresh(studentAttendanceProvider(attendanceParams)),
+                      child: Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
           SizedBox(height: 10.h),
         ],
@@ -348,6 +531,19 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
   }
 
   Widget _buildAttendanceTrends() {
+    if (_studentId == null || _department == null || _section == null || _semester == null) {
+      return SizedBox.shrink();
+    }
+
+    final trendsParams = {
+      'department': _department!,
+      'section': _section!,
+      'semester': _semester!,
+      'studentId': _studentId!,
+    };
+    
+    final attendanceTrendsAsync = ref.watch(studentAttendanceTrendsProvider(trendsParams));
+    
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
       padding: EdgeInsets.all(4.w),
@@ -380,13 +576,26 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
             ],
           ),
           SizedBox(height: 3.h),
-          Container(
-            height: 20.h,
-            child: Center(
-              child: Text(
-                'Attendance trend chart will be displayed here',
-                style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+          attendanceTrendsAsync.when(
+            data: (trends) => _buildTrendsChart(trends),
+            loading: () => Container(
+              height: 20.h,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (error, stack) => Container(
+              height: 20.h,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error, color: AppTheme.getStatusColor('error')),
+                    SizedBox(height: 1.h),
+                    Text('Failed to load trends data'),
+                    TextButton(
+                      onPressed: () => ref.refresh(studentAttendanceTrendsProvider(trendsParams)),
+                      child: Text('Retry'),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -396,7 +605,118 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
     );
   }
 
-  Widget _buildAttendanceInsights() {
+  Widget _buildTrendsChart(List<Map<String, dynamic>> trends) {
+    if (trends.isEmpty) {
+      return Container(
+        height: 20.h,
+        child: Center(
+          child: Text(
+            'No attendance data available yet',
+            style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+              color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      height: 20.h,
+      child: Column(
+        children: [
+          // Simple bar chart representation
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: trends.map((weekData) {
+                final percentage = weekData['percentage'] as double;
+                final week = weekData['week'] as String;
+                
+                return Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 1.w),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          '${percentage.toStringAsFixed(0)}%',
+                          style: AppTheme.lightTheme.textTheme.labelSmall,
+                        ),
+                        SizedBox(height: 1.h),
+                        Container(
+                          height: (percentage / 100) * 15.h, // Scale to available height
+                          decoration: BoxDecoration(
+                            color: percentage >= 75
+                                ? AppTheme.getStatusColor('success')
+                                : percentage >= 50
+                                    ? AppTheme.getStatusColor('warning')
+                                    : AppTheme.getStatusColor('error'),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        SizedBox(height: 1.h),
+                        Text(
+                          week,
+                          style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
+                            fontSize: 8.sp,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          SizedBox(height: 2.h),
+          Text(
+            'Weekly Attendance Percentage',
+            style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+              color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAttendanceInsights(Map<String, dynamic> attendanceData) {
+    final subjects = attendanceData['subjects'] as List<dynamic>? ?? [];
+    final insights = <Widget>[];
+    
+    for (final subject in subjects) {
+      final percentage = subject['percentage'] as double;
+      final name = subject['name'] as String;
+      
+      if (percentage < 75) {
+        insights.add(_buildInsightItem(
+          'Your attendance in $name is ${percentage.toStringAsFixed(1)}%',
+          'You need to attend more classes to meet the 75% requirement',
+          Icons.warning_amber_rounded,
+          AppTheme.getStatusColor('error'),
+        ));
+        insights.add(SizedBox(height: 1.h));
+      } else if (percentage >= 90) {
+        insights.add(_buildInsightItem(
+          'Excellent attendance in $name at ${percentage.toStringAsFixed(1)}%!',
+          'Keep up the great work',
+          Icons.celebration,
+          AppTheme.getStatusColor('success'),
+        ));
+        insights.add(SizedBox(height: 1.h));
+      }
+    }
+    
+    if (insights.isEmpty) {
+      insights.add(_buildInsightItem(
+        'Your attendance is on track',
+        'Continue maintaining good attendance habits',
+        Icons.check_circle,
+        AppTheme.getStatusColor('info'),
+      ));
+    }
+    
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
       padding: EdgeInsets.all(4.w),
@@ -429,19 +749,7 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
             ],
           ),
           SizedBox(height: 2.h),
-          _buildInsightItem(
-            'Your attendance in Chemistry is below 85%',
-            'Consider attending next few classes to improve',
-            Icons.warning_amber_rounded,
-            AppTheme.getStatusColor('warning'),
-          ),
-          SizedBox(height: 1.h),
-          _buildInsightItem(
-            'Great job maintaining 90%+ in Computer Science!',
-            'Keep up the excellent attendance record',
-            Icons.celebration,
-            AppTheme.getStatusColor('success'),
-          ),
+          ...insights,
         ],
       ),
     );
@@ -560,21 +868,26 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
     }
   }
 
-  Future<void> _loadAttendanceData() async {
-    setState(() {
-      isLoading = true;
-    });
-
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 1));
-
-    setState(() {
-      isLoading = false;
-    });
-  }
-
   Future<void> _refreshData() async {
-    await _loadAttendanceData();
+    // Refresh all providers
+    if (_department != null && _section != null && _semester != null && _studentId != null) {
+      final statsParams = {
+        'department': _department!,
+        'section': _section!,
+        'semester': _semester!,
+        'studentId': _studentId!,
+      };
+      
+      final attendanceParams = {
+        'department': _department!,
+        'section': _section!,
+        'semester': _semester!,
+      };
+      
+      ref.invalidate(studentAttendanceStatsProvider(statsParams));
+      ref.invalidate(studentAttendanceProvider(attendanceParams));
+      ref.invalidate(studentAttendanceTrendsProvider(statsParams));
+    }
   }
 
   void _onDateTap(DateTime date) {

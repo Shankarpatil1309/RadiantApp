@@ -21,6 +21,31 @@ final studentAssignmentServiceProvider =
 final studentUserServiceProvider =
     Provider<UserService>((ref) => UserService());
 
+// Provider to get current student ID from users collection
+final currentStudentIdProvider =
+    FutureProvider.autoDispose<String?>((ref) async {
+  final authState = ref.watch(authControllerProvider);
+
+  return authState.when(
+    data: (user) async {
+      if (user == null) return null;
+
+      final userService = ref.read(studentUserServiceProvider);
+
+      try {
+        final appUser = await userService.getUser(user.uid);
+        return appUser?.uniqueId; // This is the student ID (USN)
+      } catch (e) {
+        print('Error fetching student ID: $e');
+        return null;
+      }
+    },
+    loading: () => null,
+    error: (error, stack) => null,
+  );
+});
+
+// Enhanced provider that provides detailed error information
 final studentDataProvider =
     FutureProvider.autoDispose<Student?>((ref) async {
   final authState = ref.watch(authControllerProvider);
@@ -30,21 +55,48 @@ final studentDataProvider =
       if (user == null) return null;
 
       final studentService = ref.read(studentServiceProvider);
+      final userService = ref.read(studentUserServiceProvider);
 
       try {
-        // For demo purposes, using a hardcoded student ID
-        // In production, this would come from the user's profile
-        final student = await studentService.getStudent("twrVVSHeWoUpTNLSJ48N");
+        // Get the current user from users collection to get their uniqueId (studentId)
+        final appUser = await userService.getUser(user.uid);
+        if (appUser == null) {
+          throw StudentValidationException('User not found in system. Please contact administrator.');
+        }
+        
+        if (appUser.uniqueId == null) {
+          throw StudentValidationException('User profile incomplete. Please contact administrator.');
+        }
+
+        // Get student data using the uniqueId from users collection
+        final student = await studentService.getStudent(appUser.uniqueId!);
+        if (student == null) {
+          throw StudentValidationException('Student record not found for your credentials. Please contact administrator.');
+        }
+        
         return student;
       } catch (e) {
         print('Error fetching student data: $e');
+        // Re-throw custom exceptions, wrap others
+        if (e is StudentValidationException) {
+          rethrow;
+        }
+        throw StudentValidationException('Unable to load student data. Please contact administrator.');
       }
-      return null;
     },
     loading: () => null,
     error: (error, stack) => null,
   );
 });
+
+// Custom exception for student validation errors
+class StudentValidationException implements Exception {
+  final String message;
+  const StudentValidationException(this.message);
+  
+  @override
+  String toString() => message;
+}
 
 final studentTodayClassesProvider =
     FutureProvider.autoDispose<List<ClassSession>>((ref) async {

@@ -8,6 +8,8 @@ import 'package:sizer/sizer.dart';
 import '../../core/app_export.dart';
 import '../../theme/app_theme.dart';
 import '../../controllers/auth_controller.dart';
+import '../../services/user_service.dart';
+import '../../services/student_service.dart';
 import './widgets/animated_logo_widget.dart';
 import './widgets/background_gradient_widget.dart';
 import './widgets/loading_indicator_widget.dart';
@@ -155,11 +157,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     );
   }
 
-  void _navigateBasedOnRole(String role) {
+  void _navigateBasedOnRole(String role) async {
     String route;
     switch (role.toUpperCase()) {
       case 'STUDENT':
-        route = '/student-dashboard';
+        // Validate student existence before navigation
+        final isValidStudent = await _validateStudentAccess();
+        if (isValidStudent) {
+          route = '/student-dashboard';
+        } else {
+          // Invalid student, redirect to login
+          route = '/login-screen';
+        }
         break;
       case 'FACULTY':
         route = '/faculty-dashboard';
@@ -173,6 +182,41 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     }
 
     Navigator.pushReplacementNamed(context, route);
+  }
+
+  Future<bool> _validateStudentAccess() async {
+    try {
+      final user = ref.read(authControllerProvider).value;
+      if (user == null) return false;
+
+      final userService = UserService();
+      final studentService = StudentService();
+
+      // Get the current user from users collection
+      final appUser = await userService.getUser(user.uid);
+      if (appUser == null || appUser.uniqueId == null) {
+        print('User not found in users collection or uniqueId is null');
+        // Sign out invalid user
+        await ref.read(authControllerProvider.notifier).signOut();
+        return false;
+      }
+
+      // Check if student document exists
+      final student = await studentService.getStudent(appUser.uniqueId!);
+      if (student == null) {
+        print('Student document not found for uniqueId: ${appUser.uniqueId}');
+        // Sign out invalid student
+        await ref.read(authControllerProvider.notifier).signOut();
+        return false;
+      }
+
+      return true;
+    } catch (e) {
+      print('Error validating student access: $e');
+      // Sign out on error
+      await ref.read(authControllerProvider.notifier).signOut();
+      return false;
+    }
   }
 
   void _onAnimationComplete() {

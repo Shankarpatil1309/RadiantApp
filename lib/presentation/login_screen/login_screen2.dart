@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sizer/sizer.dart';
 import 'package:radiant_app/controllers/auth_controller.dart';
+import '../../services/user_service.dart';
+import '../../services/student_service.dart';
 import 'widgets/college_logo_widget.dart';
 import '../../config/app_config.dart';
 
@@ -121,11 +123,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     ref.read(authControllerProvider.notifier).signInWithGoogle(_selectedRole);
   }
 
-  void _navigateToRoleDashboard(BuildContext context, String role) {
+  void _navigateToRoleDashboard(BuildContext context, String role) async {
     String route;
     switch (role.toUpperCase()) {
       case 'STUDENT':
-        route = '/student-dashboard';
+        // Validate student existence before navigation
+        final isValidStudent = await _validateStudentAccess();
+        if (isValidStudent) {
+          route = '/student-dashboard';
+        } else {
+          // Show error and redirect to login
+          _showStudentValidationError();
+          return;
+        }
         break;
       case 'FACULTY':
         route = '/faculty-dashboard';
@@ -143,6 +153,80 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     // Navigate to the appropriate dashboard
     Navigator.pushReplacementNamed(context, route);
+  }
+
+  Future<bool> _validateStudentAccess() async {
+    try {
+      final user = ref.read(authControllerProvider).value;
+      if (user == null) return false;
+
+      final userService = UserService();
+      final studentService = StudentService();
+
+      // Get the current user from users collection
+      final appUser = await userService.getUser(user.uid);
+      if (appUser == null || appUser.uniqueId == null) {
+        print('User not found in users collection or uniqueId is null');
+        return false;
+      }
+
+      // Check if student document exists
+      final student = await studentService.getStudent(appUser.uniqueId!);
+      if (student == null) {
+        print('Student document not found for uniqueId: ${appUser.uniqueId}');
+        return false;
+      }
+
+      return true;
+    } catch (e) {
+      print('Error validating student access: $e');
+      return false;
+    }
+  }
+
+  void _showStudentValidationError() {
+    // Sign out the user
+    ref.read(authControllerProvider.notifier).signOut();
+    
+    // Show error dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.error, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Access Denied'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Student record not found in the system.',
+              style: TextStyle(fontWeight: FontWeight.w500),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Please contact your institution\'s administrator to verify your student registration.',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Refresh the login screen
+              setState(() {});
+            },
+            child: Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _stopAllAnimations() {

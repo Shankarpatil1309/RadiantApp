@@ -9,6 +9,7 @@ import '../presentation/admin_dashboard/admin_dashboard.dart';
 import '../presentation/admin_dashboard/add_student_screen.dart';
 import '../presentation/admin_dashboard/add_faculty_screen.dart';
 import '../presentation/student_dashboard/student_shell.dart';
+import '../presentation/attendance_screen/attendance_screen.dart';
 import '../presentation/attendance_screen/student_attendance_screen.dart';
 import '../presentation/attendance_screen/faculty_attendance_screen.dart';
 import '../presentation/no_access_screen/no_access_screen.dart';
@@ -40,6 +41,7 @@ class AppRoutes {
     facultyDashboard: (context) => const FacultyShell(),
     adminDashboard: (context) => AdminDashboard(),
     studentDashboard: (context) => const StudentShell(),
+    attendanceScreen: (context) => const AttendanceScreen(),
     studentAttendanceScreen: (context) => StudentAttendanceScreen(),
     facultyAttendanceScreen: (context) => FacultyAttendanceScreen(),
     facultyAssignmentsScreen: (context) => FacultyAssignmentManagementScreen(),

@@ -1,27 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../controllers/attendance_controller.dart';
+import '../../controllers/auth_controller.dart';
 import './widgets/attendance_calendar_widget.dart';
 import './widgets/attendance_filter_widget.dart';
 import './widgets/attendance_stats_widget.dart';
 import './widgets/student_attendance_list_widget.dart';
+import './student_attendance_screen.dart';
 
-class AttendanceScreen extends StatefulWidget {
+class AttendanceScreen extends ConsumerStatefulWidget {
   const AttendanceScreen({Key? key}) : super(key: key);
 
   @override
-  State<AttendanceScreen> createState() => _AttendanceScreenState();
+  ConsumerState<AttendanceScreen> createState() => _AttendanceScreenState();
 }
 
-class _AttendanceScreenState extends State<AttendanceScreen>
+class _AttendanceScreenState extends ConsumerState<AttendanceScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
-  String userRole =
-      'student'; // Mock user role - can be 'student', 'faculty', or 'admin'
+  String? _userRole;
   DateTime selectedMonth = DateTime.now();
-  bool isMarkingMode = false;
-  bool isLoading = false;
   Map<String, dynamic> currentFilters = {
     'subject': 'All Subjects',
     'attendanceThreshold': 0.0,
@@ -29,193 +30,56 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     'dateRange': null,
   };
 
-  // Mock data for student attendance
-  final Map<String, dynamic> mockStudentAttendanceData = {
-    "overallPercentage": 87.5,
-    "subjects": [
-      {
-        "name": "Mathematics",
-        "percentage": 92.0,
-        "present": 23,
-        "total": 25,
-      },
-      {
-        "name": "Physics",
-        "percentage": 85.0,
-        "present": 17,
-        "total": 20,
-      },
-      {
-        "name": "Computer Science",
-        "percentage": 90.0,
-        "present": 18,
-        "total": 20,
-      },
-      {
-        "name": "Chemistry",
-        "percentage": 82.0,
-        "present": 14,
-        "total": 17,
-      },
-      {
-        "name": "English",
-        "percentage": 88.0,
-        "present": 22,
-        "total": 25,
-      },
-    ],
-  };
-
-  // Mock data for faculty attendance
-  final Map<String, dynamic> mockFacultyAttendanceData = {
-    "todayClasses": [
-      {
-        "className": "CSE-A Mathematics",
-        "time": "09:00 AM - 10:00 AM",
-        "isCompleted": true,
-        "studentsPresent": 45,
-        "totalStudents": 50,
-      },
-      {
-        "className": "CSE-B Physics",
-        "time": "11:00 AM - 12:00 PM",
-        "isCompleted": false,
-        "studentsPresent": 0,
-        "totalStudents": 48,
-      },
-      {
-        "className": "CSE-C Chemistry",
-        "time": "02:00 PM - 03:00 PM",
-        "isCompleted": false,
-        "studentsPresent": 0,
-        "totalStudents": 52,
-      },
-    ],
-    "pendingSessions": 2,
-  };
-
-  // Mock calendar data
-  final Map<String, dynamic> mockCalendarData = {
-    "attendanceRecords": [
-      {
-        "date": "2025-01-25",
-        "status": "present",
-        "subjects": ["Mathematics", "Physics"],
-      },
-      {
-        "date": "2025-01-24",
-        "status": "present",
-        "subjects": ["Computer Science", "English"],
-      },
-      {
-        "date": "2025-01-23",
-        "status": "absent",
-        "subjects": ["Chemistry"],
-      },
-      {
-        "date": "2025-01-22",
-        "status": "present",
-        "subjects": ["Mathematics", "Physics", "Chemistry"],
-      },
-      {
-        "date": "2025-01-21",
-        "status": "holiday",
-        "subjects": [],
-      },
-      {
-        "date": "2025-01-20",
-        "status": "present",
-        "subjects": ["Computer Science", "English"],
-      },
-    ],
-  };
-
-  // Mock student list for faculty
-  final List<Map<String, dynamic>> mockStudentList = [
-    {
-      "id": "1",
-      "name": "Aarav Sharma",
-      "usn": "1BK21CS001",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": true,
-    },
-    {
-      "id": "2",
-      "name": "Priya Patel",
-      "usn": "1BK21CS002",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": false,
-    },
-    {
-      "id": "3",
-      "name": "Rohit Kumar",
-      "usn": "1BK21CS003",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": true,
-    },
-    {
-      "id": "4",
-      "name": "Sneha Reddy",
-      "usn": "1BK21CS004",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": true,
-    },
-    {
-      "id": "5",
-      "name": "Arjun Singh",
-      "usn": "1BK21CS005",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": false,
-    },
-    {
-      "id": "6",
-      "name": "Kavya Nair",
-      "usn": "1BK21CS006",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": true,
-    },
-    {
-      "id": "7",
-      "name": "Vikram Joshi",
-      "usn": "1BK21CS007",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": false,
-    },
-    {
-      "id": "8",
-      "name": "Ananya Gupta",
-      "usn": "1BK21CS008",
-      "profileImage":
-          "https://cdn.pixabay.com/photo/2015/03/04/22/35/avatar-659652_640.png",
-      "isPresent": true,
-    },
-  ];
-
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(
-      length: userRole == 'student' ? 3 : 2,
-      vsync: this,
-    );
-    _loadAttendanceData();
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final role = await ref.read(authControllerProvider.notifier).getUserRole();
+    if (mounted) {
+      setState(() {
+        _userRole = role;
+        _initializeController();
+      });
+    }
+  }
+
+  void _initializeController() {
+    if (_userRole != null && _userRole != 'STUDENT') {
+      _tabController = TabController(
+        length: 2, // Faculty/Admin only has 2 tabs
+        vsync: this,
+      );
+    }
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    if (_userRole != null && _userRole != 'STUDENT') {
+      _tabController.dispose();
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_userRole == null) {
+      return Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // For students, show the dedicated StudentAttendanceScreen
+    if (_userRole == 'STUDENT') {
+      return StudentAttendanceScreen(
+        isEmbedded: true,
+        onBackPressed: () => Navigator.pop(context),
+      );
+    }
+
+    // For faculty and admin, show the original attendance screen
     return Scaffold(
       backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
       appBar: _buildAppBar(),
@@ -223,7 +87,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         onRefresh: _refreshData,
         child: Column(
           children: [
-            if (userRole == 'student') _buildMonthSelector(),
             _buildTabBar(),
             Expanded(
               child: TabBarView(
@@ -235,7 +98,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         ),
       ),
       floatingActionButton:
-          userRole == 'faculty' ? _buildFloatingActionButton() : null,
+          _userRole == 'FACULTY' ? _buildFloatingActionButton() : null,
       bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
@@ -245,7 +108,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       title: Text(
         'Attendance',
         style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
-          color: AppTheme.getRoleColor(userRole),
+          color: AppTheme.getRoleColor(_userRole ?? 'student'),
         ),
       ),
       backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
@@ -259,7 +122,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         ),
       ),
       actions: [
-        if (userRole == 'faculty' && isMarkingMode)
+        if (_userRole == 'FACULTY' && ref.watch(attendanceControllerProvider).isMarkingMode)
           TextButton(
             onPressed: _saveAttendance,
             child: Text(
@@ -309,7 +172,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                 ],
               ),
             ),
-            if (userRole == 'student')
+            if (_userRole == 'STUDENT')
               PopupMenuItem(
                 value: 'switch_role',
                 child: Row(
@@ -324,7 +187,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                   ],
                 ),
               ),
-            if (userRole == 'faculty')
+            if (_userRole == 'FACULTY')
               PopupMenuItem(
                 value: 'switch_role',
                 child: Row(
@@ -388,81 +251,44 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   }
 
   Widget _buildTabBar() {
-    List<Tab> tabs = [];
-
-    if (userRole == 'student') {
-      tabs = [
-        Tab(
-          icon: CustomIconWidget(
-            iconName: 'analytics',
-            color: AppTheme.lightTheme.colorScheme.onSurface,
-            size: 20,
-          ),
-          text: 'Overview',
+    // Only show tab bar for faculty/admin since students use dedicated screen
+    List<Tab> tabs = [
+      Tab(
+        icon: CustomIconWidget(
+          iconName: 'people',
+          color: AppTheme.lightTheme.colorScheme.onSurface,
+          size: 20,
         ),
-        Tab(
-          icon: CustomIconWidget(
-            iconName: 'calendar_today',
-            color: AppTheme.lightTheme.colorScheme.onSurface,
-            size: 20,
-          ),
-          text: 'Calendar',
+        text: 'Students',
+      ),
+      Tab(
+        icon: CustomIconWidget(
+          iconName: 'analytics',
+          color: AppTheme.lightTheme.colorScheme.onSurface,
+          size: 20,
         ),
-        Tab(
-          icon: CustomIconWidget(
-            iconName: 'filter_list',
-            color: AppTheme.lightTheme.colorScheme.onSurface,
-            size: 20,
-          ),
-          text: 'Filter',
-        ),
-      ];
-    } else {
-      tabs = [
-        Tab(
-          icon: CustomIconWidget(
-            iconName: 'people',
-            color: AppTheme.lightTheme.colorScheme.onSurface,
-            size: 20,
-          ),
-          text: 'Students',
-        ),
-        Tab(
-          icon: CustomIconWidget(
-            iconName: 'analytics',
-            color: AppTheme.lightTheme.colorScheme.onSurface,
-            size: 20,
-          ),
-          text: 'Overview',
-        ),
-      ];
-    }
+        text: 'Overview',
+      ),
+    ];
 
     return Container(
       color: AppTheme.lightTheme.scaffoldBackgroundColor,
       child: TabBar(
         controller: _tabController,
         tabs: tabs,
-        indicatorColor: AppTheme.getRoleColor(userRole),
-        labelColor: AppTheme.getRoleColor(userRole),
+        indicatorColor: AppTheme.getRoleColor(_userRole ?? 'faculty'),
+        labelColor: AppTheme.getRoleColor(_userRole ?? 'faculty'),
         unselectedLabelColor: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
       ),
     );
   }
 
   List<Widget> _buildTabViews() {
-    if (userRole == 'student') {
-      return [
-        _buildOverviewTab(),
-        _buildCalendarTab(),
-        _buildFilterTab(),
-      ];
-    } else {
-      return [
-        _buildStudentListTab(),
-        _buildOverviewTab(),
-      ];
-    }
+    // Only return faculty/admin tabs since students use dedicated screen
+    return [
+      _buildStudentListTab(),
+      _buildOverviewTab(),
+    ];
   }
 
   Widget _buildOverviewTab() {
@@ -470,12 +296,12 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       child: Column(
         children: [
           AttendanceStatsWidget(
-            attendanceData: userRole == 'student'
-                ? mockStudentAttendanceData
-                : mockFacultyAttendanceData,
-            userRole: userRole,
+            attendanceData: _userRole == 'STUDENT'
+                ? {"overallPercentage": 87.5, "subjects": []}
+                : {"todayClasses": [], "pendingSessions": 0},
+            userRole: _userRole ?? 'student',
           ),
-          if (userRole == 'student') _buildAttendanceTrends(),
+          if (_userRole == 'STUDENT') _buildAttendanceTrends(),
           SizedBox(height: 10.h),
         ],
       ),
@@ -487,7 +313,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       child: Column(
         children: [
           AttendanceCalendarWidget(
-            calendarData: mockCalendarData,
+            calendarData: {"attendanceRecords": []},
             onDateTap: _onDateTap,
           ),
           SizedBox(height: 10.h),
@@ -511,13 +337,21 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   }
 
   Widget _buildStudentListTab() {
+    final attendanceState = ref.watch(attendanceControllerProvider);
+    
     return SingleChildScrollView(
       child: Column(
         children: [
           StudentAttendanceListWidget(
-            students: mockStudentList,
+            students: attendanceState.students.map((student) => {
+              'id': student.id,
+              'name': student.name,
+              'usn': student.usn,
+              'profileImage': student.profileImage,
+              'isPresent': attendanceState.attendance[student.id] ?? true,
+            }).toList(),
             onAttendanceToggle: _onAttendanceToggle,
-            isMarkingMode: isMarkingMode,
+            isMarkingMode: attendanceState.isMarkingMode,
           ),
           SizedBox(height: 10.h),
         ],
@@ -575,19 +409,21 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   }
 
   Widget? _buildFloatingActionButton() {
-    if (userRole != 'faculty') return null;
+    if (_userRole != 'FACULTY') return null;
+    
+    final attendanceState = ref.watch(attendanceControllerProvider);
 
     return FloatingActionButton.extended(
       heroTag: "attendance_start_session_fab",
       onPressed: _startAttendanceSession,
       backgroundColor: AppTheme.getRoleColor('faculty'),
       icon: CustomIconWidget(
-        iconName: isMarkingMode ? 'save' : 'add',
+        iconName: attendanceState.isMarkingMode ? 'save' : 'add',
         color: Colors.white,
         size: 24,
       ),
       label: Text(
-        isMarkingMode ? 'Save Attendance' : 'Mark Attendance',
+        attendanceState.isMarkingMode ? 'Save Attendance' : 'Mark Attendance',
         style: const TextStyle(color: Colors.white),
       ),
     );
@@ -606,7 +442,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           ),
           selectedIcon: CustomIconWidget(
             iconName: 'dashboard',
-            color: AppTheme.getRoleColor(userRole),
+            color: AppTheme.getRoleColor(_userRole ?? 'student'),
             size: 24,
           ),
           label: 'Dashboard',
@@ -619,7 +455,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           ),
           selectedIcon: CustomIconWidget(
             iconName: 'schedule',
-            color: AppTheme.getRoleColor(userRole),
+            color: AppTheme.getRoleColor(_userRole ?? 'student'),
             size: 24,
           ),
           label: 'Schedule',
@@ -627,12 +463,12 @@ class _AttendanceScreenState extends State<AttendanceScreen>
         NavigationDestination(
           icon: CustomIconWidget(
             iconName: 'how_to_reg',
-            color: AppTheme.getRoleColor(userRole),
+            color: AppTheme.getRoleColor(_userRole ?? 'student'),
             size: 24,
           ),
           selectedIcon: CustomIconWidget(
             iconName: 'how_to_reg',
-            color: AppTheme.getRoleColor(userRole),
+            color: AppTheme.getRoleColor(_userRole ?? 'student'),
             size: 24,
           ),
           label: 'Attendance',
@@ -645,7 +481,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
           ),
           selectedIcon: CustomIconWidget(
             iconName: 'assignment',
-            color: AppTheme.getRoleColor(userRole),
+            color: AppTheme.getRoleColor(_userRole ?? 'student'),
             size: 24,
           ),
           label: 'Assignments',
@@ -659,9 +495,9 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       case 0:
         Navigator.pushReplacementNamed(
           context,
-          userRole == 'student'
+          _userRole == 'STUDENT'
               ? '/student-dashboard'
-              : userRole == 'faculty'
+              : _userRole == 'FACULTY'
                   ? '/faculty-dashboard'
                   : '/admin-dashboard',
         );
@@ -679,16 +515,8 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   }
 
   Future<void> _loadAttendanceData() async {
-    setState(() {
-      isLoading = true;
-    });
-
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 1));
-
-    setState(() {
-      isLoading = false;
-    });
+    // Refresh attendance data from providers
+    ref.invalidate(attendanceControllerProvider);
   }
 
   Future<void> _refreshData() async {
@@ -713,8 +541,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   }
 
   void _onAttendanceToggle(String studentId, bool isPresent) {
-    // Handle attendance toggle for faculty
-    print('Student $studentId marked as ${isPresent ? 'present' : 'absent'}');
+    ref.read(attendanceControllerProvider.notifier).toggleAttendance(studentId, isPresent);
   }
 
   void _onFilterChanged(Map<String, dynamic> filters) {
@@ -725,45 +552,45 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   }
 
   void _startAttendanceSession() {
-    if (isMarkingMode) {
+    final attendanceState = ref.read(attendanceControllerProvider);
+    if (attendanceState.isMarkingMode) {
       _saveAttendance();
     } else {
-      setState(() {
-        isMarkingMode = true;
-      });
+      // TODO: Show session selection dialog
+      // ref.read(attendanceControllerProvider.notifier).startMarkingMode('sessionId');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Session selection coming soon')),
+      );
     }
   }
 
-  void _saveAttendance() {
-    setState(() {
-      isMarkingMode = false;
-    });
-
+  void _saveAttendance() async {
+    final success = await ref.read(attendanceControllerProvider.notifier).saveAttendance(
+      'facultyId', // TODO: Get from faculty profile
+      'subject', // TODO: Get from session
+    );
+    
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Attendance saved successfully'),
-        backgroundColor: AppTheme.getStatusColor('success'),
+        content: Text(success ? 'Attendance saved successfully' : 'Failed to save attendance'),
+        backgroundColor: success ? AppTheme.getStatusColor('success') : AppTheme.getStatusColor('error'),
       ),
     );
   }
 
   void _showFilterOptions() {
-    if (userRole == 'student') {
-      _tabController.animateTo(2); // Switch to filter tab
-    } else {
-      // Show filter bottom sheet for faculty
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        builder: (context) => Container(
-          height: 70.h,
-          child: AttendanceFilterWidget(
-            onFilterChanged: _onFilterChanged,
-            currentFilters: currentFilters,
-          ),
+    // Show filter bottom sheet for faculty/admin
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: 70.h,
+        child: AttendanceFilterWidget(
+          onFilterChanged: _onFilterChanged,
+          currentFilters: currentFilters,
         ),
-      );
-    }
+      ),
+    );
   }
 
   void _handleMenuSelection(String value) {
@@ -812,14 +639,17 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
   void _switchRole() {
     setState(() {
-      userRole = userRole == 'student' ? 'faculty' : 'student';
-      _tabController.dispose();
-      _tabController = TabController(
-        length: userRole == 'student' ? 3 : 2,
-        vsync: this,
-      );
-      isMarkingMode = false;
+      final oldRole = _userRole;
+      _userRole = _userRole == 'STUDENT' ? 'FACULTY' : 'STUDENT';
+      
+      // Dispose old controller if it exists (for non-student roles)
+      if (oldRole != null && oldRole != 'STUDENT') {
+        _tabController.dispose();
+      }
+      
+      _initializeController();
     });
+    ref.read(attendanceControllerProvider.notifier).exitMarkingMode();
   }
 
   String _getMonthYearString(DateTime date) {

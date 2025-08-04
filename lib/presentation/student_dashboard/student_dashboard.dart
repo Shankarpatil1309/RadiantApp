@@ -10,6 +10,7 @@ import '../../core/app_export.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/student_dashboard_controller.dart';
 import '../../models/student_model.dart';
+import '../../services/file_download_service.dart';
 import './widgets/greeting_header_widget.dart';
 import './widgets/pending_assignments_card_widget.dart';
 import './widgets/quick_stats_card_widget.dart';
@@ -351,13 +352,103 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
     );
   }
 
-  void _downloadAttachment(Assignment assignment) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Downloading attachment for ${assignment.title}'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  void _downloadAttachment(Assignment assignment) async {
+    print('🔄 Download requested for assignment: ${assignment.title}');
+    print('🔄 Has file: ${assignment.hasFile}');
+    print('🔄 File URL: ${assignment.fileUrl}');
+    print('🔄 File name: ${assignment.fileName}');
+    
+    if (!assignment.hasFile || assignment.fileUrl?.isEmpty == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No attachment available for ${assignment.title}'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Show loading snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: Text('Downloading ${assignment.fileName.isNotEmpty ? assignment.fileName : 'assignment file'}...'),
+              ),
+            ],
+          ),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(minutes: 2), // Long duration for download
+        ),
+      );
+
+      final downloadService = FileDownloadService();
+      final fileName = assignment.fileName.isNotEmpty 
+          ? assignment.fileName 
+          : '${assignment.title}_assignment.${assignment.fileExtension.isNotEmpty ? assignment.fileExtension : 'pdf'}';
+      
+      await downloadService.downloadAssignmentAttachment(
+        url: assignment.fileUrl!,
+        fileName: fileName,
+        assignmentTitle: assignment.title,
+        onProgress: (progress) {
+          // Optional: Update progress in UI if needed
+        },
+      );
+
+      // Remove loading snackbar and show success
+      ScaffoldMessenger.of(context).removeCurrentSnackBar();
+      
+      final locationName = await FileDownloadService.getStorageLocationName();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.download_done, color: Colors.white, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text('Download completed'),
+                  ),
+                ],
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Saved to: $locationName',
+                style: TextStyle(fontSize: 12, color: Colors.white70),
+              ),
+            ],
+          ),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 4),
+        ),
+      );
+    } catch (e) {
+      // Remove loading snackbar and show error
+      ScaffoldMessenger.of(context).removeCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to download attachment: ${e.toString()}'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _submitAssignment(Assignment assignment) {
@@ -431,27 +522,26 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
           child: studentData.when(
             data: (data) {
               if (data == null) {
-                return const Center(
-                    child: Text('Please complete your profile setup'));
+                // This should rarely happen now due to login validation
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _signOutAndRedirectToLogin('Student data not available. Please contact administrator.');
+                });
+                return const Center(child: CircularProgressIndicator());
               }
               return _buildDashboardTab(
                   data, todayClasses, announcements, assignments);
             },
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, stack) => Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error, size: 64, color: Colors.red),
-                  SizedBox(height: 16),
-                  Text('Error loading student data'),
-                  TextButton(
-                    onPressed: () => ref.refresh(studentDataProvider),
-                    child: Text('Retry'),
-                  ),
-                ],
-              ),
-            ),
+            error: (error, stack) {
+              // This should rarely happen now due to login validation
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                final message = error is StudentValidationException 
+                  ? error.message 
+                  : 'Unable to access student dashboard. Please contact administrator.';
+                _signOutAndRedirectToLogin(message);
+              });
+              return const Center(child: CircularProgressIndicator());
+            },
           ),
         ),
       ),
@@ -631,5 +721,27 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
         ),
       ),
     );
+  }
+
+  void _signOutAndRedirectToLogin(String message) async {
+    // Sign out the user
+    await ref.read(authControllerProvider.notifier).signOut();
+    
+    // Show snackbar with message and redirect to login
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: AppTheme.getStatusColor('error'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/login-screen',
+        (route) => false,
+      );
+    }
   }
 }

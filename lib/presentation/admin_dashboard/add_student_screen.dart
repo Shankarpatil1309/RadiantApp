@@ -237,9 +237,15 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                   child: _buildDropdownField(
                     label: 'Department',
                     value: _selectedDepartment,
-                    items: AppConfig.departments,
-                    onChanged: (value) =>
-                        setState(() => _selectedDepartment = value!),
+                    items: AppConfig.departmentCodes,
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedDepartment = value!;
+                        // Reset section to first available section for the new department
+                        final availableSections = AppConfig.sectionsByDepartment[_selectedDepartment] ?? ['A'];
+                        _selectedSection = availableSections.first;
+                      });
+                    },
                     icon: Icons.business,
                   ),
                 ),

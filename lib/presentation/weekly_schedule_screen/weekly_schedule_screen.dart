@@ -4,6 +4,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
 import '../../controllers/schedule_controller.dart';
+import '../../controllers/auth_controller.dart';
 import '../../models/class_session_model.dart';
 import './widgets/add_class_session_widget.dart';
 import './widgets/class_detail_bottom_sheet.dart';
@@ -14,7 +15,7 @@ import './widgets/quick_actions_bottom_sheet.dart';
 class WeeklyScheduleScreen extends ConsumerStatefulWidget {
   final bool isEmbedded;
   final VoidCallback? onBackPressed;
-  
+
   const WeeklyScheduleScreen({
     Key? key,
     this.isEmbedded = false,
@@ -22,22 +23,40 @@ class WeeklyScheduleScreen extends ConsumerStatefulWidget {
   }) : super(key: key);
 
   @override
-  ConsumerState<WeeklyScheduleScreen> createState() => _WeeklyScheduleScreenState();
+  ConsumerState<WeeklyScheduleScreen> createState() =>
+      _WeeklyScheduleScreenState();
 }
 
 class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
+  String? _userRole;
 
+  @override
+  void initState() {
+    super.initState();
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final role = await ref.read(authControllerProvider.notifier).getUserRole();
+    if (mounted) {
+      setState(() {
+        _userRole = role;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final scheduleState = ref.watch(scheduleControllerProvider);
-    
+
     return Scaffold(
       backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
       appBar: _buildAppBar(),
       body: RefreshIndicator(
         onRefresh: () async {
-          await ref.read(scheduleControllerProvider.notifier).loadWeeklySchedule();
+          await ref
+              .read(scheduleControllerProvider.notifier)
+              .loadWeeklySchedule();
         },
         child: Column(
           children: [
@@ -52,17 +71,19 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: "weekly_schedule_add_fab",
-        onPressed: _showAddClassDialog,
-        backgroundColor: AppTheme.getRoleColor('faculty'),
-        foregroundColor: Colors.white,
-        child: CustomIconWidget(
-          iconName: 'add',
-          color: Colors.white,
-          size: 24,
-        ),
-      ),
+      floatingActionButton: _userRole == 'STUDENT'
+          ? null
+          : FloatingActionButton(
+              heroTag: "weekly_schedule_add_fab",
+              onPressed: _showAddClassDialog,
+              backgroundColor: AppTheme.getRoleColor('faculty'),
+              foregroundColor: Colors.white,
+              child: CustomIconWidget(
+                iconName: 'add',
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
     );
   }
 
@@ -70,21 +91,23 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
     return AppBar(
       backgroundColor: AppTheme.lightTheme.colorScheme.surface,
       elevation: 0,
-      leading: widget.isEmbedded ? IconButton(
-        onPressed: widget.onBackPressed ?? () {},
-        icon: CustomIconWidget(
-          iconName: 'arrow_back',
-          color: AppTheme.lightTheme.colorScheme.onSurface,
-          size: 24,
-        ),
-      ) : IconButton(
-        onPressed: () => Navigator.pop(context),
-        icon: CustomIconWidget(
-          iconName: 'arrow_back',
-          color: AppTheme.lightTheme.colorScheme.onSurface,
-          size: 24,
-        ),
-      ),
+      leading: widget.isEmbedded
+          ? IconButton(
+              onPressed: widget.onBackPressed ?? () {},
+              icon: CustomIconWidget(
+                iconName: 'arrow_back',
+                color: AppTheme.lightTheme.colorScheme.onSurface,
+                size: 24,
+              ),
+            )
+          : IconButton(
+              onPressed: () => Navigator.pop(context),
+              icon: CustomIconWidget(
+                iconName: 'arrow_back',
+                color: AppTheme.lightTheme.colorScheme.onSurface,
+                size: 24,
+              ),
+            ),
       title: Text(
         'Weekly Schedule',
         style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
@@ -134,8 +157,15 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
   }
 
   Widget _buildScheduleContent(Map<String, List<ClassSession>> schedule) {
-    final daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    
+    final daysOfWeek = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday'
+    ];
+
     return Container(
       width: double.infinity,
       child: SingleChildScrollView(
@@ -147,14 +177,16 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
             final isToday = _isToday(day);
             final classes = schedule[day] ?? [];
             final dayDate = _getDateForDay(day);
-            
+
             return DayColumnWidget(
               dayName: day,
               dayDate: dayDate,
               isToday: isToday,
               classes: classes.map((session) {
-                final timeStr = '${session.startTime.hour.toString().padLeft(2, '0')}:${session.startTime.minute.toString().padLeft(2, '0')}';
-                print('🕒 Mapping session "${session.subject}" with time: $timeStr (${session.startTime})');
+                final timeStr =
+                    '${session.startTime.hour.toString().padLeft(2, '0')}:${session.startTime.minute.toString().padLeft(2, '0')}';
+                print(
+                    '🕒 Mapping session "${session.subject}" with time: $timeStr (${session.startTime})');
                 return {
                   'time': timeStr,
                   'subject': session.subject,
@@ -174,7 +206,10 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
               }).toList(),
               onClassTap: _showClassDetails,
               onClassLongPress: _showQuickActions,
-              onFreePeriodTap: (timeSlot, date) => _showScheduleClassBottomSheet(timeSlot, date, day),
+              onFreePeriodTap: _userRole == 'STUDENT'
+                  ? null
+                  : (timeSlot, date) =>
+                      _showScheduleClassBottomSheet(timeSlot, date, day),
             );
           }).toList(),
         ),
@@ -208,7 +243,9 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
           ),
           SizedBox(height: 2.h),
           ElevatedButton(
-            onPressed: () => ref.read(scheduleControllerProvider.notifier).loadWeeklySchedule(),
+            onPressed: () => ref
+                .read(scheduleControllerProvider.notifier)
+                .loadWeeklySchedule(),
             child: Text('Retry'),
           ),
         ],
@@ -232,7 +269,9 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
       child: Row(
         children: [
           IconButton(
-            onPressed: () => ref.read(scheduleControllerProvider.notifier).goToPreviousWeek(),
+            onPressed: () => ref
+                .read(scheduleControllerProvider.notifier)
+                .goToPreviousWeek(),
             icon: CustomIconWidget(
               iconName: 'chevron_left',
               color: AppTheme.lightTheme.colorScheme.onSurface,
@@ -248,9 +287,13 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                if (!ref.read(scheduleControllerProvider.notifier).isCurrentWeek)
+                if (!ref
+                    .read(scheduleControllerProvider.notifier)
+                    .isCurrentWeek)
                   TextButton(
-                    onPressed: () => ref.read(scheduleControllerProvider.notifier).goToCurrentWeek(),
+                    onPressed: () => ref
+                        .read(scheduleControllerProvider.notifier)
+                        .goToCurrentWeek(),
                     child: Text(
                       'Go to Current Week',
                       style: TextStyle(
@@ -263,7 +306,8 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
             ),
           ),
           IconButton(
-            onPressed: () => ref.read(scheduleControllerProvider.notifier).goToNextWeek(),
+            onPressed: () =>
+                ref.read(scheduleControllerProvider.notifier).goToNextWeek(),
             icon: CustomIconWidget(
               iconName: 'chevron_right',
               color: AppTheme.lightTheme.colorScheme.onSurface,
@@ -316,11 +360,18 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
   String _getDateForDay(String dayName) {
     final scheduleState = ref.watch(scheduleControllerProvider);
     final currentWeekStart = scheduleState.currentWeek;
-    final daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    final daysOfWeek = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday'
+    ];
     final dayIndex = daysOfWeek.indexOf(dayName);
-    
+
     if (dayIndex == -1) return '';
-    
+
     final targetDate = currentWeekStart.add(Duration(days: dayIndex));
     return targetDate.day.toString().padLeft(2, '0');
   }
@@ -340,7 +391,6 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
     return weekdays[todayIndex] == dayName;
   }
 
-
   void _showFilterBottomSheet() {
     final scheduleState = ref.read(scheduleControllerProvider);
     showModalBottomSheet(
@@ -357,9 +407,9 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
 
   void _applyFilter(String department, String section) {
     ref.read(scheduleControllerProvider.notifier).updateFilters(
-      department: department,
-      section: section,
-    );
+          department: department,
+          section: section,
+        );
   }
 
   void _handleMenuAction(String action) {
@@ -376,9 +426,11 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
   Future<void> _copyPreviousWeek() async {
     try {
       final scheduleState = ref.read(scheduleControllerProvider);
-      await ref.read(scheduleControllerProvider.notifier).copyScheduleFromPreviousWeek(
-        scheduleState.currentWeek,
-      );
+      await ref
+          .read(scheduleControllerProvider.notifier)
+          .copyScheduleFromPreviousWeek(
+            scheduleState.currentWeek,
+          );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Schedule copied from previous week successfully'),
@@ -445,7 +497,17 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
 
   void _checkAttendance(Map<String, dynamic> classData) {
     Navigator.pop(context);
-    Navigator.pushNamed(context, '/attendance-screen');
+    // Navigator.pushNamed(context, '/attendance-screen');
+
+    // show coming soon message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content:
+            Text('Attendance feature coming soon for ${classData['subject']}'),
+        backgroundColor: AppTheme.getStatusColor('info'),
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 
   void _showSearchDialog() {
@@ -496,10 +558,11 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
     final scheduleState = ref.read(scheduleControllerProvider);
     final today = DateTime.now();
     final weekStart = scheduleState.currentWeek;
-    
+
     // Default to today if within current week, otherwise first day of the week
     DateTime selectedDate = today;
-    if (today.isBefore(weekStart) || today.isAfter(weekStart.add(Duration(days: 6)))) {
+    if (today.isBefore(weekStart) ||
+        today.isAfter(weekStart.add(Duration(days: 6)))) {
       selectedDate = weekStart;
     }
 
@@ -515,16 +578,17 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
     );
   }
 
-
   Future<void> _addClassSession(ClassSession session) async {
     Navigator.pop(context); // Close the add session sheet
-    
+
     try {
-      await ref.read(scheduleControllerProvider.notifier).addClassSession(session);
-      
+      await ref
+          .read(scheduleControllerProvider.notifier)
+          .addClassSession(session);
+
       // Force a manual refresh to ensure UI updates
       await ref.read(scheduleControllerProvider.notifier).loadWeeklySchedule();
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Class session "${session.title}" added successfully'),
@@ -541,17 +605,25 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
     }
   }
 
-  void _showScheduleClassBottomSheet(String timeSlot, String dayDate, String dayName) {
+  void _showScheduleClassBottomSheet(
+      String timeSlot, String dayDate, String dayName) {
     final scheduleState = ref.read(scheduleControllerProvider);
     final currentWeek = scheduleState.currentWeek;
-    
+
     // Calculate the actual date for the day
-    final daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    final daysOfWeek = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday'
+    ];
     final dayIndex = daysOfWeek.indexOf(dayName);
-    final actualDate = dayIndex != -1 
+    final actualDate = dayIndex != -1
         ? currentWeek.add(Duration(days: dayIndex))
         : DateTime.now();
-    
+
     // Parse time slot to DateTime
     final timeParts = timeSlot.split(':');
     final hour = int.parse(timeParts[0]);
@@ -562,7 +634,8 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
       hour,
       0,
     );
-    final endTime = startTime.add(Duration(hours: 1)); // Default 1 hour duration
+    final endTime =
+        startTime.add(Duration(hours: 1)); // Default 1 hour duration
 
     showModalBottomSheet(
       context: context,
