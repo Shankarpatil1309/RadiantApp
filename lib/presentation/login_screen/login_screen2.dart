@@ -26,7 +26,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   late Animation<Offset> _slideAnimation;
   late Animation<double> _scaleAnimation;
   late Animation<double> _logoScaleAnimation;
-  
+
   bool _isNavigating = false;
   String _selectedRole = 'STUDENT'; // Default role selection
 
@@ -102,7 +102,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   void dispose() {
     // Stop animations before disposing to prevent errors
     _stopAllAnimations();
-    
+
     // Dispose animation controllers safely
     try {
       _fadeController.dispose();
@@ -111,7 +111,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     } catch (e) {
       // Controllers might already be disposed
     }
-    
+
     super.dispose();
   }
 
@@ -145,7 +145,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         route = '/admin-dashboard';
         break;
       default:
-        route = '/no-access-screen'; // Default to no access screen for unknown roles
+        route =
+            '/no-access-screen'; // Default to no access screen for unknown roles
     }
 
     // Stop all animations before navigation
@@ -187,7 +188,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   void _showStudentValidationError() {
     // Sign out the user
     ref.read(authControllerProvider.notifier).signOut();
-    
+
     // Show error dialog
     showDialog(
       context: context,
@@ -249,7 +250,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     // Listen for authentication success and navigate
     ref.listen<AsyncValue>(authControllerProvider, (previous, next) {
       if (_isNavigating || !mounted) return;
-      
+
       next.when(
         data: (user) async {
           // Only navigate if user is authenticated AND previous state was loading
@@ -257,7 +258,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           if (user != null && !_isNavigating && previous?.isLoading == true) {
             _isNavigating = true;
             // User successfully signed in, navigate to appropriate dashboard
-            final String? userRole = await ref.read(authControllerProvider.notifier).getUserRole();
+            final String? userRole =
+                await ref.read(authControllerProvider.notifier).getUserRole();
             if (mounted) {
               _navigateToRoleDashboard(context, userRole ?? 'STUDENT');
             }
@@ -662,10 +664,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           child: Column(
             children: [
               _buildRoleOption('STUDENT', 'Student', Icons.school, theme),
-              Divider(height: 1, color: theme.colorScheme.outline.withValues(alpha: 0.2)),
-              _buildRoleOption('FACULTY', 'Faculty', Icons.person_outline, theme),
-              Divider(height: 1, color: theme.colorScheme.outline.withValues(alpha: 0.2)),
-              _buildRoleOption('ADMIN', 'Administrator', Icons.admin_panel_settings, theme),
+              Divider(
+                  height: 1,
+                  color: theme.colorScheme.outline.withValues(alpha: 0.2)),
+              _buildRoleOption(
+                  'FACULTY', 'Faculty', Icons.person_outline, theme),
+              Divider(
+                  height: 1,
+                  color: theme.colorScheme.outline.withValues(alpha: 0.2)),
+              _buildRoleOption(
+                  'ADMIN', 'Administrator', Icons.admin_panel_settings, theme),
             ],
           ),
         ),
@@ -673,9 +681,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
-  Widget _buildRoleOption(String value, String label, IconData icon, ThemeData theme) {
+  Widget _buildRoleOption(
+      String value, String label, IconData icon, ThemeData theme) {
     final isSelected = _selectedRole == value;
-    
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -692,8 +701,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             children: [
               Icon(
                 icon,
-                color: isSelected 
-                    ? theme.colorScheme.primary 
+                color: isSelected
+                    ? theme.colorScheme.primary
                     : theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 size: 24,
               ),
@@ -704,8 +713,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   style: GoogleFonts.inter(
                     fontSize: 15.sp,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    color: isSelected 
-                        ? theme.colorScheme.primary 
+                    color: isSelected
+                        ? theme.colorScheme.primary
                         : theme.colorScheme.onSurface,
                   ),
                 ),

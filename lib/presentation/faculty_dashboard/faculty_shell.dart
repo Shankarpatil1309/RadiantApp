@@ -569,7 +569,7 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
                                   .add(announcementData);
 
                               // Refresh announcements
-                              ref.refresh(facultyAnnouncementsProvider);
+                              ref.invalidate(facultyAnnouncementsProvider);
 
                               // Show success message
                               ScaffoldMessenger.of(context).showSnackBar(

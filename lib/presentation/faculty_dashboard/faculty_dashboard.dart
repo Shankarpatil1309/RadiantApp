@@ -212,9 +212,9 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
   ) {
     return RefreshIndicator(
       onRefresh: () async {
-        ref.refresh(facultyDataProvider);
-        ref.refresh(facultyTodayClassesProvider);
-        ref.refresh(facultyAnnouncementsProvider);
+        ref.invalidate(facultyDataProvider);
+        ref.invalidate(facultyTodayClassesProvider);
+        ref.invalidate(facultyAnnouncementsProvider);
       },
       color: AppTheme.getRoleColor('faculty'),
       child: SingleChildScrollView(
@@ -492,9 +492,9 @@ class _FacultyDashboardState extends ConsumerState<FacultyDashboard>
               Text(message, style: AppTheme.lightTheme.textTheme.bodyMedium),
               TextButton(
                 onPressed: () {
-                  ref.refresh(facultyDataProvider);
-                  ref.refresh(facultyTodayClassesProvider);
-                  ref.refresh(facultyAnnouncementsProvider);
+                  ref.invalidate(facultyDataProvider);
+                  ref.invalidate(facultyTodayClassesProvider);
+                  ref.invalidate(facultyAnnouncementsProvider);
                 },
                 child: Text('Retry'),
               ),

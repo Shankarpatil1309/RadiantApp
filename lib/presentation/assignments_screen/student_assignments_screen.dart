@@ -325,7 +325,7 @@ class _StudentAssignmentsScreenState
 
           return RefreshIndicator(
             onRefresh: () async {
-              ref.refresh(studentAssignmentsProvider);
+              ref.invalidate(studentAssignmentsProvider);
               await _refreshAssignments();
             },
             color: AppTheme.lightTheme.primaryColor,

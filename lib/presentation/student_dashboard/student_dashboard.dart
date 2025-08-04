@@ -139,7 +139,6 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
     );
   }
 
-
   Future<bool> _showExitConfirmation() async {
     return await showDialog<bool>(
           context: context,
@@ -357,7 +356,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
     print('🔄 Has file: ${assignment.hasFile}');
     print('🔄 File URL: ${assignment.fileUrl}');
     print('🔄 File name: ${assignment.fileName}');
-    
+
     if (!assignment.hasFile || assignment.fileUrl?.isEmpty == true) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -384,7 +383,8 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
               ),
               SizedBox(width: 16),
               Expanded(
-                child: Text('Downloading ${assignment.fileName.isNotEmpty ? assignment.fileName : 'assignment file'}...'),
+                child: Text(
+                    'Downloading ${assignment.fileName.isNotEmpty ? assignment.fileName : 'assignment file'}...'),
               ),
             ],
           ),
@@ -394,10 +394,10 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
       );
 
       final downloadService = FileDownloadService();
-      final fileName = assignment.fileName.isNotEmpty 
-          ? assignment.fileName 
+      final fileName = assignment.fileName.isNotEmpty
+          ? assignment.fileName
           : '${assignment.title}_assignment.${assignment.fileExtension.isNotEmpty ? assignment.fileExtension : 'pdf'}';
-      
+
       await downloadService.downloadAssignmentAttachment(
         url: assignment.fileUrl!,
         fileName: fileName,
@@ -409,7 +409,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
 
       // Remove loading snackbar and show success
       ScaffoldMessenger.of(context).removeCurrentSnackBar();
-      
+
       final locationName = await FileDownloadService.getStorageLocationName();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -524,7 +524,8 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
               if (data == null) {
                 // This should rarely happen now due to login validation
                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _signOutAndRedirectToLogin('Student data not available. Please contact administrator.');
+                  _signOutAndRedirectToLogin(
+                      'Student data not available. Please contact administrator.');
                 });
                 return const Center(child: CircularProgressIndicator());
               }
@@ -535,9 +536,9 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
             error: (error, stack) {
               // This should rarely happen now due to login validation
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                final message = error is StudentValidationException 
-                  ? error.message 
-                  : 'Unable to access student dashboard. Please contact administrator.';
+                final message = error is StudentValidationException
+                    ? error.message
+                    : 'Unable to access student dashboard. Please contact administrator.';
                 _signOutAndRedirectToLogin(message);
               });
               return const Center(child: CircularProgressIndicator());
@@ -554,12 +555,16 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
     AsyncValue<List<Announcement>> announcementsAsync,
     AsyncValue<List<Assignment>> assignmentsAsync,
   ) {
+    final attendancePercentage = ref.watch(studentAttendancePercentageProvider);
+    final recentMarks = ref.watch(studentRecentMarksProvider);
     return RefreshIndicator(
       onRefresh: () async {
-        ref.refresh(studentDataProvider);
-        ref.refresh(studentTodayClassesProvider);
-        ref.refresh(studentAnnouncementsProvider);
-        ref.refresh(studentAssignmentsProvider);
+        ref.invalidate(studentDataProvider);
+        ref.invalidate(studentTodayClassesProvider);
+        ref.invalidate(studentAnnouncementsProvider);
+        ref.invalidate(studentAssignmentsProvider);
+        ref.invalidate(studentAttendancePercentageProvider);
+        ref.invalidate(studentRecentMarksProvider);
         await _refreshDashboard();
       },
       child: SingleChildScrollView(
@@ -642,7 +647,8 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
                       ?.call(3); // Navigate to Assignments tab
                 },
                 onAssignmentTap: (assignmentMap) {
-                  final assignment = assignments.firstWhere((a) => a.id == assignmentMap['id']);
+                  final assignment = assignments
+                      .firstWhere((a) => a.id == assignmentMap['id']);
                   _showAssignmentDetail(assignment);
                 },
               ),
@@ -651,16 +657,48 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
                   _buildErrorCard('Error loading assignments'),
             ),
             // Quick Stats Card
-            QuickStatsCardWidget(
-              attendancePercentage:
-                  87.5, // TODO: Calculate from attendance data
-              recentMarks: const [], // TODO: Implement marks data fetching from Firebase
-              onAttendanceTap: () {
-                widget.onNavigateToTab?.call(2); // Navigate to Attendance tab
-              },
-              onMarksTap: () {
-                // Navigate to marks screen
-              },
+            attendancePercentage.when(
+              data: (attendanceData) => recentMarks.when(
+                data: (marksData) => QuickStatsCardWidget(
+                  attendancePercentage: attendanceData,
+                  recentMarks: marksData,
+                  onAttendanceTap: () {
+                    widget.onNavigateToTab?.call(2); // Navigate to Attendance tab
+                  },
+                  onMarksTap: () {
+                    // Navigate to marks screen
+                  },
+                ),
+                loading: () => QuickStatsCardWidget(
+                  attendancePercentage: attendanceData,
+                  recentMarks: const [],
+                  onAttendanceTap: () {
+                    widget.onNavigateToTab?.call(2);
+                  },
+                  onMarksTap: () {},
+                ),
+                error: (error, stack) => QuickStatsCardWidget(
+                  attendancePercentage: attendanceData,
+                  recentMarks: const [],
+                  onAttendanceTap: () {
+                    widget.onNavigateToTab?.call(2);
+                  },
+                  onMarksTap: () {},
+                ),
+              ),
+              loading: () => recentMarks.when(
+                data: (marksData) => QuickStatsCardWidget(
+                  attendancePercentage: 0.0,
+                  recentMarks: marksData,
+                  onAttendanceTap: () {
+                    widget.onNavigateToTab?.call(2);
+                  },
+                  onMarksTap: () {},
+                ),
+                loading: () => _buildLoadingCard('Loading quick stats...'),
+                error: (error, stack) => _buildErrorCard('Error loading stats'),
+              ),
+              error: (error, stack) => _buildErrorCard('Error loading attendance'),
             ),
             SizedBox(height: 10.h), // Space for FAB
           ],
@@ -709,10 +747,12 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
               Text(message, style: AppTheme.lightTheme.textTheme.bodyMedium),
               TextButton(
                 onPressed: () {
-                  ref.refresh(studentDataProvider);
-                  ref.refresh(studentTodayClassesProvider);
-                  ref.refresh(studentAnnouncementsProvider);
-                  ref.refresh(studentAssignmentsProvider);
+                  ref.invalidate(studentDataProvider);
+                  ref.invalidate(studentTodayClassesProvider);
+                  ref.invalidate(studentAnnouncementsProvider);
+                  ref.invalidate(studentAssignmentsProvider);
+                  ref.invalidate(studentAttendancePercentageProvider);
+                  ref.invalidate(studentRecentMarksProvider);
                 },
                 child: Text('Retry'),
               ),
@@ -726,7 +766,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
   void _signOutAndRedirectToLogin(String message) async {
     // Sign out the user
     await ref.read(authControllerProvider.notifier).signOut();
-    
+
     // Show snackbar with message and redirect to login
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -736,7 +776,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard>
           duration: Duration(seconds: 3),
         ),
       );
-      
+
       Navigator.pushNamedAndRemoveUntil(
         context,
         '/login-screen',

@@ -8,6 +8,8 @@ import '../services/class_session_service.dart';
 import '../services/announcement_service.dart';
 import '../services/assignment_service.dart';
 import '../services/user_service.dart';
+import '../services/attendance_service.dart';
+import '../services/marksheet_service.dart';
 import 'auth_controller.dart';
 
 final studentServiceProvider =
@@ -20,6 +22,10 @@ final studentAssignmentServiceProvider =
     Provider<AssignmentService>((ref) => AssignmentService());
 final studentUserServiceProvider =
     Provider<UserService>((ref) => UserService());
+final studentAttendanceServiceProvider =
+    Provider<AttendanceService>((ref) => AttendanceService());
+final studentMarksheetServiceProvider =
+    Provider<MarksheetService>((ref) => MarksheetService());
 
 // Provider to get current student ID from users collection
 final currentStudentIdProvider =
@@ -292,3 +298,72 @@ String _getDayName(int weekday) {
       return 'Monday';
   }
 }
+
+final studentAttendancePercentageProvider =
+    FutureProvider.autoDispose<double>((ref) async {
+  final student = await ref.watch(studentDataProvider.future);
+  if (student == null) return 0.0;
+
+  final attendanceService = ref.read(studentAttendanceServiceProvider);
+
+  try {
+    final attendanceRecords = await attendanceService.getAttendanceBySection(
+      student.department,
+      student.section,
+      student.semester,
+    );
+
+    if (attendanceRecords.isEmpty) return 0.0;
+
+    int totalClasses = 0;
+    int presentClasses = 0;
+
+    for (final attendance in attendanceRecords) {
+      if (attendance.studentsPresent.contains(student.usn) ||
+          attendance.studentsAbsent.contains(student.usn)) {
+        totalClasses++;
+        if (attendance.studentsPresent.contains(student.usn)) {
+          presentClasses++;
+        }
+      }
+    }
+
+    if (totalClasses == 0) return 0.0;
+    return (presentClasses / totalClasses) * 100;
+  } catch (e) {
+    print('Error fetching attendance percentage: $e');
+    return 0.0;
+  }
+});
+
+final studentRecentMarksProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final student = await ref.watch(studentDataProvider.future);
+  if (student == null) return [];
+
+  final marksheetService = ref.read(studentMarksheetServiceProvider);
+
+  try {
+    final marksheets = await marksheetService.listenMarksheets().first;
+    
+    final studentMarksheets = marksheets
+        .where((marksheet) => marksheet.studentId == student.usn)
+        .toList();
+    
+    if (studentMarksheets.isEmpty) return [];
+
+    studentMarksheets.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    
+    final recentMarksheet = studentMarksheets.first;
+    
+    return recentMarksheet.marks.take(3).map((mark) => {
+      'subject': mark['subject'] ?? 'Unknown',
+      'marks': (mark['obtainedMarks'] ?? 0).toDouble(),
+      'totalMarks': (mark['totalMarks'] ?? 100).toDouble(),
+      'percentage': ((mark['obtainedMarks'] ?? 0) / (mark['totalMarks'] ?? 100) * 100).toDouble(),
+    }).toList();
+  } catch (e) {
+    print('Error fetching recent marks: $e');
+    return [];
+  }
+});
