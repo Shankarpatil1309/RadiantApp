@@ -153,7 +153,7 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
               dayDate: dayDate,
               isToday: isToday,
               classes: classes.map((session) => {
-                'time': '${session.startTime.hour.toString().padLeft(2, '0')}:${session.startTime.minute.toString().padLeft(2, '0')} - ${session.endTime.hour.toString().padLeft(2, '0')}:${session.endTime.minute.toString().padLeft(2, '0')}',
+                'time': '${session.startTime.hour.toString().padLeft(2, '0')}:${session.startTime.minute.toString().padLeft(2, '0')}',
                 'subject': session.subject,
                 'faculty': session.facultyName,
                 'room': session.room,
@@ -170,6 +170,7 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
               }).toList(),
               onClassTap: _showClassDetails,
               onClassLongPress: _showQuickActions,
+              onFreePeriodTap: (timeSlot, date) => _showScheduleClassBottomSheet(timeSlot, date, day),
             );
           }).toList(),
         ),
@@ -530,5 +531,42 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
         ),
       );
     }
+  }
+
+  void _showScheduleClassBottomSheet(String timeSlot, String dayDate, String dayName) {
+    final scheduleState = ref.read(scheduleControllerProvider);
+    final currentWeek = scheduleState.currentWeek;
+    
+    // Calculate the actual date for the day
+    final daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    final dayIndex = daysOfWeek.indexOf(dayName);
+    final actualDate = dayIndex != -1 
+        ? currentWeek.add(Duration(days: dayIndex))
+        : DateTime.now();
+    
+    // Parse time slot to DateTime
+    final timeParts = timeSlot.split(':');
+    final hour = int.parse(timeParts[0]);
+    final startTime = DateTime(
+      actualDate.year,
+      actualDate.month,
+      actualDate.day,
+      hour,
+      0,
+    );
+    final endTime = startTime.add(Duration(hours: 1, minutes: 30)); // Default 1.5 hour duration
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AddClassSessionWidget(
+        selectedDate: actualDate,
+        prefilledStartTime: startTime,
+        prefilledEndTime: endTime,
+        onClose: () => Navigator.pop(context),
+        onSave: _addClassSession,
+      ),
+    );
   }
 }

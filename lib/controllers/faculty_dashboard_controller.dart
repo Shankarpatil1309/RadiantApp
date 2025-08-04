@@ -2,15 +2,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/faculty_model.dart';
 import '../models/announcement_model.dart';
 import '../services/faculty_service.dart';
-import '../services/schedule_service.dart';
+import '../services/class_session_service.dart';
 import '../services/announcement_service.dart';
 import '../services/user_service.dart';
 import 'auth_controller.dart';
 
 final facultyServiceProvider =
     Provider<FacultyService>((ref) => FacultyService());
-final scheduleServiceProvider =
-    Provider<ScheduleService>((ref) => ScheduleService());
+final classSessionServiceProvider =
+    Provider<ClassSessionService>((ref) => ClassSessionService());
 final announcementServiceProvider =
     Provider<AnnouncementService>((ref) => AnnouncementService());
 final userServiceProvider = Provider<UserService>((ref) => UserService());
@@ -42,43 +42,38 @@ final facultyTodayClassesProvider =
   final faculty = await ref.watch(facultyDataProvider.future);
   if (faculty == null) return [];
 
-  final scheduleService = ref.read(scheduleServiceProvider);
+  final classSessionService = ref.read(classSessionServiceProvider);
 
   try {
     final now = DateTime.now();
-    final dayOfWeek = _getDayOfWeek(now.weekday);
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
 
-    final schedules = await scheduleService.listenSchedules().first;
+    final classSessions = await classSessionService.getClassSessionsByDateRange(
+      faculty.employeeId, 
+      startOfDay, 
+      endOfDay
+    );
 
-    List<Map<String, dynamic>> todayClasses = [];
-
-    for (final schedule in schedules) {
-      if (schedule.department == faculty.department &&
-          schedule.dayOfWeek == dayOfWeek) {
-        for (final subject in schedule.subjects) {
-          if (subject.facultyId == faculty.employeeId) {
-            todayClasses.add({
-              'id': '${schedule.id}_${subject.subjectName}',
-              'subject': subject.subjectName,
-              'time': '${subject.startTime} - ${subject.endTime}',
-              'duration': '1hr 30min', // Calculate from start/end time if needed
-              'room': subject.room,
-              'studentCount': 0, // This would come from student service
-              'section': schedule.section,
-              'semester': schedule.semester,
-              'attendanceMarked':
-                  false, // This would come from attendance service
-              'scheduleId': schedule.id,
-            });
-          }
-        }
-      }
-    }
+    List<Map<String, dynamic>> todayClasses = classSessions.map((session) {
+      return {
+        'id': session.id,
+        'subject': session.subjectCode,
+        'time': '${_formatTime(session.startTime)} - ${_formatTime(session.endTime)}',
+        'duration': _calculateDuration(session.startTime, session.endTime),
+        'room': session.room,
+        'studentCount': 0, // This would come from student service
+        'section': session.section,
+        'semester': session.semester,
+        'attendanceMarked': false, // This would come from attendance service
+        'classSessionId': session.id,
+      };
+    }).toList();
 
     // Sort by time
     todayClasses.sort((a, b) {
-      final timeA = _parseTime(a['time']);
-      final timeB = _parseTime(b['time']);
+      final timeA = _parseTimeFromDateTime(a['time']);
+      final timeB = _parseTimeFromDateTime(b['time']);
       return timeA.compareTo(timeB);
     });
 
@@ -138,10 +133,18 @@ final facultyWeeklyScheduleProvider =
   final faculty = await ref.watch(facultyDataProvider.future);
   if (faculty == null) return {};
 
-  final scheduleService = ref.read(scheduleServiceProvider);
+  final classSessionService = ref.read(classSessionServiceProvider);
 
   try {
-    final schedules = await scheduleService.listenSchedules().first;
+    final now = DateTime.now();
+    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+    final endOfWeek = startOfWeek.add(Duration(days: 6));
+
+    final classSessions = await classSessionService.getClassSessionsByDateRange(
+      faculty.employeeId, 
+      startOfWeek, 
+      endOfWeek
+    );
 
     Map<String, List<Map<String, dynamic>>> weeklySchedule = {};
     final daysOfWeek = [
@@ -157,30 +160,28 @@ final facultyWeeklyScheduleProvider =
       weeklySchedule[day] = [];
     }
 
-    for (final schedule in schedules) {
-      if (schedule.department == faculty.department) {
-        for (final subject in schedule.subjects) {
-          if (subject.facultyId == faculty.employeeId) {
-            weeklySchedule[schedule.dayOfWeek]?.add({
-              'id': '${schedule.id}_${subject.subjectName}',
-              'subject': subject.subjectName,
-              'time': '${subject.startTime} - ${subject.endTime}',
-              'duration': '1hr 30min', // Calculate from start/end time if needed
-              'room': subject.room,
-              'section': schedule.section,
-              'semester': schedule.semester,
-              'scheduleId': schedule.id,
-            });
-          }
-        }
-      }
+    for (final session in classSessions) {
+      final dayOfWeek = _getDayOfWeek(session.startTime.weekday);
+      
+      weeklySchedule[dayOfWeek]?.add({
+        'id': session.id,
+        'subject': session.subjectCode,
+        'time': '${_formatTime(session.startTime)} - ${_formatTime(session.endTime)}',
+        'duration': _calculateDuration(session.startTime, session.endTime),
+        'room': session.room,
+        'section': session.section,
+        'semester': session.semester,
+        'classSessionId': session.id,
+        'startTime': session.startTime,
+        'endTime': session.endTime,
+      });
     }
 
     // Sort each day's classes by time
     for (final day in weeklySchedule.keys) {
       weeklySchedule[day]?.sort((a, b) {
-        final timeA = _parseTime(a['time']);
-        final timeB = _parseTime(b['time']);
+        final timeA = (a['startTime'] as DateTime).hour * 60 + (a['startTime'] as DateTime).minute;
+        final timeB = (b['startTime'] as DateTime).hour * 60 + (b['startTime'] as DateTime).minute;
         return timeA.compareTo(timeB);
       });
     }
@@ -210,6 +211,53 @@ String _getDayOfWeek(int weekday) {
       return 'Sunday';
     default:
       return 'Monday';
+  }
+}
+
+String _formatTime(DateTime dateTime) {
+  final hour = dateTime.hour;
+  final minute = dateTime.minute;
+  final period = hour >= 12 ? 'PM' : 'AM';
+  final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+  
+  return '${displayHour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
+}
+
+String _calculateDuration(DateTime startTime, DateTime endTime) {
+  final duration = endTime.difference(startTime);
+  final hours = duration.inHours;
+  final minutes = duration.inMinutes % 60;
+  
+  if (hours > 0 && minutes > 0) {
+    return '${hours}hr ${minutes}min';
+  } else if (hours > 0) {
+    return '${hours}hr';
+  } else {
+    return '${minutes}min';
+  }
+}
+
+int _parseTimeFromDateTime(String timeStr) {
+  try {
+    // Extract time from "HH:MM AM/PM - HH:MM AM/PM" format
+    final parts = timeStr.split(' - ')[0].trim();
+    final cleanTime = parts.toLowerCase().replaceAll(' ', '');
+    final isAM = cleanTime.contains('am');
+    final isPM = cleanTime.contains('pm');
+
+    final timeOnly = cleanTime.replaceAll('am', '').replaceAll('pm', '');
+    final timeParts = timeOnly.split(':');
+
+    int hour = int.parse(timeParts[0]);
+    int minute = timeParts.length > 1 ? int.parse(timeParts[1]) : 0;
+
+    if (isPM && hour != 12) hour += 12;
+    if (isAM && hour == 12) hour = 0;
+
+    return hour * 60 + minute;
+  } catch (e) {
+    print('Error parsing time: $timeStr');
+    return 0;
   }
 }
 

@@ -7,12 +7,16 @@ import '../../../models/class_session_model.dart';
 
 class AddClassSessionWidget extends ConsumerStatefulWidget {
   final DateTime selectedDate;
+  final DateTime? prefilledStartTime;
+  final DateTime? prefilledEndTime;
   final VoidCallback onClose;
   final Function(ClassSession) onSave;
 
   const AddClassSessionWidget({
     Key? key,
     required this.selectedDate,
+    this.prefilledStartTime,
+    this.prefilledEndTime,
     required this.onClose,
     required this.onSave,
   }) : super(key: key);
@@ -24,14 +28,13 @@ class AddClassSessionWidget extends ConsumerStatefulWidget {
 
 class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _subjectController = TextEditingController();
   final _roomController = TextEditingController();
   final _descriptionController = TextEditingController();
 
   String _selectedDepartment = 'CSE';
   String _selectedSection = 'A';
   int _selectedSemester = 1;
+  String _selectedSubject = '';
   String _selectedType = 'lecture';
   TimeOfDay _startTime = TimeOfDay(hour: 9, minute: 0);
   TimeOfDay _endTime = TimeOfDay(hour: 10, minute: 30);
@@ -40,10 +43,37 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
 
   final List<String> _sessionTypes = ['lecture', 'lab', 'tutorial', 'exam'];
 
+  List<String> get _availableSubjects {
+    return AppConfig.getSubjectsForDepartment(_selectedDepartment, _selectedSemester.toString());
+  }
+
+  bool get _isTimesPrefilled {
+    return widget.prefilledStartTime != null && widget.prefilledEndTime != null;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Set prefilled times if provided
+    if (widget.prefilledStartTime != null) {
+      _startTime = TimeOfDay.fromDateTime(widget.prefilledStartTime!);
+    }
+    if (widget.prefilledEndTime != null) {
+      _endTime = TimeOfDay.fromDateTime(widget.prefilledEndTime!);
+    }
+    // Set first available subject as default
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final subjects = _availableSubjects;
+      if (subjects.isNotEmpty && _selectedSubject.isEmpty) {
+        setState(() {
+          _selectedSubject = subjects.first;
+        });
+      }
+    });
+  }
+
   @override
   void dispose() {
-    _titleController.dispose();
-    _subjectController.dispose();
     _roomController.dispose();
     _descriptionController.dispose();
     super.dispose();
@@ -145,27 +175,78 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
           ),
         ),
         SizedBox(height: 2.h),
-        TextFormField(
-          controller: _titleController,
-          decoration: InputDecoration(
-            labelText: 'Class Title',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            prefixIcon: Padding(
-              padding: EdgeInsets.all(3.w),
-              child: CustomIconWidget(
-                iconName: 'title',
-                color: AppTheme.lightTheme.colorScheme.onSurface
-                    .withValues(alpha: 0.6),
-                size: 20,
+        // Department and Semester Row
+        Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _selectedDepartment,
+                decoration: InputDecoration(
+                  labelText: 'Department',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  prefixIcon: Padding(
+                    padding: EdgeInsets.all(3.w),
+                    child: CustomIconWidget(
+                      iconName: 'business',
+                      color: AppTheme.lightTheme.colorScheme.onSurface
+                          .withValues(alpha: 0.6),
+                      size: 20,
+                    ),
+                  ),
+                ),
+                items: _departments.map((dept) => DropdownMenuItem(
+                  value: dept,
+                  child: Text(dept),
+                )).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedDepartment = value!;
+                    // Reset subject when department changes
+                    final subjects = _availableSubjects;
+                    _selectedSubject = subjects.isNotEmpty ? subjects.first : '';
+                  });
+                },
               ),
             ),
-          ),
-          validator: (value) =>
-              value?.isEmpty ?? true ? 'Title is required' : null,
+            SizedBox(width: 3.w),
+            Expanded(
+              child: DropdownButtonFormField<int>(
+                value: _selectedSemester,
+                decoration: InputDecoration(
+                  labelText: 'Semester',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  prefixIcon: Padding(
+                    padding: EdgeInsets.all(3.w),
+                    child: CustomIconWidget(
+                      iconName: 'school',
+                      color: AppTheme.lightTheme.colorScheme.onSurface
+                          .withValues(alpha: 0.6),
+                      size: 20,
+                    ),
+                  ),
+                ),
+                items: List.generate(8, (index) => index + 1)
+                    .map((sem) => DropdownMenuItem(
+                          value: sem,
+                          child: Text('Sem $sem'),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedSemester = value!;
+                    // Reset subject when semester changes
+                    final subjects = _availableSubjects;
+                    _selectedSubject = subjects.isNotEmpty ? subjects.first : '';
+                  });
+                },
+              ),
+            ),
+          ],
         ),
         SizedBox(height: 2.h),
-        TextFormField(
-          controller: _subjectController,
+        // Subject Dropdown
+        DropdownButtonFormField<String>(
+          value: _selectedSubject.isEmpty ? null : _selectedSubject,
           decoration: InputDecoration(
             labelText: 'Subject',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -179,8 +260,48 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
               ),
             ),
           ),
-          validator: (value) =>
-              value?.isEmpty ?? true ? 'Subject is required' : null,
+          items: _availableSubjects
+              .map((subject) => DropdownMenuItem(
+                    value: subject,
+                    child: Text(subject),
+                  ))
+              .toList(),
+          onChanged: (value) {
+            setState(() {
+              _selectedSubject = value!;
+            });
+          },
+          validator: (value) => value == null || value.isEmpty ? 'Subject is required' : null,
+        ),
+        SizedBox(height: 2.h),
+        // Section Dropdown
+        DropdownButtonFormField<String>(
+          value: _selectedSection,
+          decoration: InputDecoration(
+            labelText: 'Section',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            prefixIcon: Padding(
+              padding: EdgeInsets.all(3.w),
+              child: CustomIconWidget(
+                iconName: 'group',
+                color: AppTheme.lightTheme.colorScheme.onSurface
+                    .withValues(alpha: 0.6),
+                size: 20,
+              ),
+            ),
+          ),
+          items: AppConfig.sectionsByDepartment[_selectedDepartment]
+                  ?.map((section) => DropdownMenuItem(
+                        value: section,
+                        child: Text('Section $section'),
+                      ))
+                  .toList() ??
+              [],
+          onChanged: (value) {
+            setState(() {
+              _selectedSection = value!;
+            });
+          },
         ),
         SizedBox(height: 2.h),
         TextFormField(
@@ -209,31 +330,74 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Time Schedule',
-          style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+        Row(
+          children: [
+            Text(
+              'Time Schedule',
+              style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (_isTimesPrefilled) ...[
+              SizedBox(width: 2.w),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
+                decoration: BoxDecoration(
+                  color: AppTheme.getRoleColor('faculty').withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppTheme.getRoleColor('faculty').withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CustomIconWidget(
+                      iconName: 'lock',
+                      color: AppTheme.getRoleColor('faculty'),
+                      size: 12,
+                    ),
+                    SizedBox(width: 1.w),
+                    Text(
+                      'Prefilled',
+                      style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                        color: AppTheme.getRoleColor('faculty'),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
         ),
         SizedBox(height: 2.h),
         Row(
           children: [
             Expanded(
               child: InkWell(
-                onTap: () => _selectTime(context, true),
+                onTap: _isTimesPrefilled ? null : () => _selectTime(context, true),
                 child: Container(
                   padding: EdgeInsets.all(4.w),
                   decoration: BoxDecoration(
                     border: Border.all(
-                        color: AppTheme.lightTheme.colorScheme.outline),
+                      color: _isTimesPrefilled 
+                          ? AppTheme.lightTheme.colorScheme.outline.withValues(alpha: 0.3)
+                          : AppTheme.lightTheme.colorScheme.outline,
+                    ),
                     borderRadius: BorderRadius.circular(8),
+                    color: _isTimesPrefilled 
+                        ? AppTheme.lightTheme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
+                        : null,
                   ),
                   child: Row(
                     children: [
                       CustomIconWidget(
-                        iconName: 'schedule',
-                        color: AppTheme.lightTheme.colorScheme.onSurface
-                            .withValues(alpha: 0.6),
+                        iconName: _isTimesPrefilled ? 'lock' : 'schedule',
+                        color: _isTimesPrefilled
+                            ? AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.4)
+                            : AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.6),
                         size: 20,
                       ),
                       SizedBox(width: 2.w),
@@ -242,11 +406,19 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
                         children: [
                           Text(
                             'Start Time',
-                            style: AppTheme.lightTheme.textTheme.bodySmall,
+                            style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                              color: _isTimesPrefilled
+                                  ? AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.5)
+                                  : null,
+                            ),
                           ),
                           Text(
                             _startTime.format(context),
-                            style: AppTheme.lightTheme.textTheme.titleMedium,
+                            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                              color: _isTimesPrefilled
+                                  ? AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7)
+                                  : null,
+                            ),
                           ),
                         ],
                       ),
@@ -258,20 +430,27 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
             SizedBox(width: 4.w),
             Expanded(
               child: InkWell(
-                onTap: () => _selectTime(context, false),
+                onTap: _isTimesPrefilled ? null : () => _selectTime(context, false),
                 child: Container(
                   padding: EdgeInsets.all(4.w),
                   decoration: BoxDecoration(
                     border: Border.all(
-                        color: AppTheme.lightTheme.colorScheme.outline),
+                      color: _isTimesPrefilled 
+                          ? AppTheme.lightTheme.colorScheme.outline.withValues(alpha: 0.3)
+                          : AppTheme.lightTheme.colorScheme.outline,
+                    ),
                     borderRadius: BorderRadius.circular(8),
+                    color: _isTimesPrefilled 
+                        ? AppTheme.lightTheme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
+                        : null,
                   ),
                   child: Row(
                     children: [
                       CustomIconWidget(
-                        iconName: 'schedule',
-                        color: AppTheme.lightTheme.colorScheme.onSurface
-                            .withValues(alpha: 0.6),
+                        iconName: _isTimesPrefilled ? 'lock' : 'schedule',
+                        color: _isTimesPrefilled
+                            ? AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.4)
+                            : AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.6),
                         size: 20,
                       ),
                       SizedBox(width: 2.w),
@@ -280,11 +459,19 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
                         children: [
                           Text(
                             'End Time',
-                            style: AppTheme.lightTheme.textTheme.bodySmall,
+                            style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                              color: _isTimesPrefilled
+                                  ? AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.5)
+                                  : null,
+                            ),
                           ),
                           Text(
                             _endTime.format(context),
-                            style: AppTheme.lightTheme.textTheme.titleMedium,
+                            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                              color: _isTimesPrefilled
+                                  ? AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7)
+                                  : null,
+                            ),
                           ),
                         ],
                       ),
@@ -300,8 +487,6 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
   }
 
   Widget _buildClassDetails() {
-    final List<String> _sections =
-        AppConfig.sectionsByDepartment[_selectedDepartment] ?? ['A', 'B'];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -312,86 +497,29 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
           ),
         ),
         SizedBox(height: 2.h),
-        Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: _selectedDepartment,
-                decoration: InputDecoration(
-                  labelText: 'Department',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                ),
-                items: _departments
-                    .map((dept) => DropdownMenuItem(
-                          value: dept,
-                          child: Text(dept),
-                        ))
-                    .toList(),
-                onChanged: (value) =>
-                    setState(() => _selectedDepartment = value!),
+        // Only Type field in Class Details section
+        DropdownButtonFormField<String>(
+          value: _selectedType,
+          decoration: InputDecoration(
+            labelText: 'Class Type',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            prefixIcon: Padding(
+              padding: EdgeInsets.all(3.w),
+              child: CustomIconWidget(
+                iconName: 'category',
+                color: AppTheme.lightTheme.colorScheme.onSurface
+                    .withValues(alpha: 0.6),
+                size: 20,
               ),
             ),
-            SizedBox(width: 4.w),
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: _selectedSection,
-                decoration: InputDecoration(
-                  labelText: 'Section',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                ),
-                items: _sections
-                    .map((section) => DropdownMenuItem(
-                          value: section,
-                          child: Text(section),
-                        ))
-                    .toList(),
-                onChanged: (value) => setState(() => _selectedSection = value!),
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 2.h),
-        Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<int>(
-                value: _selectedSemester,
-                decoration: InputDecoration(
-                  labelText: 'Semester',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                ),
-                items: List.generate(
-                    8,
-                    (index) => DropdownMenuItem(
-                          value: index + 1,
-                          child: Text('Semester ${index + 1}'),
-                        )),
-                onChanged: (value) =>
-                    setState(() => _selectedSemester = value!),
-              ),
-            ),
-            SizedBox(width: 4.w),
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: _selectedType,
-                decoration: InputDecoration(
-                  labelText: 'Type',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                ),
-                items: _sessionTypes
-                    .map((type) => DropdownMenuItem(
-                          value: type,
-                          child: Text(type.toUpperCase()),
-                        ))
-                    .toList(),
-                onChanged: (value) => setState(() => _selectedType = value!),
-              ),
-            ),
-          ],
+          ),
+          items: _sessionTypes
+              .map((type) => DropdownMenuItem(
+                    value: type,
+                    child: Text(type.toUpperCase()),
+                  ))
+              .toList(),
+          onChanged: (value) => setState(() => _selectedType = value!),
         ),
         SizedBox(height: 2.h),
         TextFormField(
@@ -482,8 +610,9 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
       
       final session = ClassSession(
         id: '', // Will be generated by Firestore
-        title: _titleController.text.trim(),
-        subject: _subjectController.text.trim(),
+        title: _selectedSubject, // Subject is the title
+        subject: _selectedSubject,
+        subjectCode: _selectedSubject, // Using subject name as code for now
         department: _selectedDepartment,
         section: _selectedSection,
         semester: _selectedSemester,

@@ -10,6 +10,7 @@ class DayColumnWidget extends StatelessWidget {
   final List<Map<String, dynamic>> classes;
   final Function(Map<String, dynamic>) onClassTap;
   final Function(Map<String, dynamic>) onClassLongPress;
+  final Function(String, String)? onFreePeriodTap; // timeSlot, date
 
   const DayColumnWidget({
     Key? key,
@@ -19,6 +20,7 @@ class DayColumnWidget extends StatelessWidget {
     required this.classes,
     required this.onClassTap,
     required this.onClassLongPress,
+    this.onFreePeriodTap,
   }) : super(key: key);
 
   @override
@@ -86,29 +88,27 @@ class DayColumnWidget extends StatelessWidget {
           margin: EdgeInsets.only(bottom: 1.h),
           child: classForSlot != null
               ? _buildClassCard(classForSlot)
-              : _buildEmptySlot(timeSlot),
+              : _buildEmptySlot(timeSlot, dayDate),
         );
       },
     );
   }
 
   List<String> _generateTimeSlots() {
+    // Generate time slots with 1.5-hour gaps to match class duration
     return [
       '09:00',
-      '10:00',
-      '11:00',
+      '10:30', 
       '12:00',
-      '13:00',
-      '14:00',
+      '13:30',
       '15:00',
-      '16:00',
-      '17:00'
+      '16:30'
     ];
   }
 
   Map<String, dynamic>? _getClassForTimeSlot(String timeSlot) {
     return classes.cast<Map<String, dynamic>?>().firstWhere(
-          (classItem) => classItem != null && classItem['time'] == timeSlot,
+          (classItem) => classItem != null && classItem['time'].startsWith(timeSlot),
           orElse: () => null,
         );
   }
@@ -190,40 +190,61 @@ class DayColumnWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptySlot(String timeSlot) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(3.w),
-      decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest
-            .withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppTheme.lightTheme.colorScheme.outline.withValues(alpha: 0.2),
-          width: 1,
+  Widget _buildEmptySlot(String timeSlot, String date) {
+    return GestureDetector(
+      onTap: onFreePeriodTap != null ? () => onFreePeriodTap!(timeSlot, date) : null,
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(3.w),
+        decoration: BoxDecoration(
+          color: onFreePeriodTap != null 
+              ? AppTheme.getRoleColor('faculty').withValues(alpha: 0.05)
+              : AppTheme.lightTheme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: onFreePeriodTap != null
+                ? AppTheme.getRoleColor('faculty').withValues(alpha: 0.2)
+                : AppTheme.lightTheme.colorScheme.outline.withValues(alpha: 0.2),
+            width: 1,
+            style: onFreePeriodTap != null ? BorderStyle.solid : BorderStyle.solid,
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            timeSlot,
-            style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-              color: AppTheme.lightTheme.colorScheme.onSurface
-                  .withValues(alpha: 0.4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Row(
+              children: [
+                Text(
+                  timeSlot,
+                  style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                    color: AppTheme.lightTheme.colorScheme.onSurface
+                        .withValues(alpha: 0.4),
+                  ),
+                ),
+                if (onFreePeriodTap != null) ...[
+                  Spacer(),
+                  CustomIconWidget(
+                    iconName: 'add_circle_outline',
+                    color: AppTheme.getRoleColor('faculty').withValues(alpha: 0.6),
+                    size: 16,
+                  ),
+                ],
+              ],
             ),
-          ),
-          SizedBox(height: 0.5.h),
-          Text(
-            'Free Period',
-            style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-              color: AppTheme.lightTheme.colorScheme.onSurface
-                  .withValues(alpha: 0.3),
-              fontStyle: FontStyle.italic,
+            SizedBox(height: 0.5.h),
+            Text(
+              onFreePeriodTap != null ? 'Tap to schedule' : 'Free Period',
+              style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                color: onFreePeriodTap != null
+                    ? AppTheme.getRoleColor('faculty').withValues(alpha: 0.7)
+                    : AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.3),
+                fontStyle: FontStyle.italic,
+                fontWeight: onFreePeriodTap != null ? FontWeight.w500 : FontWeight.normal,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
