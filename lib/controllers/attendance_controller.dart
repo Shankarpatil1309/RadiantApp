@@ -126,7 +126,7 @@ class AttendanceController extends StateNotifier<AttendanceState> {
     );
   }
 
-  Future<bool> saveAttendance(String facultyId, String subject) async {
+  Future<bool> saveAttendance(String facultyId, String subject, {String? subjectCode}) async {
     if (state.selectedSessionId == null || 
         state.selectedDepartment == null || 
         state.selectedSection == null) {
@@ -154,13 +154,14 @@ class AttendanceController extends StateNotifier<AttendanceState> {
         state.selectedSection!,
         1, // Default semester, should be made dynamic
         subject,
+        subjectCode,
         facultyId,
         presentStudents,
         absentStudents,
       );
 
       // Update class session status
-      await _classSessionService.markAttendance(state.selectedSessionId!, presentStudents);
+      await _classSessionService.markSessionCompleted(state.selectedSessionId!);
 
       state = state.copyWith(
         isLoading: false,

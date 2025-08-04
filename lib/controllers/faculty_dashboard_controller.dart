@@ -56,14 +56,14 @@ final facultyTodayClassesProvider =
       if (schedule.department == faculty.department &&
           schedule.dayOfWeek == dayOfWeek) {
         for (final subject in schedule.subjects) {
-          if (subject['facultyId'] == faculty.employeeId) {
+          if (subject.facultyId == faculty.employeeId) {
             todayClasses.add({
-              'id': '${schedule.id}_${subject['subject']}',
-              'subject': subject['subject'],
-              'time': subject['time'],
-              'duration': subject['duration'] ?? '1hr 30min',
-              'room': subject['room'],
-              'studentCount': subject['studentCount'] ?? 0,
+              'id': '${schedule.id}_${subject.subjectName}',
+              'subject': subject.subjectName,
+              'time': '${subject.startTime} - ${subject.endTime}',
+              'duration': '1hr 30min', // Calculate from start/end time if needed
+              'room': subject.room,
+              'studentCount': 0, // This would come from student service
               'section': schedule.section,
               'semester': schedule.semester,
               'attendanceMarked':
@@ -160,13 +160,13 @@ final facultyWeeklyScheduleProvider =
     for (final schedule in schedules) {
       if (schedule.department == faculty.department) {
         for (final subject in schedule.subjects) {
-          if (subject['facultyId'] == faculty.employeeId) {
+          if (subject.facultyId == faculty.employeeId) {
             weeklySchedule[schedule.dayOfWeek]?.add({
-              'id': '${schedule.id}_${subject['subject']}',
-              'subject': subject['subject'],
-              'time': subject['time'],
-              'duration': subject['duration'] ?? '1hr 30min',
-              'room': subject['room'],
+              'id': '${schedule.id}_${subject.subjectName}',
+              'subject': subject.subjectName,
+              'time': '${subject.startTime} - ${subject.endTime}',
+              'duration': '1hr 30min', // Calculate from start/end time if needed
+              'room': subject.room,
               'section': schedule.section,
               'semester': schedule.semester,
               'scheduleId': schedule.id,

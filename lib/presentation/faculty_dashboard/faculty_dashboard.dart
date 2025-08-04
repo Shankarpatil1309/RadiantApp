@@ -15,7 +15,6 @@ import '../../models/assignment_model.dart';
 import '../../services/assignment_service.dart';
 import '../faculty_assignment_management_screen/widgets/assignment_upload_bottom_sheet_widget.dart';
 import '../common/widgets/announcement_detail_bottom_sheet.dart';
-import './widgets/assignment_status_card.dart';
 import './widgets/faculty_bottom_sheet.dart';
 import './widgets/faculty_header_widget.dart';
 import './widgets/quick_actions_card.dart';

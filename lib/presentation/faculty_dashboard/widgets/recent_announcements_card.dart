@@ -170,37 +170,37 @@ class RecentAnnouncementsCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             SizedBox(height: 1.h),
-            Row(
-              children: [
-                CustomIconWidget(
-                  iconName: 'visibility',
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.6),
-                  size: 16,
-                ),
-                SizedBox(width: 1.w),
-                Text(
-                  "${announcement["views"]} views",
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                SizedBox(width: 3.w),
-                CustomIconWidget(
-                  iconName: 'thumb_up',
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.6),
-                  size: 16,
-                ),
-                SizedBox(width: 1.w),
-                Text(
-                  "${announcement["likes"]} likes",
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
+            // Row(
+            //   children: [
+            //     CustomIconWidget(
+            //       iconName: 'visibility',
+            //       color: Theme.of(context)
+            //           .colorScheme
+            //           .onSurface
+            //           .withValues(alpha: 0.6),
+            //       size: 16,
+            //     ),
+            //     SizedBox(width: 1.w),
+            //     Text(
+            //       "${announcement["views"]} views",
+            //       style: Theme.of(context).textTheme.bodySmall,
+            //     ),
+            //     SizedBox(width: 3.w),
+            //     CustomIconWidget(
+            //       iconName: 'thumb_up',
+            //       color: Theme.of(context)
+            //           .colorScheme
+            //           .onSurface
+            //           .withValues(alpha: 0.6),
+            //       size: 16,
+            //     ),
+            //     SizedBox(width: 1.w),
+            //     Text(
+            //       "${announcement["likes"]} likes",
+            //       style: Theme.of(context).textTheme.bodySmall,
+            //     ),
+            //   ],
+            // ),
           ],
         ),
       ),

@@ -216,6 +216,48 @@ class ScheduleController extends StateNotifier<ScheduleState> {
     state = state.copyWith(error: null);
   }
 
+  Future<void> copyScheduleFromPreviousWeek(DateTime weekStart) async {
+    print('📅 Copying schedule from previous week');
+    try {
+      state = state.copyWith(isLoading: true, error: null);
+      
+      final newSessionIds = await _classSessionService.copyScheduleFromPreviousWeek(
+        state.selectedFacultyId,
+        weekStart,
+      );
+      
+      print('📅 Copied ${newSessionIds.length} sessions from previous week');
+      await loadWeeklySchedule(); // Refresh the schedule
+    } catch (e) {
+      print('❌ Error copying schedule from previous week: $e');
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
+    }
+  }
+
+  Future<void> copyScheduleFromPreviousDay(DateTime targetDate) async {
+    print('📅 Copying schedule from previous day');
+    try {
+      state = state.copyWith(isLoading: true, error: null);
+      
+      final newSessionIds = await _classSessionService.copyScheduleFromPreviousDay(
+        state.selectedFacultyId,
+        targetDate,
+      );
+      
+      print('📅 Copied ${newSessionIds.length} sessions from previous day');
+      await loadWeeklySchedule(); // Refresh the schedule
+    } catch (e) {
+      print('❌ Error copying schedule from previous day: $e');
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
+    }
+  }
+
   // Helper methods
   String get weekRangeText {
     final endOfWeek = state.currentWeek.add(Duration(days: 6));

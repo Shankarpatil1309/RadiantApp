@@ -39,36 +39,46 @@ class AttendanceService {
     String section,
     int semester,
     String subject,
+    String? subjectCode,
     String facultyId,
     List<String> presentStudentIds,
     List<String> absentStudentIds,
   ) async {
+    final now = DateTime.now();
+    final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    
     final attendanceData = Attendance(
-      id: sessionId,
-      department: department,
-      semester: semester,
-      section: section,
+      id: '', // Will be auto-generated
+      classSessionId: sessionId,
+      date: dateStr,
       subject: subject,
-      classDate: DateTime.now().toString().split(' ')[0],
-      classTime: DateTime.now().toString(),
-      markedBy: facultyId,
+      subjectCode: subjectCode,
+      department: department,
+      section: section,
+      semester: semester,
+      facultyId: facultyId,
+      totalStudents: presentStudentIds.length + absentStudentIds.length,
+      presentCount: presentStudentIds.length,
+      absentCount: absentStudentIds.length,
       studentsPresent: presentStudentIds,
       studentsAbsent: absentStudentIds,
+      markedAt: now,
     );
 
     await _firestoreService.createDocument(
       _collection, 
-      sessionId, 
+      '', // Auto-generate ID
       attendanceData.toMap()
     );
   }
 
-  Future<List<Attendance>> getAttendanceBySection(String department, String section) async {
+  Future<List<Attendance>> getAttendanceBySection(String department, String section, int semester) async {
     final QuerySnapshot snapshot = await FirebaseFirestore.instance
         .collection(_collection)
         .where('department', isEqualTo: department)
         .where('section', isEqualTo: section)
-        .orderBy('classDate', descending: true)
+        .where('semester', isEqualTo: semester)
+        .orderBy('date', descending: true)
         .get();
     
     return snapshot.docs.map((doc) => Attendance.fromDoc(doc)).toList();
@@ -77,8 +87,8 @@ class AttendanceService {
   Future<List<Attendance>> getAttendanceByFaculty(String facultyId) async {
     final QuerySnapshot snapshot = await FirebaseFirestore.instance
         .collection(_collection)
-        .where('markedBy', isEqualTo: facultyId)
-        .orderBy('classDate', descending: true)
+        .where('facultyId', isEqualTo: facultyId)
+        .orderBy('date', descending: true)
         .get();
     
     return snapshot.docs.map((doc) => Attendance.fromDoc(doc)).toList();
@@ -87,21 +97,80 @@ class AttendanceService {
   Future<List<Attendance>> getAttendanceByDateRange(
     String department,
     String section,
+    int semester,
     DateTime startDate,
     DateTime endDate,
   ) async {
-    final startDateStr = startDate.toString().split(' ')[0];
-    final endDateStr = endDate.toString().split(' ')[0];
+    final startDateStr = '${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}';
+    final endDateStr = '${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}';
     
     final QuerySnapshot snapshot = await FirebaseFirestore.instance
         .collection(_collection)
         .where('department', isEqualTo: department)
         .where('section', isEqualTo: section)
-        .where('classDate', isGreaterThanOrEqualTo: startDateStr)
-        .where('classDate', isLessThanOrEqualTo: endDateStr)
-        .orderBy('classDate', descending: true)
+        .where('semester', isEqualTo: semester)
+        .where('date', isGreaterThanOrEqualTo: startDateStr)
+        .where('date', isLessThanOrEqualTo: endDateStr)
+        .orderBy('date', descending: true)
         .get();
     
     return snapshot.docs.map((doc) => Attendance.fromDoc(doc)).toList();
+  }
+
+  // Get class sessions for attendance marking
+  Future<List<Map<String, dynamic>>> getClassSessionsForAttendance(
+    String facultyId,
+    String department,
+    String section,
+    int semester,
+  ) async {
+    final QuerySnapshot snapshot = await FirebaseFirestore.instance
+        .collection('class_sessions')
+        .where('facultyId', isEqualTo: facultyId)
+        .where('department', isEqualTo: department)
+        .where('section', isEqualTo: section)
+        .where('semester', isEqualTo: semester)
+        .where('status', isEqualTo: 'scheduled')
+        .orderBy('startTime', descending: false)
+        .get();
+    
+    return snapshot.docs.map((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      return {
+        'id': doc.id,
+        'subject': data['subject'] ?? '',
+        'subjectCode': data['subjectCode'] ?? '',
+        'title': data['title'] ?? '',
+        'date': data['date'] ?? '',
+        'startTime': data['startTime'],
+        'endTime': data['endTime'],
+        'room': data['room'] ?? '',
+      };
+    }).toList();
+  }
+
+  // Get students for attendance marking
+  Future<List<Map<String, dynamic>>> getStudentsForAttendance(
+    String department,
+    String section,
+    int semester,
+  ) async {
+    final QuerySnapshot snapshot = await FirebaseFirestore.instance
+        .collection('students')
+        .where('department', isEqualTo: department)
+        .where('section', isEqualTo: section)
+        .where('semester', isEqualTo: semester)
+        .orderBy('name', descending: false)
+        .get();
+    
+    return snapshot.docs.map((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      return {
+        'id': doc.id,
+        'name': data['name'] ?? '',
+        'rollNumber': data['rollNumber'] ?? '',
+        'email': data['email'] ?? '',
+      };
+    }).toList();
   }
 }

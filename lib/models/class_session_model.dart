@@ -4,22 +4,19 @@ class ClassSession {
   final String id;
   final String title;
   final String subject;
+  final String? subjectCode;
   final String department;
   final String section;
   final int semester;
   final String facultyId;
   final String facultyName;
   final String room;
+  final String date; // "2025-01-15"
   final DateTime startTime;
   final DateTime endTime;
   final String type; // 'lecture', 'lab', 'tutorial', 'exam'
   final String? description;
-  final bool isActive;
-  final bool isRecurring;
-  final String? recurringPattern; // 'daily', 'weekly', 'monthly'
-  final DateTime? recurringEndDate;
-  final List<String> attendees; // Student IDs who attended
-  final String status; // 'scheduled', 'ongoing', 'completed', 'cancelled'
+  final String status; // 'scheduled', 'completed', 'cancelled'
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -27,21 +24,18 @@ class ClassSession {
     required this.id,
     required this.title,
     required this.subject,
+    this.subjectCode,
     required this.department,
     required this.section,
     required this.semester,
     required this.facultyId,
     required this.facultyName,
     required this.room,
+    required this.date,
     required this.startTime,
     required this.endTime,
     this.type = 'lecture',
     this.description,
-    this.isActive = true,
-    this.isRecurring = false,
-    this.recurringPattern,
-    this.recurringEndDate,
-    this.attendees = const [],
     this.status = 'scheduled',
     required this.createdAt,
     required this.updatedAt,
@@ -53,12 +47,14 @@ class ClassSession {
       id: doc.id,
       title: data['title'] ?? '',
       subject: data['subject'] ?? '',
+      subjectCode: data['subjectCode'],
       department: data['department'] ?? '',
       section: data['section'] ?? '',
       semester: data['semester'] ?? 1,
       facultyId: data['facultyId'] ?? '',
       facultyName: data['facultyName'] ?? '',
       room: data['room'] ?? '',
+      date: data['date'] ?? '',
       startTime: data['startTime'] != null 
           ? (data['startTime'] as Timestamp).toDate() 
           : DateTime.now(),
@@ -67,13 +63,6 @@ class ClassSession {
           : DateTime.now().add(Duration(hours: 1)),
       type: data['type'] ?? 'lecture',
       description: data['description'],
-      isActive: data['isActive'] ?? true,
-      isRecurring: data['isRecurring'] ?? false,
-      recurringPattern: data['recurringPattern'],
-      recurringEndDate: data['recurringEndDate'] != null 
-          ? (data['recurringEndDate'] as Timestamp).toDate() 
-          : null,
-      attendees: List<String>.from(data['attendees'] ?? []),
       status: data['status'] ?? 'scheduled',
       createdAt: data['createdAt'] != null 
           ? (data['createdAt'] as Timestamp).toDate() 
@@ -88,23 +77,18 @@ class ClassSession {
     return {
       'title': title,
       'subject': subject,
+      'subjectCode': subjectCode,
       'department': department,
       'section': section,
       'semester': semester,
       'facultyId': facultyId,
       'facultyName': facultyName,
       'room': room,
+      'date': date,
       'startTime': Timestamp.fromDate(startTime),
       'endTime': Timestamp.fromDate(endTime),
       'type': type,
       'description': description,
-      'isActive': isActive,
-      'isRecurring': isRecurring,
-      'recurringPattern': recurringPattern,
-      'recurringEndDate': recurringEndDate != null 
-          ? Timestamp.fromDate(recurringEndDate!) 
-          : null,
-      'attendees': attendees,
       'status': status,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
@@ -113,16 +97,63 @@ class ClassSession {
 
   // Helper getters
   Duration get duration => endTime.difference(startTime);
+  
   bool get isToday {
     final now = DateTime.now();
-    return startTime.year == now.year && 
-           startTime.month == now.month && 
-           startTime.day == now.day;
+    final today = DateTime(now.year, now.month, now.day);
+    final sessionDate = DateTime(startTime.year, startTime.month, startTime.day);
+    return today == sessionDate;
   }
+  
   bool get isUpcoming => startTime.isAfter(DateTime.now());
+  
   bool get isOngoing {
     final now = DateTime.now();
     return now.isAfter(startTime) && now.isBefore(endTime);
   }
-  bool get isCompleted => endTime.isBefore(DateTime.now());
+  
+  bool get isCompleted => status == 'completed';
+  
+  // Copy method for schedule copying functionality
+  ClassSession copyWith({
+    String? id,
+    String? title,
+    String? subject,
+    String? subjectCode,
+    String? department,
+    String? section,
+    int? semester,
+    String? facultyId,
+    String? facultyName,
+    String? room,
+    String? date,
+    DateTime? startTime,
+    DateTime? endTime,
+    String? type,
+    String? description,
+    String? status,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return ClassSession(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      subject: subject ?? this.subject,
+      subjectCode: subjectCode ?? this.subjectCode,
+      department: department ?? this.department,
+      section: section ?? this.section,
+      semester: semester ?? this.semester,
+      facultyId: facultyId ?? this.facultyId,
+      facultyName: facultyName ?? this.facultyName,
+      room: room ?? this.room,
+      date: date ?? this.date,
+      startTime: startTime ?? this.startTime,
+      endTime: endTime ?? this.endTime,
+      type: type ?? this.type,
+      description: description ?? this.description,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
 }

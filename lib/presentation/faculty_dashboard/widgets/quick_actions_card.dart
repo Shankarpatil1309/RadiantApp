@@ -107,16 +107,16 @@ class QuickActionsCard extends StatelessWidget {
                     onCreateAssignment,
                   ),
                 ),
-                SizedBox(width: 3.w),
-                Expanded(
-                  child: _buildActionButton(
-                    context,
-                    "Schedule Class",
-                    'schedule',
-                    AppTheme.getStatusColor('warning'),
-                    onScheduleClass,
-                  ),
-                ),
+                // SizedBox(width: 3.w),
+                // Expanded(
+                //   child: _buildActionButton(
+                //     context,
+                //     "Schedule Class",
+                //     'schedule',
+                //     AppTheme.getStatusColor('warning'),
+                //     onScheduleClass,
+                //   ),
+                // ),
               ],
             ),
           ],

@@ -7,65 +7,9 @@ class ClassSessionService {
 
   Future<String> createClassSession(ClassSession session) async {
     final docRef = await _firestore.collection(_collection).add(session.toMap());
-    
-    // If recurring, create multiple sessions
-    if (session.isRecurring && session.recurringPattern != null && session.recurringEndDate != null) {
-      await _createRecurringSessions(session, docRef.id);
-    }
-    
     return docRef.id;
   }
 
-  Future<void> _createRecurringSessions(ClassSession session, String parentId) async {
-    if (session.recurringEndDate == null) return;
-    
-    DateTime currentDate = session.startTime;
-    final endDate = session.recurringEndDate!;
-    
-    while (currentDate.isBefore(endDate)) {
-      DateTime nextDate;
-      
-      switch (session.recurringPattern) {
-        case 'daily':
-          nextDate = currentDate.add(Duration(days: 1));
-          break;
-        case 'weekly':
-          nextDate = currentDate.add(Duration(days: 7));
-          break;
-        case 'monthly':
-          nextDate = DateTime(currentDate.year, currentDate.month + 1, currentDate.day);
-          break;
-        default:
-          return;
-      }
-      
-      if (nextDate.isAfter(endDate)) break;
-      
-      final duration = session.endTime.difference(session.startTime);
-      final nextSession = ClassSession(
-        id: '',
-        title: session.title,
-        subject: session.subject,
-        department: session.department,
-        section: session.section,
-        semester: session.semester,
-        facultyId: session.facultyId,
-        facultyName: session.facultyName,
-        room: session.room,
-        startTime: nextDate,
-        endTime: nextDate.add(duration),
-        type: session.type,
-        description: session.description,
-        isActive: session.isActive,
-        isRecurring: false, // Individual sessions are not recurring
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-      
-      await _firestore.collection(_collection).add(nextSession.toMap());
-      currentDate = nextDate;
-    }
-  }
 
   Future<ClassSession?> getClassSession(String id) async {
     DocumentSnapshot doc = await _firestore.collection(_collection).doc(id).get();
@@ -114,7 +58,7 @@ class ClassSessionService {
     Query query = _firestore
         .collection(_collection)
         .where('department', isEqualTo: department)
-        .where('isActive', isEqualTo: true);
+;
     
     if (section != null) {
       query = query.where('section', isEqualTo: section);
@@ -141,7 +85,7 @@ class ClassSessionService {
     final sessions = snapshot.docs
         .map((doc) => ClassSession.fromDoc(doc))
         .where((session) => 
-            session.isActive &&
+            session.status != 'cancelled' &&
             session.startTime.isAfter(startOfDay.subtract(Duration(seconds: 1))) &&
             session.startTime.isBefore(endOfDay))
         .toList();
@@ -165,7 +109,7 @@ class ClassSessionService {
     final sessions = snapshot.docs
         .map((doc) => ClassSession.fromDoc(doc))
         .where((session) => 
-            session.isActive && 
+            session.status != 'cancelled' && 
             session.startTime.isAfter(now))
         .toList();
     
@@ -191,7 +135,7 @@ class ClassSessionService {
     final sessions = snapshot.docs
         .map((doc) => ClassSession.fromDoc(doc))
         .where((session) => 
-            session.isActive &&
+            session.status != 'cancelled' &&
             session.startTime.isAfter(startDate.subtract(Duration(seconds: 1))) &&
             session.startTime.isBefore(endDate.add(Duration(days: 1))))
         .toList();
@@ -202,11 +146,113 @@ class ClassSessionService {
     return sessions;
   }
 
-  Future<void> markAttendance(String sessionId, List<String> attendeeIds) async {
+  Future<void> markSessionCompleted(String sessionId) async {
     await updateClassSession(sessionId, {
-      'attendees': attendeeIds,
       'status': 'completed',
     });
+  }
+
+  // Copy schedule functionality
+  Future<List<String>> copyScheduleFromPreviousDay(
+    String facultyId,
+    DateTime targetDate,
+  ) async {
+    final previousDay = targetDate.subtract(Duration(days: 1));
+    final previousDayStr = '${previousDay.year}-${previousDay.month.toString().padLeft(2, '0')}-${previousDay.day.toString().padLeft(2, '0')}';
+    
+    // Get sessions from previous day
+    final snapshot = await _firestore
+        .collection(_collection)
+        .where('facultyId', isEqualTo: facultyId)
+        .where('date', isEqualTo: previousDayStr)
+        .get();
+    
+    final List<String> newSessionIds = [];
+    final targetDateStr = '${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}';
+    
+    for (final doc in snapshot.docs) {
+      final session = ClassSession.fromDoc(doc);
+      
+      // Create new session for target date
+      final newSession = session.copyWith(
+        id: '', // Will be auto-generated
+        date: targetDateStr,
+        startTime: DateTime(
+          targetDate.year,
+          targetDate.month,
+          targetDate.day,
+          session.startTime.hour,
+          session.startTime.minute,
+        ),
+        endTime: DateTime(
+          targetDate.year,
+          targetDate.month,
+          targetDate.day,
+          session.endTime.hour,
+          session.endTime.minute,
+        ),
+        status: 'scheduled',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      
+      final docRef = await _firestore.collection(_collection).add(newSession.toMap());
+      newSessionIds.add(docRef.id);
+    }
+    
+    return newSessionIds;
+  }
+
+  Future<List<String>> copyScheduleFromPreviousWeek(
+    String facultyId,
+    DateTime weekStart,
+  ) async {
+    final previousWeekStart = weekStart.subtract(Duration(days: 7));
+    final previousWeekEnd = previousWeekStart.add(Duration(days: 6));
+    
+    // Get sessions from previous week
+    final sessions = await getClassSessionsByDateRange(
+      facultyId,
+      previousWeekStart,
+      previousWeekEnd,
+    );
+    
+    final List<String> newSessionIds = [];
+    
+    for (final session in sessions) {
+      // Calculate target date (same day of week, next week)
+      final daysDifference = session.startTime.difference(previousWeekStart).inDays;
+      final targetDate = weekStart.add(Duration(days: daysDifference));
+      final targetDateStr = '${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}';
+      
+      // Create new session for target week
+      final newSession = session.copyWith(
+        id: '', // Will be auto-generated
+        date: targetDateStr,
+        startTime: DateTime(
+          targetDate.year,
+          targetDate.month,
+          targetDate.day,
+          session.startTime.hour,
+          session.startTime.minute,
+        ),
+        endTime: DateTime(
+          targetDate.year,
+          targetDate.month,
+          targetDate.day,
+          session.endTime.hour,
+          session.endTime.minute,
+        ),
+        status: 'scheduled',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      
+      final docRef = await _firestore.collection(_collection).add(newSession.toMap());
+      newSessionIds.add(docRef.id);
+    }
+    
+    return newSessionIds;
   }
 
   // Student-specific methods
@@ -223,11 +269,11 @@ class ClassSessionService {
         .where('department', isEqualTo: department)
         .get();
     
-    // Filter by section, semester, date range and active status in memory
+    // Filter by section, semester, date range in memory
     final sessions = snapshot.docs
         .map((doc) => ClassSession.fromDoc(doc))
         .where((session) => 
-            session.isActive &&
+            session.status != 'cancelled' &&
             session.section == section &&
             session.semester == semester &&
             session.startTime.isAfter(startDate.subtract(Duration(seconds: 1))) &&

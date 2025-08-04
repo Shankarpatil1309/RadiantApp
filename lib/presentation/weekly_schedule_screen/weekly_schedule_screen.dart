@@ -26,7 +26,6 @@ class WeeklyScheduleScreen extends ConsumerStatefulWidget {
 }
 
 class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
-  DateTime? _selectedDateForNewClass;
 
 
   @override
@@ -266,13 +265,43 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
               size: 24,
             ),
           ),
-          IconButton(
-            onPressed: _showFilterBottomSheet,
+          PopupMenuButton<String>(
+            onSelected: _handleMenuAction,
             icon: CustomIconWidget(
-              iconName: 'filter_list',
-              color: AppTheme.getRoleColor('faculty'),
+              iconName: 'more_vert',
+              color: AppTheme.lightTheme.colorScheme.onSurface,
               size: 24,
             ),
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'filter',
+                child: Row(
+                  children: [
+                    CustomIconWidget(
+                      iconName: 'filter_list',
+                      color: AppTheme.getRoleColor('faculty'),
+                      size: 20,
+                    ),
+                    SizedBox(width: 2.w),
+                    Text('Filter'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'copy_previous_week',
+                child: Row(
+                  children: [
+                    CustomIconWidget(
+                      iconName: 'content_copy',
+                      color: AppTheme.lightTheme.colorScheme.primary,
+                      size: 20,
+                    ),
+                    SizedBox(width: 2.w),
+                    Text('Copy Previous Week'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -326,6 +355,39 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
       department: department,
       section: section,
     );
+  }
+
+  void _handleMenuAction(String action) {
+    switch (action) {
+      case 'filter':
+        _showFilterBottomSheet();
+        break;
+      case 'copy_previous_week':
+        _copyPreviousWeek();
+        break;
+    }
+  }
+
+  Future<void> _copyPreviousWeek() async {
+    try {
+      final scheduleState = ref.read(scheduleControllerProvider);
+      await ref.read(scheduleControllerProvider.notifier).copyScheduleFromPreviousWeek(
+        scheduleState.currentWeek,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Schedule copied from previous week successfully'),
+          backgroundColor: AppTheme.getStatusColor('success'),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to copy schedule: $e'),
+          backgroundColor: AppTheme.getStatusColor('error'),
+        ),
+      );
+    }
   }
 
   void _showClassDetails(Map<String, dynamic> classData) {

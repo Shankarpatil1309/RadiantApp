@@ -398,7 +398,6 @@ class _FacultyAttendanceScreenState
 
   Widget _buildClassItem(ClassSession classSession) {
     final isCompleted = classSession.status == 'completed';
-    final attendeesCount = classSession.attendees.length;
 
     return Container(
       margin: EdgeInsets.only(bottom: 2.h),
@@ -469,7 +468,7 @@ class _FacultyAttendanceScreenState
               ),
               SizedBox(width: 1.w),
               Text(
-                '$attendeesCount students',
+                isCompleted ? 'Attendance marked' : 'Pending attendance',
                 style: AppTheme.lightTheme.textTheme.bodySmall,
               ),
               if (!isCompleted) ...[

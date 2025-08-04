@@ -35,14 +35,10 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
   String _selectedType = 'lecture';
   TimeOfDay _startTime = TimeOfDay(hour: 9, minute: 0);
   TimeOfDay _endTime = TimeOfDay(hour: 10, minute: 30);
-  bool _isRecurring = false;
-  String? _recurringPattern;
-  DateTime? _recurringEndDate;
 
   final List<String> _departments = AppConfig.departmentCodes;
 
   final List<String> _sessionTypes = ['lecture', 'lab', 'tutorial', 'exam'];
-  final List<String> _recurringPatterns = ['weekly', 'daily', 'monthly'];
 
   @override
   void dispose() {
@@ -77,8 +73,6 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
                     _buildTimeSelection(),
                     SizedBox(height: 3.h),
                     _buildClassDetails(),
-                    SizedBox(height: 3.h),
-                    _buildRecurringSettings(),
                     SizedBox(height: 3.h),
                     _buildActionButtons(),
                   ],
@@ -413,83 +407,6 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
     );
   }
 
-  Widget _buildRecurringSettings() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Recurring Settings',
-          style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        SizedBox(height: 2.h),
-        SwitchListTile(
-          title: Text('Recurring Class'),
-          subtitle: Text('Repeat this class session'),
-          value: _isRecurring,
-          onChanged: (value) => setState(() => _isRecurring = value),
-          activeColor: AppTheme.getRoleColor('faculty'),
-        ),
-        if (_isRecurring) ...[
-          SizedBox(height: 2.h),
-          DropdownButtonFormField<String>(
-            value: _recurringPattern,
-            decoration: InputDecoration(
-              labelText: 'Repeat Pattern',
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            items: _recurringPatterns
-                .map((pattern) => DropdownMenuItem(
-                      value: pattern,
-                      child: Text(pattern.toUpperCase()),
-                    ))
-                .toList(),
-            onChanged: (value) => setState(() => _recurringPattern = value),
-          ),
-          SizedBox(height: 2.h),
-          InkWell(
-            onTap: () => _selectEndDate(context),
-            child: Container(
-              padding: EdgeInsets.all(4.w),
-              decoration: BoxDecoration(
-                border:
-                    Border.all(color: AppTheme.lightTheme.colorScheme.outline),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  CustomIconWidget(
-                    iconName: 'calendar_today',
-                    color: AppTheme.lightTheme.colorScheme.onSurface
-                        .withValues(alpha: 0.6),
-                    size: 20,
-                  ),
-                  SizedBox(width: 2.w),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'End Date',
-                        style: AppTheme.lightTheme.textTheme.bodySmall,
-                      ),
-                      Text(
-                        _recurringEndDate != null
-                            ? _formatDate(_recurringEndDate!)
-                            : 'Select end date',
-                        style: AppTheme.lightTheme.textTheme.titleMedium,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
 
   Widget _buildActionButtons() {
     return Row(
@@ -542,17 +459,6 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
     }
   }
 
-  Future<void> _selectEndDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _recurringEndDate ?? DateTime.now().add(Duration(days: 30)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(Duration(days: 365)),
-    );
-    if (picked != null) {
-      setState(() => _recurringEndDate = picked);
-    }
-  }
 
   void _saveClassSession() {
     if (_formKey.currentState?.validate() ?? false) {
@@ -572,6 +478,8 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
         _endTime.minute,
       );
 
+      final dateStr = '${widget.selectedDate.year}-${widget.selectedDate.month.toString().padLeft(2, '0')}-${widget.selectedDate.day.toString().padLeft(2, '0')}';
+      
       final session = ClassSession(
         id: '', // Will be generated by Firestore
         title: _titleController.text.trim(),
@@ -582,15 +490,13 @@ class _AddClassSessionWidgetState extends ConsumerState<AddClassSessionWidget> {
         facultyId: 'EMP2024011', // TODO: Get from auth
         facultyName: 'Current Faculty', // TODO: Get from auth
         room: _roomController.text.trim(),
+        date: dateStr,
         startTime: startDateTime,
         endTime: endDateTime,
         type: _selectedType,
         description: _descriptionController.text.trim().isNotEmpty
             ? _descriptionController.text.trim()
             : null,
-        isRecurring: _isRecurring,
-        recurringPattern: _isRecurring ? _recurringPattern : null,
-        recurringEndDate: _isRecurring ? _recurringEndDate : null,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
