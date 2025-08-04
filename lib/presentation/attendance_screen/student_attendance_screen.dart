@@ -5,6 +5,7 @@ import 'package:sizer/sizer.dart';
 import '../../core/app_export.dart';
 import '../../controllers/attendance_controller.dart';
 import '../../controllers/student_dashboard_controller.dart';
+import '../../models/student_model.dart';
 import './widgets/attendance_calendar_widget.dart';
 import './widgets/attendance_filter_widget.dart';
 import './widgets/attendance_stats_widget.dart';
@@ -151,10 +152,6 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
     with TickerProviderStateMixin {
   late TabController _tabController;
   DateTime selectedMonth = DateTime.now();
-  String? _studentId;
-  String? _department;
-  String? _section;
-  int? _semester;
   Map<String, dynamic> currentFilters = {
     'subject': 'All Subjects',
     'attendanceThreshold': 0.0,
@@ -166,28 +163,6 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _loadStudentInfo();
-  }
-
-  Future<void> _loadStudentInfo() async {
-    try {
-      // Get student data from the provider
-      final studentData = await ref.read(studentDataProvider.future);
-      final studentId = await ref.read(currentStudentIdProvider.future);
-      
-      if (studentData != null && studentId != null) {
-        setState(() {
-          _studentId = studentId;
-          _department = studentData.department;
-          _section = studentData.section;
-          _semester = studentData.semester;
-        });
-      } else {
-        print('Failed to load student info: studentData or studentId is null');
-      }
-    } catch (e) {
-      print('Error loading student info: $e');
-    }
   }
 
   @override
@@ -198,17 +173,55 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
 
   @override
   Widget build(BuildContext context) {
-    if (_studentId == null || _department == null || _section == null || _semester == null) {
-      return Scaffold(
+    return ref.watch(studentDataProvider).when(
+      data: (studentData) {
+        if (studentData == null) {
+          return Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error, color: AppTheme.getStatusColor('error')),
+                  SizedBox(height: 1.h),
+                  Text('Student data not found'),
+                ],
+              ),
+            ),
+          );
+        }
+        
+        return _buildMainContent(studentData);
+      },
+      loading: () => Scaffold(
         body: Center(child: CircularProgressIndicator()),
-      );
-    }
+      ),
+      error: (error, stack) => Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error, color: AppTheme.getStatusColor('error')),
+              SizedBox(height: 1.h),
+              Text('Error loading student data'),
+              Text(error.toString()),
+              SizedBox(height: 2.h),
+              ElevatedButton(
+                onPressed: () => ref.refresh(studentDataProvider),
+                child: Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
+  Widget _buildMainContent(Student studentData) {
     return Scaffold(
       backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
       appBar: _buildAppBar(),
       body: RefreshIndicator(
-        onRefresh: _refreshData,
+        onRefresh: () => _refreshData(studentData),
         child: Column(
           children: [
             _buildMonthSelector(),
@@ -216,7 +229,7 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
             Expanded(
               child: TabBarView(
                 controller: _tabController,
-                children: _buildTabViews(),
+                children: _buildTabViews(studentData),
               ),
             ),
           ],
@@ -378,140 +391,172 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
     );
   }
 
-  List<Widget> _buildTabViews() {
+  List<Widget> _buildTabViews(Student studentData) {
     return [
-      _buildOverviewTab(),
-      _buildCalendarTab(),
+      _buildOverviewTab(studentData),
+      _buildCalendarTab(studentData),
       _buildFilterTab(),
     ];
   }
 
-  Widget _buildOverviewTab() {
-    final statsParams = {
-      'department': _department!,
-      'section': _section!,
-      'semester': _semester!,
-      'studentId': _studentId!,
-    };
-    
-    final attendanceStatsAsync = ref.watch(studentAttendanceStatsProvider(statsParams));
-    
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          attendanceStatsAsync.when(
-            data: (attendanceData) => AttendanceStatsWidget(
-              attendanceData: attendanceData,
-              userRole: 'student',
-            ),
-            loading: () => Container(
-              height: 20.h,
-              child: Center(child: CircularProgressIndicator()),
-            ),
-            error: (error, stack) => Container(
-              height: 20.h,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error, color: AppTheme.getStatusColor('error')),
-                    SizedBox(height: 1.h),
-                    Text('Failed to load attendance data'),
-                    TextButton(
-                      onPressed: () => ref.refresh(studentAttendanceStatsProvider(statsParams)),
-                      child: Text('Retry'),
+  Widget _buildOverviewTab(Student studentData) {
+    return ref.watch(currentStudentIdProvider).when(
+      data: (studentId) {
+        if (studentId == null) {
+          return Center(child: Text('Student ID not found'));
+        }
+        
+        final statsParams = {
+          'department': studentData.department,
+          'section': studentData.section,
+          'semester': studentData.semester,
+          'studentId': studentId,
+        };
+        
+        final attendanceStatsAsync = ref.watch(studentAttendanceStatsProvider(statsParams));
+        
+        return SingleChildScrollView(
+          child: Column(
+            children: [
+              attendanceStatsAsync.when(
+                data: (attendanceData) => AttendanceStatsWidget(
+                  attendanceData: attendanceData,
+                  userRole: 'student',
+                ),
+                loading: () => Container(
+                  height: 20.h,
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (error, stack) => Container(
+                  height: 20.h,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error, color: AppTheme.getStatusColor('error')),
+                        SizedBox(height: 1.h),
+                        Text('Failed to load attendance data'),
+                        TextButton(
+                          onPressed: () => ref.refresh(studentAttendanceStatsProvider(statsParams)),
+                          child: Text('Retry'),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+              _buildAttendanceTrends(studentData, studentId),
+              attendanceStatsAsync.when(
+                data: (data) => _buildAttendanceInsights(data),
+                loading: () => SizedBox(),
+                error: (_, __) => SizedBox(),
+              ),
+              SizedBox(height: 10.h),
+            ],
           ),
-          _buildAttendanceTrends(),
-          attendanceStatsAsync.when(
-            data: (data) => _buildAttendanceInsights(data),
-            loading: () => SizedBox(),
-            error: (_, __) => SizedBox(),
-          ),
-          SizedBox(height: 10.h),
-        ],
+        );
+      },
+      loading: () => Container(
+        height: 20.h,
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (error, stack) => Container(
+        height: 20.h,
+        child: Center(child: Text('Error loading student ID')),
       ),
     );
   }
 
-  Widget _buildCalendarTab() {
-    final attendanceParams = {
-      'department': _department!,
-      'section': _section!,
-      'semester': _semester!,
-    };
-    
-    final attendanceDataAsync = ref.watch(studentAttendanceProvider(attendanceParams));
-    
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          attendanceDataAsync.when(
-            data: (attendanceRecords) {
-              return FutureBuilder(
-                future: ref.read(attendanceServiceProvider).getAttendanceBySection(_department!, _section!, _semester!),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Container(
-                      height: 40.h,
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  }
-                  
-                  if (snapshot.hasError) {
-                    return Container(
-                      height: 40.h,
-                      child: Center(child: Text('Error loading calendar data')),
-                    );
-                  }
-                  
-                  final actualRecords = snapshot.data ?? [];
-                  final calendarData = {
-                    'attendanceRecords': actualRecords.map((record) {
-                      final isPresent = record.studentsPresent.contains(_studentId);
-                      return {
-                        'date': record.date,
-                        'status': isPresent ? 'present' : 'absent',
-                        'subjects': [record.subject],
+  Widget _buildCalendarTab(Student studentData) {
+    return ref.watch(currentStudentIdProvider).when(
+      data: (studentId) {
+        if (studentId == null) {
+          return Center(child: Text('Student ID not found'));
+        }
+        
+        final attendanceParams = {
+          'department': studentData.department,
+          'section': studentData.section,
+          'semester': studentData.semester,
+        };
+        
+        final attendanceDataAsync = ref.watch(studentAttendanceProvider(attendanceParams));
+        
+        return SingleChildScrollView(
+          child: Column(
+            children: [
+              attendanceDataAsync.when(
+                data: (attendanceRecords) {
+                  return FutureBuilder(
+                    future: ref.read(attendanceServiceProvider).getAttendanceBySection(studentData.department, studentData.section, studentData.semester),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return Container(
+                          height: 40.h,
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+                      
+                      if (snapshot.hasError) {
+                        return Container(
+                          height: 40.h,
+                          child: Center(child: Text('Error loading calendar data')),
+                        );
+                      }
+                      
+                      final actualRecords = snapshot.data ?? [];
+                      final calendarData = {
+                        'attendanceRecords': actualRecords.map((record) {
+                          final isPresent = record.studentsPresent.contains(studentId);
+                          return {
+                            'date': record.date,
+                            'status': isPresent ? 'present' : 'absent',
+                            'subjects': [record.subject],
+                          };
+                        }).toList(),
                       };
-                    }).toList(),
-                  };
-                  
-                  return AttendanceCalendarWidget(
-                    calendarData: calendarData,
-                    onDateTap: _onDateTap,
+                      
+                      return AttendanceCalendarWidget(
+                        calendarData: calendarData,
+                        onDateTap: _onDateTap,
+                      );
+                    },
                   );
                 },
-              );
-            },
-            loading: () => Container(
-              height: 40.h,
-              child: Center(child: CircularProgressIndicator()),
-            ),
-            error: (error, stack) => Container(
-              height: 40.h,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error, color: AppTheme.getStatusColor('error')),
-                    SizedBox(height: 1.h),
-                    Text('Failed to load calendar data'),
-                    TextButton(
-                      onPressed: () => ref.refresh(studentAttendanceProvider(attendanceParams)),
-                      child: Text('Retry'),
+                loading: () => Container(
+                  height: 40.h,
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (error, stack) => Container(
+                  height: 40.h,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error, color: AppTheme.getStatusColor('error')),
+                        SizedBox(height: 1.h),
+                        Text('Failed to load calendar data'),
+                        TextButton(
+                          onPressed: () => ref.refresh(studentAttendanceProvider(attendanceParams)),
+                          child: Text('Retry'),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+              SizedBox(height: 10.h),
+            ],
           ),
-          SizedBox(height: 10.h),
-        ],
+        );
+      },
+      loading: () => Container(
+        height: 40.h,
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (error, stack) => Container(
+        height: 40.h,
+        child: Center(child: Text('Error loading student ID')),
       ),
     );
   }
@@ -530,16 +575,12 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
     );
   }
 
-  Widget _buildAttendanceTrends() {
-    if (_studentId == null || _department == null || _section == null || _semester == null) {
-      return SizedBox.shrink();
-    }
-
+  Widget _buildAttendanceTrends(Student studentData, String studentId) {
     final trendsParams = {
-      'department': _department!,
-      'section': _section!,
-      'semester': _semester!,
-      'studentId': _studentId!,
+      'department': studentData.department,
+      'section': studentData.section,
+      'semester': studentData.semester,
+      'studentId': studentId,
     };
     
     final attendanceTrendsAsync = ref.watch(studentAttendanceTrendsProvider(trendsParams));
@@ -868,20 +909,20 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
     }
   }
 
-  Future<void> _refreshData() async {
-    // Refresh all providers
-    if (_department != null && _section != null && _semester != null && _studentId != null) {
+  Future<void> _refreshData(Student studentData) async {
+    final studentIdAsync = await ref.read(currentStudentIdProvider.future);
+    if (studentIdAsync != null) {
       final statsParams = {
-        'department': _department!,
-        'section': _section!,
-        'semester': _semester!,
-        'studentId': _studentId!,
+        'department': studentData.department,
+        'section': studentData.section,
+        'semester': studentData.semester,
+        'studentId': studentIdAsync,
       };
       
       final attendanceParams = {
-        'department': _department!,
-        'section': _section!,
-        'semester': _semester!,
+        'department': studentData.department,
+        'section': studentData.section,
+        'semester': studentData.semester,
       };
       
       ref.invalidate(studentAttendanceStatsProvider(statsParams));

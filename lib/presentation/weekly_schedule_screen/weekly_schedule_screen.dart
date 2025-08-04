@@ -47,7 +47,7 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scheduleState = ref.watch(scheduleControllerProvider);
+    final scheduleState = ref.watch(universalScheduleControllerProvider);
 
     return Scaffold(
       backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
@@ -55,7 +55,7 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
       body: RefreshIndicator(
         onRefresh: () async {
           await ref
-              .read(scheduleControllerProvider.notifier)
+              .read(universalScheduleControllerProvider.notifier)
               .loadWeeklySchedule();
         },
         child: Column(
@@ -244,7 +244,7 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
           SizedBox(height: 2.h),
           ElevatedButton(
             onPressed: () => ref
-                .read(scheduleControllerProvider.notifier)
+                .read(universalScheduleControllerProvider.notifier)
                 .loadWeeklySchedule(),
             child: Text('Retry'),
           ),
@@ -270,7 +270,7 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
         children: [
           IconButton(
             onPressed: () => ref
-                .read(scheduleControllerProvider.notifier)
+                .read(universalScheduleControllerProvider.notifier)
                 .goToPreviousWeek(),
             icon: CustomIconWidget(
               iconName: 'chevron_left',
@@ -282,17 +282,17 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
             child: Column(
               children: [
                 Text(
-                  ref.read(scheduleControllerProvider.notifier).weekRangeText,
+                  ref.read(universalScheduleControllerProvider.notifier).weekRangeText,
                   style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 if (!ref
-                    .read(scheduleControllerProvider.notifier)
+                    .read(universalScheduleControllerProvider.notifier)
                     .isCurrentWeek)
                   TextButton(
                     onPressed: () => ref
-                        .read(scheduleControllerProvider.notifier)
+                        .read(universalScheduleControllerProvider.notifier)
                         .goToCurrentWeek(),
                     child: Text(
                       'Go to Current Week',
@@ -307,7 +307,7 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
           ),
           IconButton(
             onPressed: () =>
-                ref.read(scheduleControllerProvider.notifier).goToNextWeek(),
+                ref.read(universalScheduleControllerProvider.notifier).goToNextWeek(),
             icon: CustomIconWidget(
               iconName: 'chevron_right',
               color: AppTheme.lightTheme.colorScheme.onSurface,
@@ -336,20 +336,22 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
                   ],
                 ),
               ),
-              PopupMenuItem(
-                value: 'copy_previous_week',
-                child: Row(
-                  children: [
-                    CustomIconWidget(
-                      iconName: 'content_copy',
-                      color: AppTheme.lightTheme.colorScheme.primary,
-                      size: 20,
-                    ),
-                    SizedBox(width: 2.w),
-                    Text('Copy Previous Week'),
-                  ],
+              // Only show copy previous week option for faculty
+              if (_userRole == 'FACULTY')
+                PopupMenuItem(
+                  value: 'copy_previous_week',
+                  child: Row(
+                    children: [
+                      CustomIconWidget(
+                        iconName: 'content_copy',
+                        color: AppTheme.lightTheme.colorScheme.primary,
+                        size: 20,
+                      ),
+                      SizedBox(width: 2.w),
+                      Text('Copy Previous Week'),
+                    ],
+                  ),
                 ),
-              ),
             ],
           ),
         ],
@@ -358,7 +360,7 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
   }
 
   String _getDateForDay(String dayName) {
-    final scheduleState = ref.watch(scheduleControllerProvider);
+    final scheduleState = ref.watch(universalScheduleControllerProvider);
     final currentWeekStart = scheduleState.currentWeek;
     final daysOfWeek = [
       'Monday',
@@ -392,7 +394,7 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
   }
 
   void _showFilterBottomSheet() {
-    final scheduleState = ref.read(scheduleControllerProvider);
+    final scheduleState = ref.read(universalScheduleControllerProvider);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -406,7 +408,7 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
   }
 
   void _applyFilter(String department, String section) {
-    ref.read(scheduleControllerProvider.notifier).updateFilters(
+    ref.read(universalScheduleControllerProvider.notifier).updateFilters(
           department: department,
           section: section,
         );
@@ -418,16 +420,26 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
         _showFilterBottomSheet();
         break;
       case 'copy_previous_week':
-        _copyPreviousWeek();
+        // Only allow faculty to copy schedules
+        if (_userRole == 'FACULTY') {
+          _copyPreviousWeek();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Only faculty can copy schedules'),
+              backgroundColor: AppTheme.getStatusColor('error'),
+            ),
+          );
+        }
         break;
     }
   }
 
   Future<void> _copyPreviousWeek() async {
     try {
-      final scheduleState = ref.read(scheduleControllerProvider);
+      final scheduleState = ref.read(universalScheduleControllerProvider);
       await ref
-          .read(scheduleControllerProvider.notifier)
+          .read(universalScheduleControllerProvider.notifier)
           .copyScheduleFromPreviousWeek(
             scheduleState.currentWeek,
           );
@@ -555,7 +567,7 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
   }
 
   void _showAddClassDialog() {
-    final scheduleState = ref.read(scheduleControllerProvider);
+    final scheduleState = ref.read(universalScheduleControllerProvider);
     final today = DateTime.now();
     final weekStart = scheduleState.currentWeek;
 
@@ -583,11 +595,11 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
 
     try {
       await ref
-          .read(scheduleControllerProvider.notifier)
+          .read(universalScheduleControllerProvider.notifier)
           .addClassSession(session);
 
       // Force a manual refresh to ensure UI updates
-      await ref.read(scheduleControllerProvider.notifier).loadWeeklySchedule();
+      await ref.read(universalScheduleControllerProvider.notifier).loadWeeklySchedule();
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -607,7 +619,7 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
 
   void _showScheduleClassBottomSheet(
       String timeSlot, String dayDate, String dayName) {
-    final scheduleState = ref.read(scheduleControllerProvider);
+    final scheduleState = ref.read(universalScheduleControllerProvider);
     final currentWeek = scheduleState.currentWeek;
 
     // Calculate the actual date for the day

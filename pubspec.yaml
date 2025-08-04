@@ -70,8 +70,8 @@ flutter_launcher_icons:
   web:
     generate: true
     image_path: "assets/images/app_icon.png"
-    background_color: "#hexcode"
-    theme_color: "#hexcode"
+    background_color: "#6366F1"
+    theme_color: "#4F46E5"
   windows:
     generate: true
     image_path: "assets/images/app_icon.png"
@@ -79,3 +79,5 @@ flutter_launcher_icons:
   macos:
     generate: true
     image_path: "assets/images/app_icon.png"
+  adaptive_icon_background: "#6366F1"
+  adaptive_icon_foreground: "assets/images/app_icon_foreground.png"
