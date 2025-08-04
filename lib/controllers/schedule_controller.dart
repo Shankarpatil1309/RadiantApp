@@ -1,12 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:radiant_app/models/class_session_model.dart';
 import 'package:radiant_app/services/class_session_service.dart';
+import 'faculty_dashboard_controller.dart';
 
 final classSessionServiceProvider = Provider<ClassSessionService>((ref) => ClassSessionService());
 
 final scheduleControllerProvider = StateNotifierProvider<ScheduleController, ScheduleState>((ref) {
   final classSessionService = ref.watch(classSessionServiceProvider);
-  return ScheduleController(classSessionService);
+  return ScheduleController(classSessionService, ref);
 });
 
 final weeklyScheduleProvider = StateNotifierProvider<WeeklyScheduleNotifier, AsyncValue<Map<String, List<ClassSession>>>>((ref) {
@@ -61,12 +62,42 @@ class ScheduleState {
 
 class ScheduleController extends StateNotifier<ScheduleState> {
   final ClassSessionService _classSessionService;
+  final Ref _ref;
 
-  ScheduleController(this._classSessionService) : super(ScheduleState()) {
-    loadWeeklySchedule();
+  ScheduleController(this._classSessionService, this._ref) : super(ScheduleState()) {
+    _initializeWithFacultyId();
+  }
+
+  Future<void> _initializeWithFacultyId() async {
+    try {
+      final facultyData = await _ref.read(facultyDataProvider.future);
+      if (facultyData != null) {
+        state = state.copyWith(selectedFacultyId: facultyData.employeeId);
+        await loadWeeklySchedule();
+      }
+    } catch (e) {
+      print('Error initializing faculty ID: $e');
+      state = state.copyWith(error: 'Failed to load faculty information');
+    }
   }
 
   Future<void> loadWeeklySchedule() async {
+    // If faculty ID is empty, try to get it again
+    if (state.selectedFacultyId.isEmpty) {
+      try {
+        final facultyData = await _ref.read(facultyDataProvider.future);
+        if (facultyData != null) {
+          state = state.copyWith(selectedFacultyId: facultyData.employeeId);
+        } else {
+          state = state.copyWith(error: 'Faculty information not available');
+          return;
+        }
+      } catch (e) {
+        state = state.copyWith(error: 'Failed to load faculty information');
+        return;
+      }
+    }
+
     print('📅 Loading weekly schedule for week: ${state.currentWeek}');
     print('📅 Faculty ID: ${state.selectedFacultyId}');
     
