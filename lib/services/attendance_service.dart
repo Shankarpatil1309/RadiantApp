@@ -47,8 +47,11 @@ class AttendanceService {
     final now = DateTime.now();
     final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     
+    // Check if attendance already exists for this session
+    final existingAttendance = await getAttendanceBySession(sessionId);
+    
     final attendanceData = Attendance(
-      id: '', // Will be auto-generated
+      id: existingAttendance?.id ?? '', // Use existing ID or empty for new
       classSessionId: sessionId,
       date: dateStr,
       subject: subject,
@@ -65,11 +68,18 @@ class AttendanceService {
       markedAt: now,
     );
 
-    await _firestoreService.createDocument(
-      _collection, 
-      '', // Auto-generate ID
-      attendanceData.toMap()
-    );
+    if (existingAttendance != null) {
+      // Update existing attendance record
+      await FirebaseFirestore.instance
+          .collection(_collection)
+          .doc(existingAttendance.id)
+          .update(attendanceData.toMap());
+    } else {
+      // Create new attendance record
+      await FirebaseFirestore.instance
+          .collection(_collection)
+          .add(attendanceData.toMap());
+    }
   }
 
   Future<List<Attendance>> getAttendanceBySection(String department, String section, int semester) async {
@@ -92,6 +102,53 @@ class AttendanceService {
         .get();
     
     return snapshot.docs.map((doc) => Attendance.fromDoc(doc)).toList();
+  }
+
+  Future<Attendance?> getAttendanceBySession(String sessionId) async {
+    try {
+      final QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection(_collection)
+          .where('classSessionId', isEqualTo: sessionId)
+          .limit(1)
+          .get();
+      
+      if (snapshot.docs.isNotEmpty) {
+        return Attendance.fromDoc(snapshot.docs.first);
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<Map<String, bool>> getAttendanceStatusForSessions(List<String> sessionIds) async {
+    final Map<String, bool> attendanceStatus = {};
+    
+    try {
+      final QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection(_collection)
+          .where('classSessionId', whereIn: sessionIds)
+          .get();
+      
+      for (final doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final sessionId = data['classSessionId'] as String;
+        attendanceStatus[sessionId] = true;
+      }
+      
+      // Set false for sessions without attendance
+      for (final sessionId in sessionIds) {
+        attendanceStatus[sessionId] ??= false;
+      }
+      
+    } catch (e) {
+      // If error, assume no attendance marked
+      for (final sessionId in sessionIds) {
+        attendanceStatus[sessionId] = false;
+      }
+    }
+    
+    return attendanceStatus;
   }
 
   Future<List<Attendance>> getAttendanceByDateRange(

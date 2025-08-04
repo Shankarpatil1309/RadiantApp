@@ -33,7 +33,7 @@ class _StudentAttendanceListWidgetState
   void _initializeAttendanceStatus() {
     for (var student in widget.students) {
       attendanceStatus[student['id'] as String] =
-          student['isPresent'] as bool? ?? false;
+          student['isPresent'] as bool? ?? true;
     }
   }
 

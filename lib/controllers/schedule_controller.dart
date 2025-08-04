@@ -28,7 +28,7 @@ class ScheduleState {
     this.weeklySchedule = const {},
     this.isLoading = false,
     this.error,
-    this.selectedFacultyId = 'EMP2024011', // TODO: Get from auth
+    this.selectedFacultyId = '', // Will be set from auth
     this.selectedDepartment = 'CSE',
     this.selectedSection = 'A',
   }) : currentWeek = currentWeek ?? _getStartOfWeek(DateTime.now());

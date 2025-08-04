@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/faculty_model.dart';
 import '../models/announcement_model.dart';
 import '../services/faculty_service.dart';
@@ -25,7 +26,27 @@ final facultyDataProvider = FutureProvider.autoDispose<Faculty?>((ref) async {
       final facultyService = ref.read(facultyServiceProvider);
 
       try {
-        final faculty = await facultyService.getFaculty("EMP2024011");
+        // Get faculty ID from users collection using user's UID
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        
+        if (!userDoc.exists) {
+          print('❌ User document not found for UID: ${user.uid}');
+          return null;
+        }
+
+        final userData = userDoc.data()!;
+        final facultyId = userData['uniqueId'] as String?;
+        
+        if (facultyId == null) {
+          print('❌ Faculty ID not found in user document');
+          return null;
+        }
+
+        print('✅ Found faculty ID: $facultyId for user: ${user.uid}');
+        final faculty = await facultyService.getFaculty(facultyId);
         return faculty;
       } catch (e) {
         print('Error fetching faculty data: $e');

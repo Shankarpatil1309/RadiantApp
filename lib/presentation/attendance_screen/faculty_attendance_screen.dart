@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:radiant_app/config/app_config.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
 import '../../controllers/attendance_controller.dart';
+import '../../controllers/faculty_dashboard_controller.dart';
 import '../../models/class_session_model.dart';
 import './widgets/attendance_filter_widget.dart';
 import './widgets/student_attendance_list_widget.dart';
@@ -32,6 +32,7 @@ class _FacultyAttendanceScreenState
   String? selectedSection;
   String? selectedSubject;
   String? selectedSessionId;
+  ClassSession? selectedClass;
   Map<String, dynamic> currentFilters = {
     'subject': 'All Subjects',
     'attendanceThreshold': 0.0,
@@ -278,67 +279,94 @@ class _FacultyAttendanceScreenState
             ],
           ),
           SizedBox(height: 2.h),
-          Row(
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  decoration: InputDecoration(
-                    labelText: 'Department',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
-                  ),
-                  value: selectedDepartment,
-                  items: AppConfig.departmentCodes.map((String dept) {
-                    return DropdownMenuItem<String>(
-                      value: dept,
-                      child: Text(dept),
-                    );
-                  }).toList(),
-                  onChanged: (String? value) {
-                    setState(() {
-                      selectedDepartment = value;
-                      selectedSection = null;
-                    });
-                  },
-                ),
-              ),
-              SizedBox(width: 2.w),
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  decoration: InputDecoration(
-                    labelText: 'Section',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
-                  ),
-                  value: selectedSection,
-                  items: selectedDepartment != null
-                      ? AppConfig.sectionsByDepartment[selectedDepartment]
-                          ?.map((String section) {
-                          return DropdownMenuItem<String>(
-                            value: section,
-                            child: Text(section),
-                          );
-                        }).toList()
-                      : [],
-                  onChanged: selectedDepartment != null
-                      ? (String? value) {
-                          setState(() {
-                            selectedSection = value;
-                          });
-                          if (value != null && selectedDepartment != null) {
-                            _loadStudentsForSection();
-                          }
+          Consumer(
+            builder: (context, ref, _) {
+              final todayClassesAsync = ref.watch(todayClassesProvider);
+              
+              return todayClassesAsync.when(
+                data: (classes) => Column(
+                  children: [
+                    DropdownButtonFormField<ClassSession>(
+                      decoration: InputDecoration(
+                        labelText: 'Select Today\'s Class',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+                      ),
+                      value: classes.where((c) => c.id == selectedClass?.id).isNotEmpty 
+                          ? classes.firstWhere((c) => c.id == selectedClass?.id)
+                          : null,
+                      items: classes.map((ClassSession classSession) {
+                        // Check if attendance is already marked for this session
+                        final isAttendanceMarked = classSession.status == 'completed';
+                        
+                        return DropdownMenuItem<ClassSession>(
+                          value: classSession,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  '${classSession.department}-${classSession.section} (Sem ${classSession.semester}) - ${classSession.subject} (${classSession.startTime.hour.toString().padLeft(2, '0')}:${classSession.startTime.minute.toString().padLeft(2, '0')})',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (isAttendanceMarked) ...[
+                                SizedBox(width: 2.w),
+                                Container(
+                                  padding: EdgeInsets.symmetric(horizontal: 1.w, vertical: 0.2.h),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.getStatusColor('success'),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    'DONE',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 8.sp,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (ClassSession? value) {
+                        setState(() {
+                          selectedClass = value;
+                          selectedDepartment = value?.department;
+                          selectedSection = value?.section;
+                          selectedSubject = value?.subject;
+                          selectedSessionId = value?.id;
+                        });
+                        if (value != null) {
+                          _startAttendanceForSession(value);
                         }
-                      : null,
+                      },
+                    ),
+                    if (classes.isEmpty)
+                      Padding(
+                        padding: EdgeInsets.only(top: 2.h),
+                        child: Text(
+                          'No classes scheduled for today',
+                          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                            color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-              ),
-            ],
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, _) => Text(
+                  'Error loading today\'s classes: ${error.toString()}',
+                  style: TextStyle(color: AppTheme.getStatusColor('error')),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -596,12 +624,17 @@ class _FacultyAttendanceScreenState
   }
 
   Future<void> _loadTodayClasses() async {
-    // Get current faculty ID from authentication or user state
-    const facultyId = 'current_faculty_id'; // Replace with actual faculty ID
-    ref.read(todayClassesProvider.notifier).loadTodayClasses(facultyId);
+    final facultyData = await ref.read(facultyDataProvider.future);
+    if (facultyData != null) {
+      ref.read(todayClassesProvider.notifier).loadTodayClasses(facultyData.employeeId);
+    }
   }
 
   Future<void> _refreshData() async {
+    // Reset selected class to avoid dropdown assertion errors
+    setState(() {
+      selectedClass = null;
+    });
     await _loadTodayClasses();
     if (selectedDepartment != null && selectedSection != null) {
       _loadStudentsForSection();
@@ -612,7 +645,7 @@ class _FacultyAttendanceScreenState
     if (selectedDepartment != null && selectedSection != null) {
       ref
           .read(attendanceControllerProvider.notifier)
-          .loadStudentsBySection(selectedDepartment!, selectedSection!);
+          .loadStudentsBySection(selectedDepartment!, selectedSection!, sessionId: selectedSessionId);
     }
   }
 
@@ -634,15 +667,29 @@ class _FacultyAttendanceScreenState
         .read(attendanceControllerProvider.notifier)
         .startMarkingMode(session.id);
 
-    _loadStudentsForSection();
+    // Load students with session ID to check for existing attendance
+    ref
+        .read(attendanceControllerProvider.notifier)
+        .loadStudentsBySection(session.department, session.section, sessionId: session.id);
+    
     _tabController.animateTo(0); // Switch to students tab
   }
 
   Future<void> _saveAttendance() async {
-    const facultyId = 'current_faculty_id'; // Replace with actual faculty ID
+    final facultyData = await ref.read(facultyDataProvider.future);
+    if (facultyData == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Failed to get faculty information'),
+          backgroundColor: AppTheme.getStatusColor('error'),
+        ),
+      );
+      return;
+    }
+    
     final success = await ref
         .read(attendanceControllerProvider.notifier)
-        .saveAttendance(facultyId, selectedSubject ?? 'Unknown Subject');
+        .saveAttendance(facultyData.employeeId, selectedSubject ?? 'Unknown Subject');
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(

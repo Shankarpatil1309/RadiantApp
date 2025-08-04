@@ -78,7 +78,7 @@ class AttendanceController extends StateNotifier<AttendanceState> {
   AttendanceController(this._studentService, this._attendanceService, this._classSessionService)
       : super(AttendanceState());
 
-  Future<void> loadStudentsBySection(String department, String section) async {
+  Future<void> loadStudentsBySection(String department, String section, {String? sessionId}) async {
     state = state.copyWith(
       isLoading: true,
       error: null,
@@ -89,8 +89,32 @@ class AttendanceController extends StateNotifier<AttendanceState> {
     try {
       final students = await _studentService.getStudentsBySection(department, section);
       final initialAttendance = <String, bool>{};
-      for (final student in students) {
-        initialAttendance[student.id] = false;
+      
+      // Check if attendance already exists for this session
+      if (sessionId != null) {
+        final existingAttendance = await _attendanceService.getAttendanceBySession(sessionId);
+        if (existingAttendance != null) {
+          // Load existing attendance data
+          for (final student in students) {
+            if (existingAttendance.studentsPresent.contains(student.id)) {
+              initialAttendance[student.id] = true;
+            } else if (existingAttendance.studentsAbsent.contains(student.id)) {
+              initialAttendance[student.id] = false;
+            } else {
+              initialAttendance[student.id] = true; // Default to present
+            }
+          }
+        } else {
+          // No existing attendance, default all to present
+          for (final student in students) {
+            initialAttendance[student.id] = true;
+          }
+        }
+      } else {
+        // No session selected, default all to present
+        for (final student in students) {
+          initialAttendance[student.id] = true;
+        }
       }
 
       state = state.copyWith(
