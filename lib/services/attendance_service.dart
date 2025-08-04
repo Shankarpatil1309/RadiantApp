@@ -83,25 +83,54 @@ class AttendanceService {
   }
 
   Future<List<Attendance>> getAttendanceBySection(String department, String section, int semester) async {
+    // Use only equality filters to avoid requiring composite index
     final QuerySnapshot snapshot = await FirebaseFirestore.instance
         .collection(_collection)
         .where('department', isEqualTo: department)
         .where('section', isEqualTo: section)
         .where('semester', isEqualTo: semester)
-        .orderBy('date', descending: true)
         .get();
     
-    return snapshot.docs.map((doc) => Attendance.fromDoc(doc)).toList();
+    // Convert to list and sort in memory
+    final attendanceList = snapshot.docs.map((doc) => Attendance.fromDoc(doc)).toList();
+    
+    // Sort by date in descending order (newest first)
+    attendanceList.sort((a, b) {
+      try {
+        final dateA = DateTime.parse(a.date);
+        final dateB = DateTime.parse(b.date);
+        return dateB.compareTo(dateA); // Descending order
+      } catch (e) {
+        // Fallback to string comparison if date parsing fails
+        return b.date.compareTo(a.date);
+      }
+    });
+    
+    return attendanceList;
   }
 
   Future<List<Attendance>> getAttendanceByFaculty(String facultyId) async {
     final QuerySnapshot snapshot = await FirebaseFirestore.instance
         .collection(_collection)
         .where('facultyId', isEqualTo: facultyId)
-        .orderBy('date', descending: true)
         .get();
     
-    return snapshot.docs.map((doc) => Attendance.fromDoc(doc)).toList();
+    // Convert to list and sort in memory for consistency
+    final attendanceList = snapshot.docs.map((doc) => Attendance.fromDoc(doc)).toList();
+    
+    // Sort by date in descending order (newest first)
+    attendanceList.sort((a, b) {
+      try {
+        final dateA = DateTime.parse(a.date);
+        final dateB = DateTime.parse(b.date);
+        return dateB.compareTo(dateA); // Descending order
+      } catch (e) {
+        // Fallback to string comparison if date parsing fails
+        return b.date.compareTo(a.date);
+      }
+    });
+    
+    return attendanceList;
   }
 
   Future<Attendance?> getAttendanceBySession(String sessionId) async {
@@ -161,17 +190,37 @@ class AttendanceService {
     final startDateStr = '${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}';
     final endDateStr = '${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}';
     
+    // Use only equality filters to avoid requiring composite index
     final QuerySnapshot snapshot = await FirebaseFirestore.instance
         .collection(_collection)
         .where('department', isEqualTo: department)
         .where('section', isEqualTo: section)
         .where('semester', isEqualTo: semester)
-        .where('date', isGreaterThanOrEqualTo: startDateStr)
-        .where('date', isLessThanOrEqualTo: endDateStr)
-        .orderBy('date', descending: true)
         .get();
     
-    return snapshot.docs.map((doc) => Attendance.fromDoc(doc)).toList();
+    // Filter by date range and sort in memory
+    final attendanceList = snapshot.docs
+        .map((doc) => Attendance.fromDoc(doc))
+        .where((attendance) {
+          // Filter by date range
+          return attendance.date.compareTo(startDateStr) >= 0 && 
+                 attendance.date.compareTo(endDateStr) <= 0;
+        })
+        .toList();
+    
+    // Sort by date in descending order (newest first)
+    attendanceList.sort((a, b) {
+      try {
+        final dateA = DateTime.parse(a.date);
+        final dateB = DateTime.parse(b.date);
+        return dateB.compareTo(dateA); // Descending order
+      } catch (e) {
+        // Fallback to string comparison if date parsing fails
+        return b.date.compareTo(a.date);
+      }
+    });
+    
+    return attendanceList;
   }
 
   // Get class sessions for attendance marking

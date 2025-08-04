@@ -24,59 +24,83 @@ final studentUserServiceProvider =
 // Provider to get current student ID from users collection
 final currentStudentIdProvider =
     FutureProvider.autoDispose<String?>((ref) async {
+  print('🆔 Loading current student ID...');
   final authState = ref.watch(authControllerProvider);
 
   return authState.when(
     data: (user) async {
-      if (user == null) return null;
+      if (user == null) {
+        print('❌ No authenticated user found');
+        return null;
+      }
 
+      print('👤 User authenticated: ${user.uid}');
       final userService = ref.read(studentUserServiceProvider);
 
       try {
         final appUser = await userService.getUser(user.uid);
+        print('📋 App user loaded: ${appUser?.uniqueId}');
         return appUser?.uniqueId; // This is the student ID (USN)
       } catch (e) {
-        print('Error fetching student ID: $e');
+        print('❌ Error fetching student ID: $e');
         return null;
       }
     },
-    loading: () => null,
-    error: (error, stack) => null,
+    loading: () {
+      print('⏳ Auth state loading...');
+      return null;
+    },
+    error: (error, stack) {
+      print('❌ Auth state error: $error');
+      return null;
+    },
   );
 });
 
 // Enhanced provider that provides detailed error information
 final studentDataProvider =
     FutureProvider.autoDispose<Student?>((ref) async {
+  print('👨‍🎓 Loading student data...');
   final authState = ref.watch(authControllerProvider);
 
   return authState.when(
     data: (user) async {
-      if (user == null) return null;
+      if (user == null) {
+        print('❌ No authenticated user found');
+        return null;
+      }
 
+      print('👤 User authenticated: ${user.uid}');
       final studentService = ref.read(studentServiceProvider);
       final userService = ref.read(studentUserServiceProvider);
 
       try {
         // Get the current user from users collection to get their uniqueId (studentId)
+        print('🔍 Fetching app user data...');
         final appUser = await userService.getUser(user.uid);
         if (appUser == null) {
+          print('❌ App user not found in users collection');
           throw StudentValidationException('User not found in system. Please contact administrator.');
         }
         
+        print('📋 App user found: ${appUser.uniqueId}');
         if (appUser.uniqueId == null) {
+          print('❌ App user has no uniqueId');
           throw StudentValidationException('User profile incomplete. Please contact administrator.');
         }
 
         // Get student data using the uniqueId from users collection
+        print('🔍 Fetching student record for: ${appUser.uniqueId}');
         final student = await studentService.getStudent(appUser.uniqueId!);
         if (student == null) {
+          print('❌ Student record not found for: ${appUser.uniqueId}');
           throw StudentValidationException('Student record not found for your credentials. Please contact administrator.');
         }
         
+        print('✅ Student data loaded: ${student.name} (${student.department}-${student.section}-${student.semester})');
         return student;
       } catch (e) {
-        print('Error fetching student data: $e');
+        print('❌ Error fetching student data: $e');
         // Re-throw custom exceptions, wrap others
         if (e is StudentValidationException) {
           rethrow;
@@ -84,8 +108,14 @@ final studentDataProvider =
         throw StudentValidationException('Unable to load student data. Please contact administrator.');
       }
     },
-    loading: () => null,
-    error: (error, stack) => null,
+    loading: () {
+      print('⏳ Auth state loading...');
+      return null;
+    },
+    error: (error, stack) {
+      print('❌ Auth state error: $error');
+      return null;
+    },
   );
 });
 

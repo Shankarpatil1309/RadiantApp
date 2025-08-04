@@ -10,134 +10,231 @@ import './widgets/attendance_calendar_widget.dart';
 import './widgets/attendance_filter_widget.dart';
 import './widgets/attendance_stats_widget.dart';
 
+// Stable parameter classes to prevent infinite rebuilds
+class AttendanceParams {
+  final String department;
+  final String section;
+  final int semester;
+
+  const AttendanceParams({
+    required this.department,
+    required this.section,
+    required this.semester,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AttendanceParams &&
+          runtimeType == other.runtimeType &&
+          department == other.department &&
+          section == other.section &&
+          semester == other.semester;
+
+  @override
+  int get hashCode =>
+      department.hashCode ^ section.hashCode ^ semester.hashCode;
+}
+
+class StudentAttendanceParams extends AttendanceParams {
+  final String studentId;
+
+  const StudentAttendanceParams({
+    required super.department,
+    required super.section,
+    required super.semester,
+    required this.studentId,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is StudentAttendanceParams &&
+          runtimeType == other.runtimeType &&
+          department == other.department &&
+          section == other.section &&
+          semester == other.semester &&
+          studentId == other.studentId;
+
+  @override
+  int get hashCode => super.hashCode ^ studentId.hashCode;
+}
+
 // Provider for student attendance data
-final studentAttendanceProvider = FutureProvider.family<List<Map<String, dynamic>>, Map<String, dynamic>>((ref, params) async {
+final studentAttendanceProvider = FutureProvider.family
+    .autoDispose<List<Map<String, dynamic>>, AttendanceParams>((
+  ref,
+  params,
+) async {
   final attendanceService = ref.read(attendanceServiceProvider);
-  final department = params['department'] as String;
-  final section = params['section'] as String;
-  final semester = params['semester'] as int;
-  
-  final attendanceRecords = await attendanceService.getAttendanceBySection(department, section, semester);
-  
-  // Process attendance records for student view
-  return attendanceRecords.map((attendance) => {
-    'date': attendance.date,
-    'subject': attendance.subject,
-    'subjectCode': attendance.subjectCode,
-    'totalStudents': attendance.totalStudents,
-    'presentCount': attendance.presentCount,
-    'absentCount': attendance.absentCount,
-    'markedAt': attendance.markedAt,
-  }).toList();
+  final department = params.department;
+  final section = params.section;
+  final semester = params.semester;
+
+  try {
+    final attendanceRecords = await attendanceService.getAttendanceBySection(
+        department, section, semester);
+
+    // Process attendance records for student view
+    final processedRecords = attendanceRecords
+        .map(
+          (attendance) => {
+            'date': attendance.date,
+            'subject': attendance.subject,
+            'subjectCode': attendance.subjectCode,
+            'totalStudents': attendance.totalStudents,
+            'presentCount': attendance.presentCount,
+            'absentCount': attendance.absentCount,
+            'markedAt': attendance.markedAt,
+            'studentsPresent': attendance.studentsPresent,
+            'studentsAbsent': attendance.studentsAbsent,
+          },
+        )
+        .toList();
+
+    return processedRecords;
+  } catch (e) {
+    print('❌ Error loading attendance data: $e');
+    rethrow;
+  }
 });
 
 // Provider for student attendance trends
-final studentAttendanceTrendsProvider = FutureProvider.family<List<Map<String, dynamic>>, Map<String, dynamic>>((ref, params) async {
+final studentAttendanceTrendsProvider = FutureProvider.family
+    .autoDispose<List<Map<String, dynamic>>, StudentAttendanceParams>(
+        (ref, params) async {
   final attendanceService = ref.read(attendanceServiceProvider);
-  final department = params['department'] as String;
-  final section = params['section'] as String;
-  final semester = params['semester'] as int;
-  final studentId = params['studentId'] as String;
-  
-  final attendanceRecords = await attendanceService.getAttendanceBySection(department, section, semester);
-  
-  // Group attendance by week to show trends
-  final Map<String, Map<String, int>> weeklyStats = {};
-  
-  for (final record in attendanceRecords) {
-    // Parse the date string (format: "YYYY-MM-DD")
-    try {
-      final recordDate = DateTime.parse(record.date);
-      // Get week of year
-      final weekStart = recordDate.subtract(Duration(days: recordDate.weekday - 1));
-      final weekKey = '${weekStart.day}/${weekStart.month}';
-      
-      if (!weeklyStats.containsKey(weekKey)) {
-        weeklyStats[weekKey] = {'present': 0, 'total': 0};
+  final department = params.department;
+  final section = params.section;
+  final semester = params.semester;
+  final studentId = params.studentId;
+
+  try {
+    final attendanceRecords = await attendanceService.getAttendanceBySection(
+      department,
+      section,
+      semester,
+    );
+
+    // Group attendance by week to show trends
+    final Map<String, Map<String, int>> weeklyStats = {};
+
+    for (final record in attendanceRecords) {
+      // Parse the date string (format: "YYYY-MM-DD")
+      try {
+        final recordDate = DateTime.parse(record.date);
+        // Get week of year
+        final weekStart = recordDate.subtract(
+          Duration(days: recordDate.weekday - 1),
+        );
+        final weekKey = '${weekStart.day}/${weekStart.month}';
+
+        if (!weeklyStats.containsKey(weekKey)) {
+          weeklyStats[weekKey] = {'present': 0, 'total': 0};
+        }
+
+        weeklyStats[weekKey]!['total'] = weeklyStats[weekKey]!['total']! + 1;
+
+        if (record.studentsPresent.contains(studentId)) {
+          weeklyStats[weekKey]!['present'] =
+              weeklyStats[weekKey]!['present']! + 1;
+        }
+      } catch (e) {
+        print('Error parsing date ${record.date}: $e');
+        continue;
       }
-      
-      weeklyStats[weekKey]!['total'] = weeklyStats[weekKey]!['total']! + 1;
-      
-      if (record.studentsPresent.contains(studentId)) {
-        weeklyStats[weekKey]!['present'] = weeklyStats[weekKey]!['present']! + 1;
-      }
-    } catch (e) {
-      print('Error parsing date ${record.date}: $e');
-      continue;
     }
+
+    // Convert to trend data (last 6 weeks)
+    final trends = weeklyStats.entries.take(6).map((entry) {
+      final present = entry.value['present']!;
+      final total = entry.value['total']!;
+      final percentage = total > 0 ? (present / total) * 100 : 0.0;
+
+      return {
+        'week': entry.key,
+        'percentage': percentage,
+        'present': present,
+        'total': total,
+      };
+    }).toList();
+
+    return trends;
+  } catch (e) {
+    print('❌ Error loading attendance trends: $e');
+    rethrow;
   }
-  
-  // Convert to trend data (last 6 weeks)
-  final trends = weeklyStats.entries.take(6).map((entry) {
-    final present = entry.value['present']!;
-    final total = entry.value['total']!;
-    final percentage = total > 0 ? (present / total) * 100 : 0.0;
-    
-    return {
-      'week': entry.key,
-      'percentage': percentage,
-      'present': present,
-      'total': total,
-    };
-  }).toList();
-  
-  return trends;
 });
 
 // Provider for student attendance stats
-final studentAttendanceStatsProvider = FutureProvider.family<Map<String, dynamic>, Map<String, dynamic>>((ref, params) async {
+final studentAttendanceStatsProvider = FutureProvider.family
+    .autoDispose<Map<String, dynamic>, StudentAttendanceParams>((
+  ref,
+  params,
+) async {
   final attendanceService = ref.read(attendanceServiceProvider);
-  final department = params['department'] as String;
-  final section = params['section'] as String;
-  final semester = params['semester'] as int;
-  final studentId = params['studentId'] as String;
-  
-  final attendanceRecords = await attendanceService.getAttendanceBySection(department, section, semester);
-  
-  // Calculate student-specific statistics
-  final subjectStats = <String, Map<String, int>>{};
-  int totalPresent = 0;
-  int totalClasses = 0;
-  
-  for (final record in attendanceRecords) {
-    if (!subjectStats.containsKey(record.subject)) {
-      subjectStats[record.subject] = {'present': 0, 'total': 0};
+  final department = params.department;
+  final section = params.section;
+  final semester = params.semester;
+  final studentId = params.studentId;
+
+  try {
+    final attendanceRecords = await attendanceService.getAttendanceBySection(
+        department, section, semester);
+
+    // Calculate student-specific statistics
+    final subjectStats = <String, Map<String, int>>{};
+    int totalPresent = 0;
+    int totalClasses = 0;
+
+    for (final record in attendanceRecords) {
+      if (!subjectStats.containsKey(record.subject)) {
+        subjectStats[record.subject] = {'present': 0, 'total': 0};
+      }
+
+      subjectStats[record.subject]!['total'] =
+          subjectStats[record.subject]!['total']! + 1;
+      totalClasses++;
+
+      if (record.studentsPresent.contains(studentId)) {
+        subjectStats[record.subject]!['present'] =
+            subjectStats[record.subject]!['present']! + 1;
+        totalPresent++;
+      }
     }
-    
-    subjectStats[record.subject]!['total'] = subjectStats[record.subject]!['total']! + 1;
-    totalClasses++;
-    
-    if (record.studentsPresent.contains(studentId)) {
-      subjectStats[record.subject]!['present'] = subjectStats[record.subject]!['present']! + 1;
-      totalPresent++;
-    }
-  }
-  
-  final overallPercentage = totalClasses > 0 ? (totalPresent / totalClasses) * 100 : 0.0;
-  
-  final subjects = subjectStats.entries.map((entry) {
-    final present = entry.value['present']!;
-    final total = entry.value['total']!;
-    final percentage = total > 0 ? (present / total) * 100 : 0.0;
-    
-    return {
-      'name': entry.key,
-      'percentage': percentage,
-      'present': present,
-      'total': total,
+
+    final overallPercentage =
+        totalClasses > 0 ? (totalPresent / totalClasses) * 100 : 0.0;
+
+    final subjects = subjectStats.entries.map((entry) {
+      final present = entry.value['present']!;
+      final total = entry.value['total']!;
+      final percentage = total > 0 ? (present / total) * 100 : 0.0;
+
+      return {
+        'name': entry.key,
+        'percentage': percentage,
+        'present': present,
+        'total': total,
+      };
+    }).toList();
+
+    final result = {
+      'overallPercentage': overallPercentage,
+      'subjects': subjects,
     };
-  }).toList();
-  
-  return {
-    'overallPercentage': overallPercentage,
-    'subjects': subjects,
-  };
+
+    return result;
+  } catch (e) {
+    print('❌ Error loading attendance stats: $e');
+    rethrow;
+  }
 });
 
 class StudentAttendanceScreen extends ConsumerStatefulWidget {
   final bool isEmbedded;
   final VoidCallback? onBackPressed;
-  
+
   const StudentAttendanceScreen({
     Key? key,
     this.isEmbedded = false,
@@ -145,10 +242,12 @@ class StudentAttendanceScreen extends ConsumerStatefulWidget {
   }) : super(key: key);
 
   @override
-  ConsumerState<StudentAttendanceScreen> createState() => _StudentAttendanceScreenState();
+  ConsumerState<StudentAttendanceScreen> createState() =>
+      _StudentAttendanceScreenState();
 }
 
-class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScreen>
+class _StudentAttendanceScreenState
+    extends ConsumerState<StudentAttendanceScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
   DateTime selectedMonth = DateTime.now();
@@ -181,7 +280,10 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.error, color: AppTheme.getStatusColor('error')),
+                  Icon(
+                    Icons.error,
+                    color: AppTheme.getStatusColor('error'),
+                  ),
                   SizedBox(height: 1.h),
                   Text('Student data not found'),
                 ],
@@ -189,30 +291,52 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
             ),
           );
         }
-        
+
         return _buildMainContent(studentData);
       },
-      loading: () => Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
-      error: (error, stack) => Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error, color: AppTheme.getStatusColor('error')),
-              SizedBox(height: 1.h),
-              Text('Error loading student data'),
-              Text(error.toString()),
-              SizedBox(height: 2.h),
-              ElevatedButton(
-                onPressed: () => ref.refresh(studentDataProvider),
-                child: Text('Retry'),
-              ),
-            ],
+      loading: () {
+        return Scaffold(
+          appBar: AppBar(title: Text('My Attendance')),
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 2.h),
+                Text('Loading student data...'),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
+      error: (error, stack) {
+        return Scaffold(
+          appBar: AppBar(title: Text('My Attendance')),
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error, color: AppTheme.getStatusColor('error')),
+                SizedBox(height: 1.h),
+                Text('Error loading student data'),
+                Padding(
+                  padding: EdgeInsets.all(2.w),
+                  child: Text(
+                    error.toString(),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12.sp),
+                  ),
+                ),
+                SizedBox(height: 2.h),
+                ElevatedButton(
+                  onPressed: () => ref.refresh(studentDataProvider),
+                  child: Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -250,21 +374,23 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
       ),
       backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
       elevation: 0,
-      leading: widget.isEmbedded ? IconButton(
-        onPressed: widget.onBackPressed ?? () {},
-        icon: CustomIconWidget(
-          iconName: 'arrow_back',
-          color: AppTheme.lightTheme.colorScheme.onSurface,
-          size: 24,
-        ),
-      ) : IconButton(
-        onPressed: () => Navigator.pop(context),
-        icon: CustomIconWidget(
-          iconName: 'arrow_back',
-          color: AppTheme.lightTheme.colorScheme.onSurface,
-          size: 24,
-        ),
-      ),
+      leading: widget.isEmbedded
+          ? IconButton(
+              onPressed: widget.onBackPressed ?? () {},
+              icon: CustomIconWidget(
+                iconName: 'arrow_back',
+                color: AppTheme.lightTheme.colorScheme.onSurface,
+                size: 24,
+              ),
+            )
+          : IconButton(
+              onPressed: () => Navigator.pop(context),
+              icon: CustomIconWidget(
+                iconName: 'arrow_back',
+                color: AppTheme.lightTheme.colorScheme.onSurface,
+                size: 24,
+              ),
+            ),
       actions: [
         IconButton(
           onPressed: _showFilterOptions,
@@ -401,164 +527,245 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
 
   Widget _buildOverviewTab(Student studentData) {
     return ref.watch(currentStudentIdProvider).when(
-      data: (studentId) {
-        if (studentId == null) {
-          return Center(child: Text('Student ID not found'));
-        }
-        
-        final statsParams = {
-          'department': studentData.department,
-          'section': studentData.section,
-          'semester': studentData.semester,
-          'studentId': studentId,
-        };
-        
-        final attendanceStatsAsync = ref.watch(studentAttendanceStatsProvider(statsParams));
-        
-        return SingleChildScrollView(
-          child: Column(
-            children: [
-              attendanceStatsAsync.when(
-                data: (attendanceData) => AttendanceStatsWidget(
-                  attendanceData: attendanceData,
-                  userRole: 'student',
-                ),
-                loading: () => Container(
-                  height: 20.h,
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-                error: (error, stack) => Container(
-                  height: 20.h,
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.error, color: AppTheme.getStatusColor('error')),
-                        SizedBox(height: 1.h),
-                        Text('Failed to load attendance data'),
-                        TextButton(
-                          onPressed: () => ref.refresh(studentAttendanceStatsProvider(statsParams)),
-                          child: Text('Retry'),
+          data: (studentId) {
+            if (studentId == null) {
+              return Center(child: Text('Student ID not found'));
+            }
+
+            final statsParams = StudentAttendanceParams(
+              department: studentData.department,
+              section: studentData.section,
+              semester: studentData.semester,
+              studentId: studentId,
+            );
+
+            final attendanceStatsAsync = ref.watch(
+              studentAttendanceStatsProvider(statsParams),
+            );
+
+            return SingleChildScrollView(
+              child: Column(
+                children: [
+                  attendanceStatsAsync.when(
+                    data: (attendanceData) {
+                      // Check if there's any attendance data
+                      final subjects =
+                          attendanceData['subjects'] as List<dynamic>? ?? [];
+                      if (subjects.isEmpty) {
+                        return Container(
+                          height: 20.h,
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.calendar_today,
+                                  color:
+                                      AppTheme.lightTheme.colorScheme.primary,
+                                  size: 48,
+                                ),
+                                SizedBox(height: 2.h),
+                                Text(
+                                  'No Attendance Records',
+                                  style:
+                                      AppTheme.lightTheme.textTheme.titleMedium,
+                                ),
+                                SizedBox(height: 1.h),
+                                Text(
+                                  'No attendance has been marked for your class yet.',
+                                  style:
+                                      AppTheme.lightTheme.textTheme.bodyMedium,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+
+                      return AttendanceStatsWidget(
+                        attendanceData: attendanceData,
+                        userRole: 'student',
+                      );
+                    },
+                    loading: () => Container(
+                      height: 20.h,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(height: 2.h),
+                            Text('Loading attendance statistics...'),
+                          ],
                         ),
-                      ],
+                      ),
+                    ),
+                    error: (error, stack) => Container(
+                      height: 20.h,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.error,
+                              color: AppTheme.getStatusColor('error'),
+                            ),
+                            SizedBox(height: 1.h),
+                            Text('Failed to load attendance data'),
+                            SizedBox(height: 1.h),
+                            Text(
+                              error.toString(),
+                              style: TextStyle(fontSize: 10.sp),
+                              textAlign: TextAlign.center,
+                            ),
+                            SizedBox(height: 1.h),
+                            TextButton(
+                              onPressed: () => ref.refresh(
+                                studentAttendanceStatsProvider(
+                                  statsParams,
+                                ),
+                              ),
+                              child: Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  _buildAttendanceTrends(studentData, studentId),
+                  attendanceStatsAsync.when(
+                    data: (data) => _buildAttendanceInsights(data),
+                    loading: () => SizedBox(),
+                    error: (_, __) => SizedBox(),
+                  ),
+                  SizedBox(height: 10.h),
+                ],
               ),
-              _buildAttendanceTrends(studentData, studentId),
-              attendanceStatsAsync.when(
-                data: (data) => _buildAttendanceInsights(data),
-                loading: () => SizedBox(),
-                error: (_, __) => SizedBox(),
-              ),
-              SizedBox(height: 10.h),
-            ],
+            );
+          },
+          loading: () => Container(
+            height: 20.h,
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (error, stack) => Container(
+            height: 20.h,
+            child: Center(child: Text('Error loading student ID')),
           ),
         );
-      },
-      loading: () => Container(
-        height: 20.h,
-        child: Center(child: CircularProgressIndicator()),
-      ),
-      error: (error, stack) => Container(
-        height: 20.h,
-        child: Center(child: Text('Error loading student ID')),
-      ),
-    );
   }
 
   Widget _buildCalendarTab(Student studentData) {
     return ref.watch(currentStudentIdProvider).when(
-      data: (studentId) {
-        if (studentId == null) {
-          return Center(child: Text('Student ID not found'));
-        }
-        
-        final attendanceParams = {
-          'department': studentData.department,
-          'section': studentData.section,
-          'semester': studentData.semester,
-        };
-        
-        final attendanceDataAsync = ref.watch(studentAttendanceProvider(attendanceParams));
-        
-        return SingleChildScrollView(
-          child: Column(
-            children: [
-              attendanceDataAsync.when(
-                data: (attendanceRecords) {
-                  return FutureBuilder(
-                    future: ref.read(attendanceServiceProvider).getAttendanceBySection(studentData.department, studentData.section, studentData.semester),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return Container(
-                          height: 40.h,
-                          child: Center(child: CircularProgressIndicator()),
-                        );
-                      }
-                      
-                      if (snapshot.hasError) {
-                        return Container(
-                          height: 40.h,
-                          child: Center(child: Text('Error loading calendar data')),
-                        );
-                      }
-                      
-                      final actualRecords = snapshot.data ?? [];
-                      final calendarData = {
-                        'attendanceRecords': actualRecords.map((record) {
-                          final isPresent = record.studentsPresent.contains(studentId);
-                          return {
-                            'date': record.date,
-                            'status': isPresent ? 'present' : 'absent',
-                            'subjects': [record.subject],
+          data: (studentId) {
+            if (studentId == null) {
+              return Center(child: Text('Student ID not found'));
+            }
+
+            final attendanceParams = AttendanceParams(
+              department: studentData.department,
+              section: studentData.section,
+              semester: studentData.semester,
+            );
+
+            final attendanceDataAsync = ref.watch(
+              studentAttendanceProvider(attendanceParams),
+            );
+
+            return SingleChildScrollView(
+              child: Column(
+                children: [
+                  attendanceDataAsync.when(
+                    data: (attendanceRecords) {
+                      return FutureBuilder(
+                        future: ref
+                            .read(attendanceServiceProvider)
+                            .getAttendanceBySection(
+                              studentData.department,
+                              studentData.section,
+                              studentData.semester,
+                            ),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return Container(
+                              height: 40.h,
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
+
+                          if (snapshot.hasError) {
+                            return Container(
+                              height: 40.h,
+                              child: Center(
+                                child: Text('Error loading calendar data'),
+                              ),
+                            );
+                          }
+
+                          final actualRecords = snapshot.data ?? [];
+                          final calendarData = {
+                            'attendanceRecords': actualRecords.map((record) {
+                              final isPresent =
+                                  record.studentsPresent.contains(studentId);
+                              return {
+                                'date': record.date,
+                                'status': isPresent ? 'present' : 'absent',
+                                'subjects': [record.subject],
+                              };
+                            }).toList(),
                           };
-                        }).toList(),
-                      };
-                      
-                      return AttendanceCalendarWidget(
-                        calendarData: calendarData,
-                        onDateTap: _onDateTap,
+
+                          return AttendanceCalendarWidget(
+                            calendarData: calendarData,
+                            onDateTap: _onDateTap,
+                          );
+                        },
                       );
                     },
-                  );
-                },
-                loading: () => Container(
-                  height: 40.h,
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-                error: (error, stack) => Container(
-                  height: 40.h,
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.error, color: AppTheme.getStatusColor('error')),
-                        SizedBox(height: 1.h),
-                        Text('Failed to load calendar data'),
-                        TextButton(
-                          onPressed: () => ref.refresh(studentAttendanceProvider(attendanceParams)),
-                          child: Text('Retry'),
+                    loading: () => Container(
+                      height: 40.h,
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                    error: (error, stack) => Container(
+                      height: 40.h,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.error,
+                              color: AppTheme.getStatusColor('error'),
+                            ),
+                            SizedBox(height: 1.h),
+                            Text('Failed to load calendar data'),
+                            TextButton(
+                              onPressed: () => ref.refresh(
+                                studentAttendanceProvider(
+                                  attendanceParams,
+                                ),
+                              ),
+                              child: Text('Retry'),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
+                  SizedBox(height: 10.h),
+                ],
               ),
-              SizedBox(height: 10.h),
-            ],
+            );
+          },
+          loading: () => Container(
+            height: 40.h,
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (error, stack) => Container(
+            height: 40.h,
+            child: Center(child: Text('Error loading student ID')),
           ),
         );
-      },
-      loading: () => Container(
-        height: 40.h,
-        child: Center(child: CircularProgressIndicator()),
-      ),
-      error: (error, stack) => Container(
-        height: 40.h,
-        child: Center(child: Text('Error loading student ID')),
-      ),
-    );
   }
 
   Widget _buildFilterTab() {
@@ -576,15 +783,17 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
   }
 
   Widget _buildAttendanceTrends(Student studentData, String studentId) {
-    final trendsParams = {
-      'department': studentData.department,
-      'section': studentData.section,
-      'semester': studentData.semester,
-      'studentId': studentId,
-    };
-    
-    final attendanceTrendsAsync = ref.watch(studentAttendanceTrendsProvider(trendsParams));
-    
+    final trendsParams = StudentAttendanceParams(
+      department: studentData.department,
+      section: studentData.section,
+      semester: studentData.semester,
+      studentId: studentId,
+    );
+
+    final attendanceTrendsAsync = ref.watch(
+      studentAttendanceTrendsProvider(trendsParams),
+    );
+
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
       padding: EdgeInsets.all(4.w),
@@ -629,11 +838,16 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.error, color: AppTheme.getStatusColor('error')),
+                    Icon(
+                      Icons.error,
+                      color: AppTheme.getStatusColor('error'),
+                    ),
                     SizedBox(height: 1.h),
                     Text('Failed to load trends data'),
                     TextButton(
-                      onPressed: () => ref.refresh(studentAttendanceTrendsProvider(trendsParams)),
+                      onPressed: () => ref.refresh(
+                        studentAttendanceTrendsProvider(trendsParams),
+                      ),
                       child: Text('Retry'),
                     ),
                   ],
@@ -673,7 +887,7 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
               children: trends.map((weekData) {
                 final percentage = weekData['percentage'] as double;
                 final week = weekData['week'] as String;
-                
+
                 return Expanded(
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: 1.w),
@@ -686,7 +900,8 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
                         ),
                         SizedBox(height: 1.h),
                         Container(
-                          height: (percentage / 100) * 15.h, // Scale to available height
+                          height: (percentage / 100) *
+                              12.h, // Scale to available height
                           decoration: BoxDecoration(
                             color: percentage >= 75
                                 ? AppTheme.getStatusColor('success')
@@ -699,9 +914,8 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
                         SizedBox(height: 1.h),
                         Text(
                           week,
-                          style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
-                            fontSize: 8.sp,
-                          ),
+                          style: AppTheme.lightTheme.textTheme.labelSmall
+                              ?.copyWith(fontSize: 8.sp),
                         ),
                       ],
                     ),
@@ -725,39 +939,45 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
   Widget _buildAttendanceInsights(Map<String, dynamic> attendanceData) {
     final subjects = attendanceData['subjects'] as List<dynamic>? ?? [];
     final insights = <Widget>[];
-    
+
     for (final subject in subjects) {
       final percentage = subject['percentage'] as double;
       final name = subject['name'] as String;
-      
+
       if (percentage < 75) {
-        insights.add(_buildInsightItem(
-          'Your attendance in $name is ${percentage.toStringAsFixed(1)}%',
-          'You need to attend more classes to meet the 75% requirement',
-          Icons.warning_amber_rounded,
-          AppTheme.getStatusColor('error'),
-        ));
+        insights.add(
+          _buildInsightItem(
+            'Your attendance in $name is ${percentage.toStringAsFixed(1)}%',
+            'You need to attend more classes to meet the 75% requirement',
+            Icons.warning_amber_rounded,
+            AppTheme.getStatusColor('error'),
+          ),
+        );
         insights.add(SizedBox(height: 1.h));
       } else if (percentage >= 90) {
-        insights.add(_buildInsightItem(
-          'Excellent attendance in $name at ${percentage.toStringAsFixed(1)}%!',
-          'Keep up the great work',
-          Icons.celebration,
-          AppTheme.getStatusColor('success'),
-        ));
+        insights.add(
+          _buildInsightItem(
+            'Excellent attendance in $name at ${percentage.toStringAsFixed(1)}%!',
+            'Keep up the great work',
+            Icons.celebration,
+            AppTheme.getStatusColor('success'),
+          ),
+        );
         insights.add(SizedBox(height: 1.h));
       }
     }
-    
+
     if (insights.isEmpty) {
-      insights.add(_buildInsightItem(
-        'Your attendance is on track',
-        'Continue maintaining good attendance habits',
-        Icons.check_circle,
-        AppTheme.getStatusColor('info'),
-      ));
+      insights.add(
+        _buildInsightItem(
+          'Your attendance is on track',
+          'Continue maintaining good attendance habits',
+          Icons.check_circle,
+          AppTheme.getStatusColor('info'),
+        ),
+      );
     }
-    
+
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
       padding: EdgeInsets.all(4.w),
@@ -796,7 +1016,12 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
     );
   }
 
-  Widget _buildInsightItem(String title, String subtitle, IconData icon, Color color) {
+  Widget _buildInsightItem(
+    String title,
+    String subtitle,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: EdgeInsets.all(3.w),
       decoration: BoxDecoration(
@@ -912,19 +1137,19 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
   Future<void> _refreshData(Student studentData) async {
     final studentIdAsync = await ref.read(currentStudentIdProvider.future);
     if (studentIdAsync != null) {
-      final statsParams = {
-        'department': studentData.department,
-        'section': studentData.section,
-        'semester': studentData.semester,
-        'studentId': studentIdAsync,
-      };
-      
-      final attendanceParams = {
-        'department': studentData.department,
-        'section': studentData.section,
-        'semester': studentData.semester,
-      };
-      
+      final statsParams = StudentAttendanceParams(
+        department: studentData.department,
+        section: studentData.section,
+        semester: studentData.semester,
+        studentId: studentIdAsync,
+      );
+
+      final attendanceParams = AttendanceParams(
+        department: studentData.department,
+        section: studentData.section,
+        semester: studentData.semester,
+      );
+
       ref.invalidate(studentAttendanceStatsProvider(statsParams));
       ref.invalidate(studentAttendanceProvider(attendanceParams));
       ref.invalidate(studentAttendanceTrendsProvider(statsParams));
@@ -937,7 +1162,9 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Attendance Details'),
-        content: Text('Details for ${_formatDate(date)} will be shown here'),
+        content: Text(
+          'Details for ${_formatDate(date)} will be shown here',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -972,9 +1199,7 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
 
   void _exportReport() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Attendance report exported successfully'),
-      ),
+      const SnackBar(content: Text('Attendance report exported successfully')),
     );
   }
 
@@ -1002,8 +1227,18 @@ class _StudentAttendanceScreenState extends ConsumerState<StudentAttendanceScree
 
   String _getMonthYearString(DateTime date) {
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[date.month - 1]} ${date.year}';
   }

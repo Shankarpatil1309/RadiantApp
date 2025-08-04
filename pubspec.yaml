@@ -20,8 +20,8 @@ dependencies:
   # Feature dependencies - safe to modify
   cached_network_image: ^3.3.1
   connectivity_plus: ^6.1.4
-  dio: ^5.4.0
   fluttertoast: ^8.2.4
+  http: ^1.1.0
   fl_chart: ^0.65.0
   firebase_core: ^4.0.0
   cloud_firestore: ^6.0.0
@@ -34,6 +34,7 @@ dependencies:
   hive_flutter: ^1.1.0
   file_picker: ^10.2.0
   path_provider: ^2.1.4
+  file_saver: ^0.2.14
 
   path: any
   

@@ -1,10 +1,10 @@
 import 'dart:io';
-import 'package:dio/dio.dart';
+import 'package:file_saver/file_saver.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
+import 'package:http/http.dart' as http;
 
 class FileDownloadService {
-  final Dio _dio = Dio();
 
   /// Download a file from URL and save it to device storage
   /// Returns the path where the file was saved
@@ -96,38 +96,46 @@ class FileDownloadService {
         throw FileDownloadException('Invalid URL: $url - ${e.toString()}');
       }
 
-      print('🔄 Starting Dio download...');
+      print('🔄 Starting HTTP download...');
       
-      // Download the file
-      final response = await _dio.download(
-        url,
-        uniqueFilePath,
-        onReceiveProgress: (received, total) {
-          if (onProgress != null && total != -1) {
-            final progress = received / total;
-            onProgress(progress);
-          }
-          print('🔄 Download progress: ${received}/${total} bytes');
-        },
-      );
-
-      print('🔄 Download completed. Status code: ${response.statusCode}');
+      // Download the file using http
+      final response = await http.get(uri);
       
-      // Verify the file was actually created and has content
-      final downloadedFile = File(uniqueFilePath);
-      if (await downloadedFile.exists()) {
-        final fileSize = await downloadedFile.length();
-        print('✅ File downloaded successfully! Size: $fileSize bytes');
-        print('✅ File location: $uniqueFilePath');
-        
-        if (fileSize == 0) {
-          throw FileDownloadException('Downloaded file is empty');
-        }
-      } else {
-        throw FileDownloadException('File was not created at expected location: $uniqueFilePath');
+      if (response.statusCode != 200) {
+        throw FileDownloadException('HTTP error: ${response.statusCode}');
       }
-
-      return uniqueFilePath;
+      
+      print('🔄 Download completed. Status code: ${response.statusCode}');
+      print('🔄 Downloaded ${response.bodyBytes.length} bytes');
+      
+      // Get file extension for file_saver
+      final extension = path.extension(fileName).isEmpty 
+          ? '.bin' 
+          : path.extension(fileName);
+      
+      final baseFileName = path.basenameWithoutExtension(fileName);
+      
+      // Save file using file_saver
+      final savedFilePath = await FileSaver.instance.saveFile(
+        name: baseFileName,
+        bytes: response.bodyBytes,
+        ext: extension.replaceFirst('.', ''), // Remove the dot
+      );
+      
+      print('🔄 File saved using file_saver: $savedFilePath');
+      
+      // For consistency, return the expected path format
+      final finalPath = savedFilePath;
+      
+      // Verify the download was successful
+      if (response.bodyBytes.isEmpty) {
+        throw FileDownloadException('Downloaded file is empty');
+      }
+      
+      print('✅ File downloaded successfully! Size: ${response.bodyBytes.length} bytes');
+      print('✅ File location: $finalPath');
+      
+      return finalPath;
     } catch (e) {
       print('❌ Download failed: ${e.toString()}');
       throw FileDownloadException('Failed to download file: ${e.toString()}');
@@ -234,6 +242,7 @@ class FileDownloadService {
       return 'Downloads folder';
     }
   }
+
 }
 
 /// Custom exception for file download operations
