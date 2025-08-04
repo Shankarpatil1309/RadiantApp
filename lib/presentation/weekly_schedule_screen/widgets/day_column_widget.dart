@@ -76,6 +76,8 @@ class DayColumnWidget extends StatelessWidget {
 
   Widget _buildTimeSlots() {
     final timeSlots = _generateTimeSlots();
+    print('📅 ${dayName} - Generated time slots: $timeSlots');
+    print('📅 ${dayName} - Has ${classes.length} classes');
 
     return ListView.builder(
       itemCount: timeSlots.length,
@@ -95,22 +97,31 @@ class DayColumnWidget extends StatelessWidget {
   }
 
   List<String> _generateTimeSlots() {
-    // Generate time slots with 1.5-hour gaps to match class duration
+    // Generate time slots with 1-hour gaps
     return [
       '09:00',
-      '10:30', 
+      '10:00',
+      '11:00',
       '12:00',
-      '13:30',
+      '13:00',
+      '14:00',
       '15:00',
-      '16:30'
+      '16:00',
+      '17:00'
     ];
   }
 
   Map<String, dynamic>? _getClassForTimeSlot(String timeSlot) {
-    return classes.cast<Map<String, dynamic>?>().firstWhere(
-          (classItem) => classItem != null && classItem['time'].startsWith(timeSlot),
-          orElse: () => null,
-        );
+    print('🔍 Looking for class at time slot: $timeSlot');
+    for (final classItem in classes) {
+      print('  📋 Available class: "${classItem['subject']}" at ${classItem['time']}');
+      if (classItem['time'].startsWith(timeSlot)) {
+        print('  ✅ Match found: "${classItem['subject']}" matches $timeSlot');
+        return classItem;
+      }
+    }
+    print('  ❌ No class found for time slot: $timeSlot');
+    return null;
   }
 
   Widget _buildClassCard(Map<String, dynamic> classData) {

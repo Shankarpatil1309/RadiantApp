@@ -152,21 +152,25 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
               dayName: day,
               dayDate: dayDate,
               isToday: isToday,
-              classes: classes.map((session) => {
-                'time': '${session.startTime.hour.toString().padLeft(2, '0')}:${session.startTime.minute.toString().padLeft(2, '0')}',
-                'subject': session.subject,
-                'faculty': session.facultyName,
-                'room': session.room,
-                'contact': '', // Faculty's own contact
-                'progress': 0, // Could be derived from attendance/assignments
-                'attendance': 0, // Could be derived from attendance records
-                'totalClasses': 0, // Could be calculated
-                'section': session.section,
-                'semester': session.semester.toString(),
-                'title': session.title,
-                'department': session.department,
-                'type': session.type,
-                'id': session.id,
+              classes: classes.map((session) {
+                final timeStr = '${session.startTime.hour.toString().padLeft(2, '0')}:${session.startTime.minute.toString().padLeft(2, '0')}';
+                print('🕒 Mapping session "${session.subject}" with time: $timeStr (${session.startTime})');
+                return {
+                  'time': timeStr,
+                  'subject': session.subject,
+                  'faculty': session.facultyName,
+                  'room': session.room,
+                  'contact': '', // Faculty's own contact
+                  'progress': 0, // Could be derived from attendance/assignments
+                  'attendance': 0, // Could be derived from attendance records
+                  'totalClasses': 0, // Could be calculated
+                  'section': session.section,
+                  'semester': session.semester.toString(),
+                  'title': session.title,
+                  'department': session.department,
+                  'type': session.type,
+                  'id': session.id,
+                };
               }).toList(),
               onClassTap: _showClassDetails,
               onClassLongPress: _showQuickActions,
@@ -517,6 +521,10 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
     
     try {
       await ref.read(scheduleControllerProvider.notifier).addClassSession(session);
+      
+      // Force a manual refresh to ensure UI updates
+      await ref.read(scheduleControllerProvider.notifier).loadWeeklySchedule();
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Class session "${session.title}" added successfully'),
@@ -554,7 +562,7 @@ class _WeeklyScheduleScreenState extends ConsumerState<WeeklyScheduleScreen> {
       hour,
       0,
     );
-    final endTime = startTime.add(Duration(hours: 1, minutes: 30)); // Default 1.5 hour duration
+    final endTime = startTime.add(Duration(hours: 1)); // Default 1 hour duration
 
     showModalBottomSheet(
       context: context,

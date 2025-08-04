@@ -240,16 +240,7 @@ class _FacultyShellState extends ConsumerState<FacultyShell>
                 _showAssignmentModal(facultyData);
               },
             ),
-            ListTile(
-              leading:
-                  Icon(Icons.schedule, color: AppTheme.getRoleColor(userRole)),
-              title: const Text('Schedule Class'),
-              subtitle: const Text('Schedule one-time or recurring classes'),
-              onTap: () {
-                Navigator.pop(context);
-                _showScheduleClassModal(facultyData);
-              },
-            ),
+
             const SizedBox(height: 10),
           ],
         ),

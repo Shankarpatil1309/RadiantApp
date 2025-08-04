@@ -181,9 +181,16 @@ class ScheduleController extends StateNotifier<ScheduleState> {
 
   Future<void> addClassSession(ClassSession session) async {
     print('📅 Adding new class session: ${session.title}');
+    print('📅 Session details: Date=${session.date}, StartTime=${session.startTime}, FacultyId=${session.facultyId}');
     try {
-      await _classSessionService.createClassSession(session);
+      final sessionId = await _classSessionService.createClassSession(session);
+      print('✅ Class session created with ID: $sessionId');
+      
+      // Add a small delay to ensure Firestore has processed the write
+      await Future.delayed(Duration(milliseconds: 500));
+      
       await loadWeeklySchedule(); // Refresh the schedule
+      print('🔄 Schedule refreshed after adding session');
     } catch (e) {
       print('❌ Error adding class session: $e');
       state = state.copyWith(error: e.toString());
