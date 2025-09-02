@@ -49,3 +49,6 @@ app.*.map.json
 /android/app/.cxx/
 
 *.g.dart
+
+# FVM Version Cache
+.fvm/
