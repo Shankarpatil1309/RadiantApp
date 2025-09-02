@@ -111,7 +111,7 @@ class AppTheme {
     ),
 
     // Progressive Information Cards with subtle elevation
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: cardLight,
       elevation: 1,
       shadowColor: shadowLight,
@@ -298,7 +298,7 @@ class AppTheme {
       inactiveTrackColor: primaryLight.withAlpha(77),
     ),
 
-    tabBarTheme: TabBarTheme(
+    tabBarTheme: TabBarThemeData(
       labelColor: primaryLight,
       unselectedLabelColor: onSurfaceLight.withAlpha(153),
       indicatorColor: primaryLight,
@@ -398,7 +398,7 @@ class AppTheme {
         color: onSurfaceDark,
       ),
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: cardDark,
       elevation: 1,
       shadowColor: shadowDark,
@@ -566,7 +566,7 @@ class AppTheme {
       overlayColor: primaryDark.withAlpha(51),
       inactiveTrackColor: primaryDark.withAlpha(77),
     ),
-    tabBarTheme: TabBarTheme(
+    tabBarTheme: TabBarThemeData(
       labelColor: primaryDark,
       unselectedLabelColor: onSurfaceDark.withAlpha(153),
       indicatorColor: primaryDark,
